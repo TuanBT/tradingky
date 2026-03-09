@@ -62,9 +62,10 @@ interface TradeEditModalProps {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
+  mode?: "edit" | "close";
 }
 
-export function TradeEditModal({ tradeId, open, onClose, onSaved }: TradeEditModalProps) {
+export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" }: TradeEditModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [form, setForm] = useState<TradeForm | null>(null);
@@ -87,6 +88,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved }: TradeEditMod
       const trade = trades.find((t) => t.id === tradeId);
       if (trade) {
         tradeRef.current = trade;
+        const isClosing = mode === "close";
         setForm({
           date: trade.date,
           pair: trade.pair,
@@ -94,7 +96,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved }: TradeEditMod
           type: trade.type,
           emotion: trade.emotion,
           result: trade.result,
-          status: trade.status || "CLOSED",
+          status: isClosing ? "CLOSED" : (trade.status || "CLOSED"),
           pnl: trade.pnl,
           stopLoss: trade.stopLoss || "",
           takeProfit: trade.takeProfit || "",
@@ -106,19 +108,19 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved }: TradeEditMod
           exitPrice: trade.exitPrice,
           lotSize: trade.lotSize,
           timeframe: trade.timeframe || "",
-          closeDate: trade.closeDate || "",
+          closeDate: isClosing && !trade.closeDate ? new Date().toISOString().split("T")[0] : (trade.closeDate || ""),
           strategy: trade.strategy || "",
           exitReason: trade.exitReason || "",
           lessonsLearned: trade.lessonsLearned || "",
           exitChartImageUrl: trade.exitChartImageUrl || "",
         });
-        if (trade.entryPrice || trade.exitPrice || trade.lotSize || trade.timeframe || trade.closeDate || trade.strategy) {
+        if (isClosing || trade.entryPrice || trade.exitPrice || trade.lotSize || trade.timeframe || trade.closeDate || trade.strategy) {
           setShowAdvanced(true);
         }
       }
       setLoading(false);
     });
-  }, [open, tradeId, user]);
+  }, [open, tradeId, user, mode]);
 
   if (!form) return null;
 
@@ -181,12 +183,14 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved }: TradeEditMod
     }
   };
 
+  const isCloseMode = mode === "close";
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            Sửa lệnh: {form.pair}
+            {isCloseMode ? `Đóng lệnh: ${form.pair}` : `Sửa lệnh: ${form.pair}`}
             <Badge
               className={form.status === "OPEN"
                 ? "bg-blue-600 text-white cursor-pointer"
@@ -206,9 +210,47 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved }: TradeEditMod
           </div>
         ) : (
           <div className="space-y-6 pt-2">
+
+            {/* Close Trade Section - shown first in close mode */}
+            {isCloseMode && form.status === "CLOSED" && (
+              <Card className="border-2 border-amber-500/50 bg-amber-500/5">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                    <FontAwesomeIcon icon={faFlagCheckered} className="h-4 w-4" />
+                    Thông tin đóng lệnh
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">Kết quả *</Label>
+                      <div className="mt-1 flex gap-2">
+                        {(["WIN", "LOSS", "BREAKEVEN"] as const).map((r) => (
+                          <Button key={r} type="button" variant={form.result === r ? "default" : "outline"} className={`flex-1 ${form.result === r ? r === "WIN" ? "bg-green-600 hover:bg-green-700 text-white" : r === "LOSS" ? "bg-red-600 hover:bg-red-700 text-white" : "bg-yellow-600 hover:bg-yellow-700 text-white" : ""}`} onClick={() => updateForm({ result: r })}>
+                            {r === "WIN" ? "Thắng" : r === "LOSS" ? "Thua" : "Hoà"}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Lợi nhuận ($) *</Label>
+                      <Input type="number" step="0.01" placeholder="VD: 50.00" value={form.pnl ?? ""} onChange={(e) => updateForm({ pnl: e.target.value ? parseFloat(e.target.value) : undefined })} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Ngày đóng lệnh</Label>
+                      <Input type="date" value={form.closeDate} onChange={(e) => updateForm({ closeDate: e.target.value })} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Giá ra</Label>
+                      <Input type="number" step="any" placeholder="Giá thoát lệnh" value={form.exitPrice ?? ""} onChange={(e) => updateForm({ exitPrice: e.target.value ? parseFloat(e.target.value) : undefined })} className="mt-1" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             {/* Basic Info */}
-            <Card>
-              <CardHeader><CardTitle className="text-base">Thông tin cơ bản</CardTitle></CardHeader>
+            <Card className={isCloseMode ? "opacity-60" : ""}>
+              <CardHeader><CardTitle className="text-base">{isCloseMode ? "Thông tin vào lệnh (đã nhập)" : "Thông tin cơ bản"}</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
@@ -223,13 +265,15 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved }: TradeEditMod
                     <Label className="text-sm font-medium">Sàn *</Label>
                     <EditableSelect value={form.platform} onValueChange={(v) => updateForm({ platform: v })} items={library.platforms} onItemsChange={(items) => handleLibraryUpdate("platforms", items)} placeholder="Chọn sàn" />
                   </div>
+                  {!isCloseMode && (
                   <div>
                     <Label className="text-sm font-medium">Lợi nhuận ($)</Label>
                     <Input type="number" step="0.01" placeholder={form.status === "OPEN" ? "Chưa xác định" : "VD: 50.00"} value={form.pnl ?? ""} onChange={(e) => updateForm({ pnl: e.target.value ? parseFloat(e.target.value) : undefined })} className="mt-1" disabled={form.status === "OPEN"} />
                     {form.status === "OPEN" && <p className="text-xs text-muted-foreground mt-1">Đóng lệnh để nhập P&L</p>}
                   </div>
+                  )}
                 </div>
-                <div className={`grid grid-cols-1 ${form.status === "CLOSED" ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-4`}>
+                <div className={`grid grid-cols-1 ${!isCloseMode && form.status === "CLOSED" ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-4`}>
                   <div>
                     <Label className="text-sm font-medium">Loại lệnh *</Label>
                     <div className="mt-1 flex gap-2">
@@ -237,7 +281,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved }: TradeEditMod
                       <Button type="button" variant={form.type === "SELL" ? "default" : "outline"} className={`flex-1 ${form.type === "SELL" ? "bg-orange-600 hover:bg-orange-700 text-white" : ""}`} onClick={() => updateForm({ type: "SELL" })}>SELL</Button>
                     </div>
                   </div>
-                  {form.status === "CLOSED" && (
+                  {!isCloseMode && form.status === "CLOSED" && (
                     <div>
                       <Label className="text-sm font-medium">Kết quả *</Label>
                       <div className="mt-1 flex gap-2">
@@ -258,7 +302,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved }: TradeEditMod
             </Card>
 
             {/* Trade Details */}
-            <Card>
+            <Card className={isCloseMode ? "opacity-60" : ""}>
               <CardHeader><CardTitle className="text-base">Chi tiết lệnh</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

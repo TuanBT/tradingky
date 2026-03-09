@@ -16,7 +16,6 @@ import {
   faPercent,
   faArrowTrendUp,
   faArrowTrendDown,
-  faFire,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -132,20 +131,6 @@ export default function DashboardPage() {
   // Recent trades
   const recentTrades = useMemo(() => trades.slice(0, 5), [trades]);
 
-  // Streak
-  const streak = useMemo(() => {
-    if (trades.length === 0) return { type: "none" as const, count: 0 };
-    const sorted = [...trades].sort((a, b) => b.date.localeCompare(a.date));
-    const firstResult = sorted[0].result;
-    if (firstResult === "BREAKEVEN") return { type: "none" as const, count: 0 };
-    let count = 0;
-    for (const t of sorted) {
-      if (t.result === firstResult) count++;
-      else break;
-    }
-    return { type: firstResult as "WIN" | "LOSS", count };
-  }, [trades]);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -172,21 +157,10 @@ export default function DashboardPage() {
             {format(new Date(), "EEEE, dd/MM/yyyy", { locale: vi })}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {streak.count > 1 && (
-            <Badge
-              variant={streak.type === "WIN" ? "default" : "destructive"}
-              className="text-sm px-3 py-1"
-            >
-              <FontAwesomeIcon icon={faFire} className="mr-1" />
-              {streak.type === "WIN" ? "Thắng" : "Thua"} {streak.count} lệnh liên tiếp
-            </Badge>
-          )}
-          <Button onClick={() => router.push("/trades/new")} size="default">
-            <FontAwesomeIcon icon={faPlus} className="mr-2" />
-            Thêm lệnh
-          </Button>
-        </div>
+        <Button onClick={() => router.push("/trades/new")} size="default">
+          <FontAwesomeIcon icon={faPlus} className="mr-2" />
+          Thêm lệnh
+        </Button>
       </div>
 
       {/* Stats Cards */}

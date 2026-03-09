@@ -328,6 +328,7 @@ export default function TradeDetailPage() {
         open={editOpen}
         onClose={() => setEditOpen(false)}
         onSaved={loadData}
+        mode={isOpen ? "close" : "edit"}
       />
     </div>
   );
