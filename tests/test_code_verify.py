@@ -24,17 +24,16 @@ def read_file(rel_path: str) -> str:
 # 1. SIDEBAR: "Xem lại lệnh" label
 # ============================================================
 class TestSidebarLabel:
-    def test_sidebar_has_xem_lai_lenh(self):
-        """Sidebar should use 'Xem lại lệnh', not 'Review lệnh'."""
+    def test_sidebar_has_quan_ly_lenh(self):
+        """Sidebar should use 'Quản lý lệnh'."""
         content = read_file("components/Sidebar.tsx")
-        assert "Xem lại lệnh" in content, "Sidebar should have 'Xem lại lệnh'"
+        assert "Quản lý lệnh" in content, "Sidebar should have 'Quản lý lệnh'"
         assert "Review lệnh" not in content, "Sidebar should NOT have 'Review lệnh'"
 
-    def test_review_page_no_review_text(self):
-        """Review page should use 'xem lại' instead of 'review' in Vietnamese text."""
+    def test_review_page_redirects(self):
+        """Review page should redirect to /trades?view=detail."""
         content = read_file("app/review/page.tsx")
-        assert "để xem lại" in content, "Review page should say 'để xem lại'"
-        assert "để review" not in content, "Review page should NOT say 'để review'"
+        assert "/trades?view=detail" in content, "Review page should redirect to /trades?view=detail"
 
 
 # ============================================================
@@ -122,9 +121,9 @@ class TestDateFilter:
         assert 'year-' in content, "Should filter by year prefix"
         assert 'month-' not in content, "Should NOT filter by month prefix"
 
-    def test_review_page_year_filter_logic(self):
-        """Review page should use shared filterTrades function."""
-        content = read_file("app/review/page.tsx")
+    def test_trades_page_uses_shared_filter(self):
+        """Trades page should use shared filterTrades function."""
+        content = read_file("app/trades/page.tsx")
         assert 'filterTrades' in content, "Should use shared filterTrades"
 
 
@@ -166,37 +165,50 @@ class TestEditModal:
 # ============================================================
 # 5. REVIEW PAGE: Mini-list features
 # ============================================================
-class TestReviewMiniList:
+class TestDetailViewMiniList:
+    """Tests for the detail view mini-list (now in unified trades page)."""
+
     def test_mini_list_collapsible(self):
-        """Review page mini-list should be collapsible."""
-        content = read_file("app/review/page.tsx")
+        """Trades detail view mini-list should be collapsible."""
+        content = read_file("app/trades/page.tsx")
         assert "listCollapsed" in content, "Should have listCollapsed state"
         assert "setListCollapsed" in content or "Collapsed" in content
 
     def test_mini_list_paginated(self):
-        """Review page mini-list should be paginated."""
-        content = read_file("app/review/page.tsx")
+        """Trades detail view mini-list should be paginated."""
+        content = read_file("app/trades/page.tsx")
         assert "listPage" in content, "Should have listPage state"
         assert "listPageSize" in content, "Should have listPageSize constant"
 
     def test_mini_list_page_size_10(self):
         """Mini-list page size should be 10."""
-        content = read_file("app/review/page.tsx")
+        content = read_file("app/trades/page.tsx")
         match = re.search(r'listPageSize\s*=\s*(\d+)', content)
         assert match, "Should define listPageSize"
         assert match.group(1) == "10", f"listPageSize should be 10, got {match.group(1)}"
 
     def test_mini_list_auto_sync(self):
         """Mini-list should auto-sync page when navigating."""
-        content = read_file("app/review/page.tsx")
+        content = read_file("app/trades/page.tsx")
         assert "Math.floor" in content and "listPageSize" in content, \
             "Should auto-calculate page from currentIndex"
 
     def test_mini_list_scroll_to_active(self):
         """Mini-list should scroll active item into view."""
-        content = read_file("app/review/page.tsx")
+        content = read_file("app/trades/page.tsx")
         assert "scrollIntoView" in content, "Should scroll to active item"
         assert "activeItemRef" in content, "Should have ref for active item"
+
+    def test_view_toggle_exists(self):
+        """Trades page should have view toggle (list/detail)."""
+        content = read_file("app/trades/page.tsx")
+        assert 'viewMode' in content, "Should have viewMode state"
+        assert '"list"' in content and '"detail"' in content, "Should support list and detail views"
+
+    def test_edit_mode_close_in_list(self):
+        """List view edit button should pass close mode for open trades."""
+        content = read_file("app/trades/page.tsx")
+        assert 'mode={tradeModalMode}' in content, "TradeEditModal should receive tradeModalMode prop"
 
 
 # ============================================================
@@ -318,6 +330,6 @@ class TestNewFeatures:
         assert "setFormErrors" in content
 
     def test_error_states_in_pages(self):
-        for page in ["app/trades/page.tsx", "app/review/page.tsx", "app/page.tsx"]:
+        for page in ["app/trades/page.tsx", "app/page.tsx"]:
             content = read_file(page)
             assert "setError" in content, f"{page} should have error state"

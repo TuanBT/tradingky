@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
+import { ensureUserDoc } from "@/lib/services";
 
 interface AuthContextType {
   user: User | null;
@@ -26,6 +27,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
+      if (user) {
+        ensureUserDoc(user.uid);
+      }
     });
     return unsubscribe;
   }, []);

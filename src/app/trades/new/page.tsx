@@ -54,7 +54,6 @@ interface TradeForm {
   strategy: string;
   exitReason: string;
   lessonsLearned: string;
-  exitChartImageUrl: string;
 }
 
 const emptyForm: TradeForm = {
@@ -80,7 +79,6 @@ const emptyForm: TradeForm = {
   strategy: "",
   exitReason: "",
   lessonsLearned: "",
-  exitChartImageUrl: "",
 };
 
 export default function TradeFormPage() {
@@ -154,7 +152,6 @@ function TradeFormContent() {
             strategy: trade.strategy || "",
             exitReason: trade.exitReason || "",
             lessonsLearned: trade.lessonsLearned || "",
-            exitChartImageUrl: trade.exitChartImageUrl || "",
           });
           if (trade.entryPrice || trade.exitPrice || trade.lotSize || trade.timeframe || trade.closeDate || trade.strategy) {
             setShowAdvanced(true);
@@ -265,7 +262,6 @@ function TradeFormContent() {
       strategy: form.strategy || undefined,
       exitReason: form.exitReason || undefined,
       lessonsLearned: form.lessonsLearned || undefined,
-      exitChartImageUrl: form.exitChartImageUrl || undefined,
       createdAt: editTrade?.createdAt || Date.now(),
     };
 
@@ -280,7 +276,7 @@ function TradeFormContent() {
       setSaving(false);
       setSaved(true);
       setTimeout(() => {
-        router.back();
+        router.push("/trades");
       }, 800);
     } catch (error) {
       setSaving(false);
@@ -411,7 +407,7 @@ function TradeFormContent() {
                   />
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Lợi nhuận ($)</Label>
+                  <Label className="text-sm text-muted-foreground">Lợi nhuận ($)</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -493,14 +489,14 @@ function TradeFormContent() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-muted/30 ring-foreground/5">
             <CardHeader>
-              <CardTitle className="text-base">Chi tiết lệnh</CardTitle>
+              <CardTitle className="text-base text-muted-foreground">Chi tiết lệnh</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Stop Loss</Label>
+                  <Label className="text-sm text-muted-foreground">Stop Loss</Label>
                   <Input
                     placeholder="VD: Dưới support 2900, 20 pips..."
                     value={form.stopLoss}
@@ -509,7 +505,7 @@ function TradeFormContent() {
                   />
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Take Profit</Label>
+                  <Label className="text-sm text-muted-foreground">Take Profit</Label>
                   <Input
                     placeholder="VD: Resistance 2950, 40 pips..."
                     value={form.takeProfit}
@@ -518,7 +514,7 @@ function TradeFormContent() {
                   />
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Lý do vào lệnh</Label>
+                  <Label className="text-sm text-muted-foreground">Lý do vào lệnh</Label>
                   <EditableSelect
                     value={form.reason}
                     onValueChange={(v) => updateForm({ reason: v })}
@@ -530,7 +526,7 @@ function TradeFormContent() {
               </div>
 
               <div>
-                <Label className="text-sm font-medium">
+                <Label className="text-sm text-muted-foreground">
                   <FontAwesomeIcon icon={faImage} className="mr-1" />
                   Ảnh chart
                 </Label>
@@ -598,7 +594,7 @@ function TradeFormContent() {
               </div>
 
               <div>
-                <Label className="text-sm font-medium">Ghi chú lúc vào lệnh</Label>
+                <Label className="text-sm text-muted-foreground">Ghi chú lúc vào lệnh</Label>
                 <Textarea
                   placeholder="Phân tích, nhận định, lý do chi tiết..."
                   value={form.note}
@@ -622,7 +618,7 @@ function TradeFormContent() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium">Lý do thoát lệnh</Label>
+                    <Label className="text-sm text-muted-foreground">Lý do thoát lệnh</Label>
                     <Textarea
                       placeholder="Đạt TP, chạm SL, thoát sớm vì..."
                       value={form.exitReason}
@@ -632,7 +628,7 @@ function TradeFormContent() {
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium">Bài học / Kinh nghiệm</Label>
+                    <Label className="text-sm text-muted-foreground">Bài học / Kinh nghiệm</Label>
                     <Textarea
                       placeholder="Điều gì làm tốt? Cần cải thiện gì? Lần sau sẽ..."
                       value={form.lessonsLearned}
@@ -644,15 +640,15 @@ function TradeFormContent() {
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium">
+                  <Label className="text-sm text-muted-foreground">
                     <FontAwesomeIcon icon={faImage} className="mr-1" />
-                    Ảnh chart lúc đóng lệnh
+                    Cập nhật ảnh chart (đè ảnh lúc mở lệnh)
                   </Label>
                   <div className="mt-1 flex gap-2">
                     <Input
-                      placeholder="Paste link hoặc upload..."
-                      value={form.exitChartImageUrl}
-                      onChange={(e) => updateForm({ exitChartImageUrl: e.target.value })}
+                      placeholder="Paste link ảnh..."
+                      value={form.chartImageUrl}
+                      onChange={(e) => updateForm({ chartImageUrl: e.target.value })}
                       className="flex-1"
                     />
                     <label>
@@ -666,7 +662,7 @@ function TradeFormContent() {
                           setUploading(true);
                           try {
                             const url = await uploadChartImage(user.uid, file);
-                            updateForm({ exitChartImageUrl: url });
+                            updateForm({ chartImageUrl: url });
                           } catch (err) {
                             setFormErrors([(err as Error).message || "Lỗi upload ảnh."]);
                           }
@@ -675,17 +671,21 @@ function TradeFormContent() {
                         }}
                       />
                       <span className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
-                        <FontAwesomeIcon icon={faUpload} className="h-4 w-4" />
+                        {uploading ? (
+                          <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <FontAwesomeIcon icon={faUpload} className="h-4 w-4" />
+                        )}
                       </span>
                     </label>
                   </div>
-                  {form.exitChartImageUrl && (
+                  {form.chartImageUrl && (
                     <div className="mt-2">
-                      <a href={form.exitChartImageUrl} target="_blank" rel="noopener noreferrer">
+                      <a href={form.chartImageUrl} target="_blank" rel="noopener noreferrer">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={form.exitChartImageUrl}
-                          alt="Exit chart"
+                          src={form.chartImageUrl}
+                          alt="Chart"
                           className="rounded-lg border max-h-48 w-full object-contain bg-muted cursor-pointer hover:opacity-90 transition-opacity"
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
@@ -698,13 +698,13 @@ function TradeFormContent() {
           )}
 
           {/* Advanced */}
-          <Card>
+          <Card className="bg-muted/30 ring-foreground/5">
             <CardHeader>
               <button
                 className="flex items-center justify-between w-full text-left"
                 onClick={() => setShowAdvanced(!showAdvanced)}
               >
-                <CardTitle className="text-base">Thông tin nâng cao</CardTitle>
+                <CardTitle className="text-base text-muted-foreground">Thông tin nâng cao</CardTitle>
                 <FontAwesomeIcon
                   icon={showAdvanced ? faChevronUp : faChevronDown}
                   className="h-4 w-4 text-muted-foreground"
@@ -715,7 +715,7 @@ function TradeFormContent() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <Label className="text-sm font-medium">Giá vào</Label>
+                    <Label className="text-sm text-muted-foreground">Giá vào</Label>
                     <Input
                       type="number"
                       step="any"
@@ -729,7 +729,7 @@ function TradeFormContent() {
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium">Giá ra</Label>
+                    <Label className="text-sm text-muted-foreground">Giá ra</Label>
                     <Input
                       type="number"
                       step="any"
@@ -743,7 +743,7 @@ function TradeFormContent() {
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium">Lot / Quantity</Label>
+                    <Label className="text-sm text-muted-foreground">Lot / Quantity</Label>
                     <Input
                       type="number"
                       step="any"
@@ -759,7 +759,7 @@ function TradeFormContent() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <Label className="text-sm font-medium">Timeframe</Label>
+                    <Label className="text-sm text-muted-foreground">Timeframe</Label>
                     <EditableSelect
                       value={form.timeframe}
                       onValueChange={(v) => updateForm({ timeframe: v })}
@@ -769,7 +769,7 @@ function TradeFormContent() {
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium">Ngày đóng lệnh</Label>
+                    <Label className="text-sm text-muted-foreground">Ngày đóng lệnh</Label>
                     <Input
                       type="date"
                       value={form.closeDate}
@@ -778,7 +778,7 @@ function TradeFormContent() {
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium">Strategy</Label>
+                    <Label className="text-sm text-muted-foreground">Strategy</Label>
                     <EditableSelect
                       value={form.strategy}
                       onValueChange={(v) => updateForm({ strategy: v })}

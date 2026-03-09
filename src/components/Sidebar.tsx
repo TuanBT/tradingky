@@ -15,7 +15,6 @@ import {
   faXmark,
   faRightFromBracket,
   faShieldHalved,
-  faBookOpen,
   faShield,
   faClipboardCheck,
 } from "@fortawesome/free-solid-svg-icons";
@@ -27,15 +26,7 @@ import { useState } from "react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: faChartLine },
-  {
-    href: "/trades",
-    label: "Quản lý lệnh",
-    icon: faListCheck,
-    children: [
-      { href: "/trades", label: "Danh sách lệnh" },
-      { href: "/review", label: "Xem lại lệnh" },
-    ],
-  },
+  { href: "/trades", label: "Quản lý lệnh", icon: faListCheck },
   { href: "/statistics", label: "Thống kê", icon: faChartPie },
   { href: "/risk", label: "Quản lý rủi ro", icon: faShield },
   { href: "/checklist", label: "Checklist", icon: faClipboardCheck },
@@ -61,8 +52,8 @@ export function Sidebar() {
 
       <nav className="flex-1 p-3 space-y-1">
         {navItems.map((item) => {
-          const isActive = item.children
-            ? pathname === item.href || pathname.startsWith("/trades/") || pathname === "/review"
+          const isActive = item.href === "/trades"
+            ? pathname === "/trades" || pathname.startsWith("/trades/")
             : pathname === item.href;
 
           return (
@@ -73,37 +64,13 @@ export function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                   isActive
-                    ? item.children ? "bg-accent text-accent-foreground" : "bg-primary text-primary-foreground"
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
               >
                 <FontAwesomeIcon icon={item.icon} className="w-4 h-4" />
                 {item.label}
               </Link>
-              {item.children && isActive && (
-                <div className="ml-6 mt-1 space-y-0.5 border-l-2 border-border pl-3">
-                  {item.children.map((child) => {
-                    const childActive = child.href === "/trades"
-                      ? pathname === "/trades" || pathname.startsWith("/trades/")
-                      : pathname === child.href;
-                    return (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        onClick={() => setMobileOpen(false)}
-                        className={cn(
-                          "block px-2 py-1.5 rounded text-xs font-medium transition-colors",
-                          childActive
-                            ? "text-primary bg-primary/10"
-                            : "text-muted-foreground hover:text-accent-foreground"
-                        )}
-                      >
-                        {child.label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           );
         })}

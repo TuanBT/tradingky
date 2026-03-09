@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Trade, DropdownLibrary, DEFAULT_LIBRARY } from "@/lib/types";
-import { updateTrade, getLibrary, getTrades, uploadChartImage, updateLibrary } from "@/lib/services";
+import { addTrade, updateTrade, getLibrary, getTrades, uploadChartImage, updateLibrary } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
+import { format } from "date-fns";
 import { useToast } from "@/components/ToastProvider";
 import {
   Dialog,
@@ -54,15 +55,41 @@ interface TradeForm {
   strategy: string;
   exitReason: string;
   lessonsLearned: string;
-  exitChartImageUrl: string;
 }
+
+const AUTOSAVE_KEY = "tradingky_draft";
+
+const emptyForm: TradeForm = {
+  date: "",
+  pair: "",
+  platform: "",
+  type: "BUY",
+  emotion: "",
+  result: "WIN",
+  status: "OPEN",
+  pnl: undefined,
+  stopLoss: "",
+  takeProfit: "",
+  reason: "",
+  chartImageUrl: "",
+  note: "",
+  tags: [],
+  entryPrice: undefined,
+  exitPrice: undefined,
+  lotSize: undefined,
+  timeframe: "",
+  closeDate: "",
+  strategy: "",
+  exitReason: "",
+  lessonsLearned: "",
+};
 
 interface TradeEditModalProps {
   tradeId: string | null;
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
-  mode?: "edit" | "close";
+  mode?: "add" | "edit" | "close";
 }
 
 export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" }: TradeEditModalProps) {
@@ -76,56 +103,102 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [uploading, setUploading] = useState(false);
   const tradeRef = useRef<Trade | null>(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<string>("");
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAddMode = mode === "add";
 
   useEffect(() => {
-    if (!open || !tradeId || !user) return;
-    setLoading(true);
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open || !user) return;
     setSaved(false);
     setSaving(false);
+    setAutoSaveStatus("");
 
-    Promise.all([getTrades(user.uid), getLibrary(user.uid)]).then(([trades, lib]) => {
-      setLibrary(lib);
-      const trade = trades.find((t) => t.id === tradeId);
-      if (trade) {
-        tradeRef.current = trade;
-        const isClosing = mode === "close";
-        setForm({
-          date: trade.date,
-          pair: trade.pair,
-          platform: trade.platform,
-          type: trade.type,
-          emotion: trade.emotion,
-          result: trade.result,
-          status: isClosing ? "CLOSED" : (trade.status || "CLOSED"),
-          pnl: trade.pnl,
-          stopLoss: trade.stopLoss || "",
-          takeProfit: trade.takeProfit || "",
-          reason: trade.reason || "",
-          chartImageUrl: trade.chartImageUrl || "",
-          note: trade.note || "",
-          tags: trade.tags || [],
-          entryPrice: trade.entryPrice,
-          exitPrice: trade.exitPrice,
-          lotSize: trade.lotSize,
-          timeframe: trade.timeframe || "",
-          closeDate: isClosing && !trade.closeDate ? new Date().toISOString().split("T")[0] : (trade.closeDate || ""),
-          strategy: trade.strategy || "",
-          exitReason: trade.exitReason || "",
-          lessonsLearned: trade.lessonsLearned || "",
-          exitChartImageUrl: trade.exitChartImageUrl || "",
-        });
-        if (isClosing || trade.entryPrice || trade.exitPrice || trade.lotSize || trade.timeframe || trade.closeDate || trade.strategy) {
-          setShowAdvanced(true);
+    if (isAddMode) {
+      tradeRef.current = null;
+      const draft = localStorage.getItem(AUTOSAVE_KEY);
+      if (draft) {
+        try {
+          const parsed = JSON.parse(draft);
+          setForm({ ...emptyForm, date: format(new Date(), "yyyy-MM-dd"), ...parsed });
+          setAutoSaveStatus("Đã khôi phục bản nháp");
+        } catch {
+          setForm({ ...emptyForm, date: format(new Date(), "yyyy-MM-dd") });
         }
+      } else {
+        setForm({ ...emptyForm, date: format(new Date(), "yyyy-MM-dd") });
       }
+      setShowAdvanced(false);
       setLoading(false);
-    });
-  }, [open, tradeId, user, mode]);
-
-  if (!form) return null;
+      getLibrary(user.uid).then((lib) => setLibrary(lib));
+    } else {
+      if (!tradeId) return;
+      setLoading(true);
+      Promise.all([getTrades(user.uid), getLibrary(user.uid)]).then(([trades, lib]) => {
+        setLibrary(lib);
+        const trade = trades.find((t) => t.id === tradeId);
+        if (trade) {
+          tradeRef.current = trade;
+          const isClosing = mode === "close";
+          setForm({
+            date: trade.date,
+            pair: trade.pair,
+            platform: trade.platform,
+            type: trade.type,
+            emotion: trade.emotion,
+            result: trade.result,
+            status: isClosing ? "CLOSED" : (trade.status || "CLOSED"),
+            pnl: trade.pnl,
+            stopLoss: trade.stopLoss || "",
+            takeProfit: trade.takeProfit || "",
+            reason: trade.reason || "",
+            chartImageUrl: trade.chartImageUrl || "",
+            note: trade.note || "",
+            tags: trade.tags || [],
+            entryPrice: trade.entryPrice,
+            exitPrice: trade.exitPrice,
+            lotSize: trade.lotSize,
+            timeframe: trade.timeframe || "",
+            closeDate: isClosing && !trade.closeDate ? new Date().toISOString().split("T")[0] : (trade.closeDate || ""),
+            strategy: trade.strategy || "",
+            exitReason: trade.exitReason || "",
+            lessonsLearned: trade.lessonsLearned || "",
+          });
+          if (isClosing || trade.entryPrice || trade.exitPrice || trade.lotSize || trade.timeframe || trade.closeDate || trade.strategy) {
+            setShowAdvanced(true);
+          }
+        }
+        setLoading(false);
+      });
+    }
+  }, [open, tradeId, user, mode, isAddMode]);
 
   const updateForm = (updates: Partial<TradeForm>) => {
-    setForm((prev) => prev ? { ...prev, ...updates } : prev);
+    setForm((prev) => {
+      if (!prev) return prev;
+      const newForm = { ...prev, ...updates };
+      if (isAddMode) {
+        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+        autoSaveTimer.current = setTimeout(() => {
+          localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(newForm));
+          setAutoSaveStatus("Đã lưu nháp");
+          setTimeout(() => setAutoSaveStatus(""), 2000);
+        }, 1000);
+      }
+      return newForm;
+    });
+  };
+
+  const handleClearDraft = () => {
+    localStorage.removeItem(AUTOSAVE_KEY);
+    setForm({ ...emptyForm, date: format(new Date(), "yyyy-MM-dd") });
+    setAutoSaveStatus("Đã xoá bản nháp");
+    setTimeout(() => setAutoSaveStatus(""), 2000);
   };
 
   const handleLibraryUpdate = (key: keyof DropdownLibrary, items: string[]) => {
@@ -135,11 +208,17 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
   };
 
   const handleSubmit = async () => {
+    if (!form) return;
+    if (isAddMode && !form.date) {
+      toast("Ngày vào lệnh là bắt buộc", "error");
+      return;
+    }
     if (!form.pair || !form.platform || !form.emotion) {
       toast("Vui lòng điền đầy đủ: Cặp tiền, Sàn, và Tâm lý", "error");
       return;
     }
-    if (!user || !tradeRef.current) return;
+    if (!user) return;
+    if (!isAddMode && !tradeRef.current) return;
 
     setSaving(true);
     const tradeData = {
@@ -165,12 +244,16 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
       strategy: form.strategy || undefined,
       exitReason: form.exitReason || undefined,
       lessonsLearned: form.lessonsLearned || undefined,
-      exitChartImageUrl: form.exitChartImageUrl || undefined,
-      createdAt: tradeRef.current.createdAt || Date.now(),
+      createdAt: isAddMode ? Date.now() : (tradeRef.current?.createdAt || Date.now()),
     };
 
     try {
-      await updateTrade(user.uid, tradeRef.current.id, tradeData);
+      if (isAddMode) {
+        await addTrade(user.uid, tradeData as Omit<Trade, "id">);
+        localStorage.removeItem(AUTOSAVE_KEY);
+      } else {
+        await updateTrade(user.uid, tradeRef.current!.id, tradeData);
+      }
       setSaving(false);
       setSaved(true);
       setTimeout(() => {
@@ -190,7 +273,8 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
       <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            {isCloseMode ? `Đóng lệnh: ${form.pair}` : `Sửa lệnh: ${form.pair}`}
+            {isAddMode ? "Thêm lệnh mới" : isCloseMode ? `Đóng lệnh: ${form?.pair}` : `Sửa lệnh: ${form?.pair}`}
+            {form && (
             <Badge
               className={form.status === "OPEN"
                 ? "bg-blue-600 text-white cursor-pointer"
@@ -201,10 +285,14 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
               <FontAwesomeIcon icon={form.status === "OPEN" ? faPlay : faFlagCheckered} className="mr-1 h-3 w-3" />
               {form.status === "OPEN" ? "Đang chạy" : "Đã đóng"}
             </Badge>
+            )}
           </DialogTitle>
+          {isAddMode && autoSaveStatus && (
+            <p className="text-xs text-muted-foreground">{autoSaveStatus}</p>
+          )}
         </DialogHeader>
 
-        {loading ? (
+        {loading || !form ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
@@ -221,7 +309,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <Label className="text-sm font-medium">Kết quả *</Label>
                       <div className="mt-1 flex gap-2">
@@ -237,12 +325,8 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                       <Input type="number" step="0.01" placeholder="VD: 50.00" value={form.pnl ?? ""} onChange={(e) => updateForm({ pnl: e.target.value ? parseFloat(e.target.value) : undefined })} className="mt-1" />
                     </div>
                     <div>
-                      <Label className="text-sm font-medium">Ngày đóng lệnh</Label>
+                      <Label className="text-sm text-muted-foreground">Ngày đóng lệnh</Label>
                       <Input type="date" value={form.closeDate} onChange={(e) => updateForm({ closeDate: e.target.value })} className="mt-1" />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Giá ra</Label>
-                      <Input type="number" step="any" placeholder="Giá thoát lệnh" value={form.exitPrice ?? ""} onChange={(e) => updateForm({ exitPrice: e.target.value ? parseFloat(e.target.value) : undefined })} className="mt-1" />
                     </div>
                   </div>
                 </CardContent>
@@ -267,7 +351,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                   </div>
                   {!isCloseMode && (
                   <div>
-                    <Label className="text-sm font-medium">Lợi nhuận ($)</Label>
+                    <Label className="text-sm text-muted-foreground">Lợi nhuận ($)</Label>
                     <Input type="number" step="0.01" placeholder={form.status === "OPEN" ? "Chưa xác định" : "VD: 50.00"} value={form.pnl ?? ""} onChange={(e) => updateForm({ pnl: e.target.value ? parseFloat(e.target.value) : undefined })} className="mt-1" disabled={form.status === "OPEN"} />
                     {form.status === "OPEN" && <p className="text-xs text-muted-foreground mt-1">Đóng lệnh để nhập P&L</p>}
                   </div>
@@ -302,26 +386,26 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
             </Card>
 
             {/* Trade Details */}
-            <Card className={isCloseMode ? "opacity-60" : ""}>
-              <CardHeader><CardTitle className="text-base">Chi tiết lệnh</CardTitle></CardHeader>
+            <Card className={`bg-muted/30 ring-foreground/5 ${isCloseMode ? "opacity-60" : ""}`}>
+              <CardHeader><CardTitle className="text-base text-muted-foreground">Chi tiết lệnh</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <Label className="text-sm font-medium">Stop Loss</Label>
+                    <Label className="text-sm text-muted-foreground">Stop Loss</Label>
                     <Input placeholder="VD: 20 pips..." value={form.stopLoss} onChange={(e) => updateForm({ stopLoss: e.target.value })} className="mt-1" />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium">Take Profit</Label>
+                    <Label className="text-sm text-muted-foreground">Take Profit</Label>
                     <Input placeholder="VD: 40 pips..." value={form.takeProfit} onChange={(e) => updateForm({ takeProfit: e.target.value })} className="mt-1" />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium">Lý do vào lệnh</Label>
+                    <Label className="text-sm text-muted-foreground">Lý do vào lệnh</Label>
                     <EditableSelect value={form.reason} onValueChange={(v) => updateForm({ reason: v })} items={library.reasons} onItemsChange={(items) => handleLibraryUpdate("reasons", items)} placeholder="Chọn lý do" />
                   </div>
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium">
+                  <Label className="text-sm text-muted-foreground">
                     <FontAwesomeIcon icon={faImage} className="mr-1" /> Ảnh chart
                   </Label>
                   <div className="mt-1 flex gap-2">
@@ -349,7 +433,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium">Ghi chú lúc vào lệnh</Label>
+                  <Label className="text-sm text-muted-foreground">Ghi chú lúc vào lệnh</Label>
                   <Textarea placeholder="Phân tích, nhận định..." value={form.note} onChange={(e) => updateForm({ note: e.target.value })} rows={3} className="mt-1" />
                 </div>
               </CardContent>
@@ -367,36 +451,38 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-sm font-medium">Lý do thoát lệnh</Label>
+                      <Label className="text-sm text-muted-foreground">Lý do thoát lệnh</Label>
                       <Textarea placeholder="Đạt TP, chạm SL..." value={form.exitReason} onChange={(e) => updateForm({ exitReason: e.target.value })} rows={3} className="mt-1" />
                     </div>
                     <div>
-                      <Label className="text-sm font-medium">Bài học / Kinh nghiệm</Label>
+                      <Label className="text-sm text-muted-foreground">Bài học / Kinh nghiệm</Label>
                       <Textarea placeholder="Điều gì làm tốt? Cần cải thiện?" value={form.lessonsLearned} onChange={(e) => updateForm({ lessonsLearned: e.target.value })} rows={3} className="mt-1" />
                     </div>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium"><FontAwesomeIcon icon={faImage} className="mr-1" /> Ảnh chart lúc đóng</Label>
+                    <Label className="text-sm text-muted-foreground">
+                      <FontAwesomeIcon icon={faImage} className="mr-1" /> Cập nhật ảnh chart (đè ảnh lúc mở lệnh)
+                    </Label>
                     <div className="mt-1 flex gap-2">
-                      <Input placeholder="Paste link..." value={form.exitChartImageUrl} onChange={(e) => updateForm({ exitChartImageUrl: e.target.value })} className="flex-1" />
+                      <Input placeholder="Paste link ảnh..." value={form.chartImageUrl} onChange={(e) => updateForm({ chartImageUrl: e.target.value })} className="flex-1" />
                       <label>
                         <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (!file || !user) return;
                           setUploading(true);
-                          try { const url = await uploadChartImage(user.uid, file); updateForm({ exitChartImageUrl: url }); } catch (err) { toast((err as Error).message || "Lỗi upload ảnh.", "error"); }
+                          try { const url = await uploadChartImage(user.uid, file); updateForm({ chartImageUrl: url }); } catch (err) { toast((err as Error).message || "Lỗi upload ảnh.", "error"); }
                           setUploading(false);
                           e.target.value = "";
                         }} />
                         <span className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
-                          <FontAwesomeIcon icon={faUpload} className="h-4 w-4" />
+                          {uploading ? <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin" /> : <FontAwesomeIcon icon={faUpload} className="h-4 w-4" />}
                         </span>
                       </label>
                     </div>
-                    {form.exitChartImageUrl && (
+                    {form.chartImageUrl && (
                       <div className="mt-2">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={form.exitChartImageUrl} alt="Exit chart" className="rounded-lg border max-h-48 w-full object-contain bg-muted" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        <img src={form.chartImageUrl} alt="Chart" className="rounded-lg border max-h-48 w-full object-contain bg-muted" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       </div>
                     )}
                   </div>
@@ -405,10 +491,10 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
             )}
 
             {/* Advanced */}
-            <Card>
+            <Card className="bg-muted/30 ring-foreground/5">
               <CardHeader>
                 <button className="flex items-center justify-between w-full text-left" onClick={() => setShowAdvanced(!showAdvanced)}>
-                  <CardTitle className="text-base">Thông tin nâng cao</CardTitle>
+                  <CardTitle className="text-base text-muted-foreground">Thông tin nâng cao</CardTitle>
                   <FontAwesomeIcon icon={showAdvanced ? faChevronUp : faChevronDown} className="h-4 w-4 text-muted-foreground" />
                 </button>
               </CardHeader>
@@ -416,29 +502,29 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <Label className="text-sm font-medium">Giá vào</Label>
+                      <Label className="text-sm text-muted-foreground">Giá vào</Label>
                       <Input type="number" step="any" value={form.entryPrice ?? ""} onChange={(e) => updateForm({ entryPrice: e.target.value ? parseFloat(e.target.value) : undefined })} className="mt-1" />
                     </div>
                     <div>
-                      <Label className="text-sm font-medium">Giá ra</Label>
+                      <Label className="text-sm text-muted-foreground">Giá ra</Label>
                       <Input type="number" step="any" value={form.exitPrice ?? ""} onChange={(e) => updateForm({ exitPrice: e.target.value ? parseFloat(e.target.value) : undefined })} className="mt-1" />
                     </div>
                     <div>
-                      <Label className="text-sm font-medium">Lot / Quantity</Label>
+                      <Label className="text-sm text-muted-foreground">Lot / Quantity</Label>
                       <Input type="number" step="any" value={form.lotSize ?? ""} onChange={(e) => updateForm({ lotSize: e.target.value ? parseFloat(e.target.value) : undefined })} className="mt-1" />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <Label className="text-sm font-medium">Timeframe</Label>
+                      <Label className="text-sm text-muted-foreground">Timeframe</Label>
                       <EditableSelect value={form.timeframe} onValueChange={(v) => updateForm({ timeframe: v })} items={library.timeframes} onItemsChange={(items) => handleLibraryUpdate("timeframes", items)} placeholder="Chọn TF" />
                     </div>
                     <div>
-                      <Label className="text-sm font-medium">Ngày đóng lệnh</Label>
+                      <Label className="text-sm text-muted-foreground">Ngày đóng lệnh</Label>
                       <Input type="date" value={form.closeDate} onChange={(e) => updateForm({ closeDate: e.target.value })} className="mt-1" />
                     </div>
                     <div>
-                      <Label className="text-sm font-medium">Strategy</Label>
+                      <Label className="text-sm text-muted-foreground">Strategy</Label>
                       <EditableSelect value={form.strategy} onValueChange={(v) => updateForm({ strategy: v })} items={library.strategies} onItemsChange={(items) => handleLibraryUpdate("strategies", items)} placeholder="Chọn strategy" />
                     </div>
                   </div>
@@ -447,14 +533,19 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
             </Card>
 
             {/* Save Button */}
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              {isAddMode && (
+                <Button variant="ghost" size="sm" onClick={handleClearDraft}>
+                  Xoá nháp
+                </Button>
+              )}
               <Button onClick={handleSubmit} disabled={saving || saved} size="lg">
                 {saved ? (
                   <><FontAwesomeIcon icon={faCheck} className="mr-2 h-4 w-4" /> Đã lưu!</>
                 ) : saving ? (
                   <><FontAwesomeIcon icon={faSpinner} className="mr-2 h-4 w-4 animate-spin" /> Đang lưu...</>
                 ) : (
-                  <><FontAwesomeIcon icon={faFloppyDisk} className="mr-2 h-4 w-4" /> Cập nhật</>
+                  <><FontAwesomeIcon icon={faFloppyDisk} className="mr-2 h-4 w-4" /> {isAddMode ? "Lưu lệnh" : "Cập nhật"}</>
                 )}
               </Button>
             </div>

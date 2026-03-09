@@ -45,13 +45,31 @@ function userLibraryDocRef(uid: string) {
   return doc(db, "users", uid, "settings", "dropdownLibrary");
 }
 
+// Ensure user document exists for admin listing
+export async function ensureUserDoc(uid: string): Promise<void> {
+  try {
+    const userDocRef = doc(db, "users", uid);
+    const snapshot = await getDoc(userDocRef);
+    if (!snapshot.exists()) {
+      await setDoc(userDocRef, { createdAt: Date.now() });
+    }
+  } catch {
+    // Non-critical — don't block the app
+  }
+}
+
 // ==================== TRADES ====================
 
 export async function getTrades(uid: string): Promise<Trade[]> {
   try {
     const q = query(userTradesCollection(uid), orderBy("date", "desc"));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Trade));
+    const trades = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Trade));
+    // Secondary sort by createdAt for same-day trades (millisecond precision)
+    return trades.sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
   } catch (error) {
     console.error("Lỗi tải danh sách lệnh:", error);
     throw new Error("Không thể tải danh sách lệnh. Vui lòng thử lại.");
@@ -67,7 +85,11 @@ export async function getTradesByDateRange(uid: string, startDate: string, endDa
       orderBy("date", "desc")
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Trade));
+    const trades = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Trade));
+    return trades.sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
   } catch (error) {
     console.error("Lỗi tải lệnh theo ngày:", error);
     throw new Error("Không thể tải lệnh theo khoảng ngày.");

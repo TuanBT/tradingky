@@ -276,7 +276,7 @@ export default function TradeDetailPage() {
       )}
 
       {/* Phase 2 - Exit Review (only for CLOSED trades) */}
-      {!isOpen && (trade.exitReason || trade.lessonsLearned || trade.exitChartImageUrl) && (
+      {!isOpen && (trade.exitReason || trade.lessonsLearned) && (
         <Card className="border-green-500/30">
           <CardHeader>
             <CardTitle className="text-base text-green-500">
@@ -301,22 +301,6 @@ export default function TradeDetailPage() {
                   <span className="text-sm">Bài học & Kinh nghiệm</span>
                 </div>
                 <p className="text-sm whitespace-pre-wrap leading-relaxed">{trade.lessonsLearned}</p>
-              </div>
-            )}
-            {trade.exitChartImageUrl && (
-              <div>
-                <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                  <FontAwesomeIcon icon={faImage} className="h-3.5 w-3.5" />
-                  <span className="text-sm">Ảnh chart lúc đóng</span>
-                </div>
-                <a href={trade.exitChartImageUrl} target="_blank" rel="noopener noreferrer">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={trade.exitChartImageUrl}
-                    alt="Exit Chart"
-                    className="rounded-lg border w-full object-contain max-h-[500px] bg-muted cursor-pointer hover:opacity-90 transition-opacity"
-                  />
-                </a>
               </div>
             )}
           </CardContent>
