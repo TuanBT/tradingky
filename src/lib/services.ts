@@ -210,17 +210,11 @@ export async function uploadChartImage(uid: string, file: File): Promise<string>
     throw new Error("Đuôi file không hợp lệ.");
   }
 
-  const uploadUrl = process.env.NEXT_PUBLIC_UPLOAD_URL;
-  if (!uploadUrl) {
-    throw new Error("Chưa cấu hình server upload ảnh.");
-  }
-
   try {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch(`${uploadUrl}/upload/${encodeURIComponent(uid)}`, {
+    const res = await fetch(`/api/upload/${encodeURIComponent(uid)}`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${process.env.NEXT_PUBLIC_UPLOAD_API_KEY}` },
       body: formData,
     });
     if (!res.ok) {

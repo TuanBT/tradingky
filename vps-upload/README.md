@@ -24,11 +24,9 @@ curl http://14.225.217.152:3001/health
 ```
 
 ### Khởi động lại server
-```powershell
-# Kill node process cũ
+```bash
 taskkill /f /im node.exe
-# Start lại
-Start-Process -FilePath "C:\Program Files\nodejs\node.exe" -ArgumentList "C:\tradingky-upload\server.js" -WindowStyle Hidden
+schtasks /run /tn TradingKYUpload
 ```
 
 ### Xem logs
@@ -61,7 +59,7 @@ npm install
 PORT=3001
 UPLOAD_DIR=C:\tradingky-uploads
 API_KEY=90174dbc7c6bb5c6d41a7c5a6678ca39f90c8bf236345d1f2df024f176583ca4
-ALLOWED_ORIGINS=https://tradingky.vercel.app,http://localhost:3000
+ALLOWED_ORIGINS=https://tradingky.vercel.app,http://localhost:3000,https://tradingky.buitientuan.com
 ```
 
 ### 5. Mở firewall
@@ -71,12 +69,12 @@ netsh advfirewall firewall add rule name="TradingKY Upload" dir=in action=allow 
 
 ### 6. Tạo auto-start task
 ```bash
-schtasks /create /sc ONSTART /tn TradingKYUpload /tr "\"C:\Program Files\nodejs\node.exe\" C:\tradingky-upload\server.js" /ru SYSTEM /f
+schtasks /create /sc ONSTART /tn TradingKYUpload /tr C:\tradingky-upload\start-server.bat /ru SYSTEM /f
 ```
 
-### 7. Khởi động server
-```powershell
-Start-Process -FilePath "C:\Program Files\nodejs\node.exe" -ArgumentList "C:\tradingky-upload\server.js" -WindowStyle Hidden
+### 7. Khởi động server (lần đầu hoặc sau khi restart)
+```bash
+schtasks /run /tn TradingKYUpload
 ```
 
 ### 8. Cập nhật Vercel
