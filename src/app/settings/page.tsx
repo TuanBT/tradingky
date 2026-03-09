@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { DropdownLibrary, DEFAULT_LIBRARY } from "@/lib/types";
-import { getLibrary, updateLibrary } from "@/lib/services";
+import { DropdownLibrary, DEFAULT_LIBRARY, Trade } from "@/lib/types";
+import { getLibrary, updateLibrary, getTrades, addTrade } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,18 +21,21 @@ import {
   faBuildingColumns,
   faClock,
   faTags,
+  faFileExport,
+  faFileImport,
+  faCheck,
 } from "@fortawesome/free-solid-svg-icons";
 
 type LibraryKey = keyof DropdownLibrary;
 
-const SECTIONS: { key: LibraryKey; label: string; icon: typeof faCoins }[] = [
-  { key: "pairs", label: "Cặp tiền", icon: faCoins },
-  { key: "emotions", label: "Tâm lý", icon: faFaceSmile },
-  { key: "reasons", label: "Lý do vào lệnh", icon: faLightbulb },
-  { key: "strategies", label: "Strategy", icon: faChessKnight },
-  { key: "platforms", label: "Sàn giao dịch", icon: faBuildingColumns },
-  { key: "timeframes", label: "Timeframe", icon: faClock },
-  { key: "tags", label: "Tags", icon: faTags },
+const SECTIONS: { key: LibraryKey; label: string; icon: typeof faCoins; emojis: string[] }[] = [
+  { key: "pairs", label: "Cặp tiền", icon: faCoins, emojis: ["🥇", "₿", "💰", "💎", "🪙", "💵", "💶", "💷", "🇺🇸", "🇪🇺", "🇬🇧", "🇯🇵", "🇦🇺"] },
+  { key: "emotions", label: "Tâm lý", icon: faFaceSmile, emojis: ["😎", "😌", "😤", "😰", "🤑", "💪", "🔥", "❄️", "😡", "🤔", "😱", "🧘", "🎯"] },
+  { key: "reasons", label: "Lý do vào lệnh", icon: faLightbulb, emojis: ["🚀", "📊", "📈", "📉", "🎯", "💡", "🔄", "⚡", "🏗️", "🕯️", "📐", "🔔", "📰"] },
+  { key: "strategies", label: "Strategy", icon: faChessKnight, emojis: ["⚡", "🎯", "🏄", "🏃", "🐢", "🦅", "♟️", "🎲", "🧠", "📏"] },
+  { key: "platforms", label: "Sàn giao dịch", icon: faBuildingColumns, emojis: ["🏦", "💹", "🌐", "📱", "💻", "🔗"] },
+  { key: "timeframes", label: "Timeframe", icon: faClock, emojis: ["⏱️", "⏰", "🕐", "📅", "📆", "🗓️"] },
+  { key: "tags", label: "Tags", icon: faTags, emojis: ["🏷️", "🔖", "⭐", "📌", "🔥", "💎", "🎉", "⚠️", "✅", "❌"] },
 ];
 
 export default function SettingsPage() {
@@ -41,6 +44,9 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newItems, setNewItems] = useState<Record<string, string>>({});
+  const [importStatus, setImportStatus] = useState<string>("");
+  const [selectedEmoji, setSelectedEmoji] = useState<Record<string, string>>({});
+  const [showEmojis, setShowEmojis] = useState<Record<string, boolean>>({});
 
   const loadLibrary = useCallback(async () => {
     if (!user) return;
@@ -55,13 +61,18 @@ export default function SettingsPage() {
   }, [loadLibrary]);
 
   const handleAddItem = (key: LibraryKey) => {
-    const value = newItems[key]?.trim();
-    if (!value || library[key].includes(value)) return;
+    const rawValue = newItems[key]?.trim();
+    if (!rawValue) return;
+    const emoji = selectedEmoji[key] || "";
+    const value = emoji ? `${emoji} ${rawValue}` : rawValue;
+    if (library[key].includes(value)) return;
     setLibrary({
       ...library,
       [key]: [...library[key], value],
     });
     setNewItems({ ...newItems, [key]: "" });
+    setSelectedEmoji({ ...selectedEmoji, [key]: "" });
+    setShowEmojis({ ...showEmojis, [key]: false });
   };
 
   const handleRemoveItem = (key: LibraryKey, item: string) => {
@@ -81,6 +92,80 @@ export default function SettingsPage() {
   const handleReset = () => {
     if (!confirm("Reset về giá trị mặc định? Bạn sẽ mất các thay đổi!")) return;
     setLibrary(DEFAULT_LIBRARY);
+  };
+
+  const handleExportJSON = async () => {
+    if (!user) return;
+    const trades = await getTrades(user.uid);
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      trades: trades.map(({ id, ...rest }) => rest),
+      library,
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tradingky-backup-${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCSV = async () => {
+    if (!user) return;
+    const trades = await getTrades(user.uid);
+    const headers = ["date", "pair", "platform", "type", "emotion", "result", "pnl", "stopLoss", "takeProfit", "reason", "chartImageUrl", "note", "entryPrice", "exitPrice", "lotSize", "timeframe", "closeDate", "strategy", "tags"];
+    const csvRows = [headers.join(",")];
+    for (const t of trades) {
+      const row = headers.map((h) => {
+        const val = t[h as keyof Trade];
+        if (val === undefined || val === null) return "";
+        if (Array.isArray(val)) return `"${val.join(";")}"`;
+        if (typeof val === "string" && (val.includes(",") || val.includes('"') || val.includes("\n"))) {
+          return `"${val.replace(/"/g, '""')}"`;
+        }
+        return String(val);
+      });
+      csvRows.push(row.join(","));
+    }
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tradingky-trades-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data.trades || !Array.isArray(data.trades)) {
+        setImportStatus("Lỗi: File không hợp lệ (thiếu trades)");
+        return;
+      }
+      if (!confirm(`Import ${data.trades.length} trades? Dữ liệu mới sẽ được THÊM VÀO (không ghi đè).`)) {
+        e.target.value = "";
+        return;
+      }
+      let count = 0;
+      for (const trade of data.trades) {
+        await addTrade(user.uid, { ...trade, createdAt: trade.createdAt || Date.now() });
+        count++;
+      }
+      if (data.library) {
+        await updateLibrary(user.uid, data.library);
+        setLibrary(data.library);
+      }
+      setImportStatus(`Đã import ${count} trades thành công!`);
+      setTimeout(() => setImportStatus(""), 4000);
+    } catch {
+      setImportStatus("Lỗi: Không thể đọc file JSON");
+    }
+    e.target.value = "";
   };
 
   if (loading) {
@@ -143,31 +228,110 @@ export default function SettingsPage() {
                 ))}
               </div>
               <div className="flex gap-2">
-                <Input
-                  placeholder={`Thêm ${section.label.toLowerCase()}...`}
-                  value={newItems[section.key] || ""}
-                  onChange={(e) =>
-                    setNewItems({ ...newItems, [section.key]: e.target.value })
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddItem(section.key);
-                    }
-                  }}
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleAddItem(section.key)}
-                >
-                  <FontAwesomeIcon icon={faPlus} className="h-4 w-4" />
-                </Button>
+                <div className="flex-1 space-y-2">
+                  <div className="flex gap-2">
+                    {selectedEmoji[section.key] && (
+                      <span className="flex items-center text-lg px-2 border rounded bg-muted">
+                        {selectedEmoji[section.key]}
+                      </span>
+                    )}
+                    <Input
+                      placeholder={`Thêm ${section.label.toLowerCase()}...`}
+                      value={newItems[section.key] || ""}
+                      onChange={(e) =>
+                        setNewItems({ ...newItems, [section.key]: e.target.value })
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddItem(section.key);
+                        }
+                      }}
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowEmojis({ ...showEmojis, [section.key]: !showEmojis[section.key] })}
+                      title="Chọn icon"
+                      className="shrink-0"
+                    >
+                      😀
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleAddItem(section.key)}
+                      className="shrink-0"
+                    >
+                      <FontAwesomeIcon icon={faPlus} className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {showEmojis[section.key] && (
+                    <div className="flex flex-wrap gap-1 p-2 rounded-lg border bg-muted/50">
+                      {section.emojis.map((emoji) => (
+                        <button
+                          key={emoji}
+                          className={`text-lg p-1 rounded hover:bg-accent transition-colors ${selectedEmoji[section.key] === emoji ? "bg-primary/20 ring-1 ring-primary" : ""}`}
+                          onClick={() => setSelectedEmoji({ ...selectedEmoji, [section.key]: selectedEmoji[section.key] === emoji ? "" : emoji })}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Export / Import */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Sao lưu & Khôi phục</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Export JSON (trades + library)</p>
+              <Button variant="outline" className="w-full" onClick={handleExportJSON}>
+                <FontAwesomeIcon icon={faFileExport} className="mr-2 h-4 w-4" />
+                Export JSON
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Export CSV (chỉ trades)</p>
+              <Button variant="outline" className="w-full" onClick={handleExportCSV}>
+                <FontAwesomeIcon icon={faFileExport} className="mr-2 h-4 w-4" />
+                Export CSV
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Import từ file JSON backup</p>
+              <label className="block cursor-pointer">
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportJSON}
+                  className="hidden"
+                />
+                <span className="inline-flex items-center justify-center w-full h-9 px-4 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
+                  <FontAwesomeIcon icon={faFileImport} className="mr-2 h-4 w-4" />
+                  Import JSON
+                </span>
+              </label>
+              {importStatus && (
+                <p className={`text-xs ${importStatus.startsWith("Lỗi") ? "text-red-500" : "text-green-500"}`}>
+                  {!importStatus.startsWith("Lỗi") && <FontAwesomeIcon icon={faCheck} className="mr-1" />}
+                  {importStatus}
+                </p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

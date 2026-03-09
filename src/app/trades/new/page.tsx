@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Trade, DropdownLibrary, DEFAULT_LIBRARY } from "@/lib/types";
-import { addTrade, updateTrade, getLibrary, getTrades } from "@/lib/services";
+import { addTrade, updateTrade, getLibrary, getTrades, uploadChartImage, updateLibrary } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,13 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import EditableSelect from "@/components/EditableSelect";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowLeft,
@@ -28,6 +22,9 @@ import {
   faSpinner,
   faChevronDown,
   faChevronUp,
+  faUpload,
+  faPlay,
+  faFlagCheckered,
 } from "@fortawesome/free-solid-svg-icons";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -41,6 +38,7 @@ interface TradeForm {
   type: "BUY" | "SELL";
   emotion: string;
   result: "WIN" | "LOSS" | "BREAKEVEN";
+  status: "OPEN" | "CLOSED";
   pnl: number | undefined;
   stopLoss: string;
   takeProfit: string;
@@ -54,6 +52,9 @@ interface TradeForm {
   timeframe: string;
   closeDate: string;
   strategy: string;
+  exitReason: string;
+  lessonsLearned: string;
+  exitChartImageUrl: string;
 }
 
 const emptyForm: TradeForm = {
@@ -63,6 +64,7 @@ const emptyForm: TradeForm = {
   type: "BUY",
   emotion: "",
   result: "WIN",
+  status: "OPEN",
   pnl: undefined,
   stopLoss: "",
   takeProfit: "",
@@ -76,6 +78,9 @@ const emptyForm: TradeForm = {
   timeframe: "",
   closeDate: "",
   strategy: "",
+  exitReason: "",
+  lessonsLearned: "",
+  exitChartImageUrl: "",
 };
 
 export default function TradeFormPage() {
@@ -108,6 +113,7 @@ function TradeFormContent() {
   const [saved, setSaved] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [editTrade, setEditTrade] = useState<Trade | null>(null);
 
@@ -132,6 +138,7 @@ function TradeFormContent() {
             type: trade.type,
             emotion: trade.emotion,
             result: trade.result,
+            status: trade.status || "CLOSED",
             pnl: trade.pnl,
             stopLoss: trade.stopLoss || "",
             takeProfit: trade.takeProfit || "",
@@ -145,6 +152,9 @@ function TradeFormContent() {
             timeframe: trade.timeframe || "",
             closeDate: trade.closeDate || "",
             strategy: trade.strategy || "",
+            exitReason: trade.exitReason || "",
+            lessonsLearned: trade.lessonsLearned || "",
+            exitChartImageUrl: trade.exitChartImageUrl || "",
           });
           if (trade.entryPrice || trade.exitPrice || trade.lotSize || trade.timeframe || trade.closeDate || trade.strategy) {
             setShowAdvanced(true);
@@ -186,6 +196,12 @@ function TradeFormContent() {
     autoSave(newForm);
   };
 
+  const handleLibraryUpdate = (key: keyof DropdownLibrary, items: string[]) => {
+    const updated = { ...library, [key]: items };
+    setLibrary(updated);
+    if (user) updateLibrary(user.uid, updated);
+  };
+
   const handleSubmit = async () => {
     if (!form.pair || !form.platform || !form.emotion) {
       alert("Vui lòng điền đầy đủ: Cặp tiền, Sàn, và Tâm lý");
@@ -200,6 +216,7 @@ function TradeFormContent() {
       type: form.type,
       emotion: form.emotion,
       result: form.result,
+      status: form.status,
       pnl: form.pnl,
       stopLoss: form.stopLoss || undefined,
       takeProfit: form.takeProfit || undefined,
@@ -213,6 +230,9 @@ function TradeFormContent() {
       timeframe: form.timeframe || undefined,
       closeDate: form.closeDate || undefined,
       strategy: form.strategy || undefined,
+      exitReason: form.exitReason || undefined,
+      lessonsLearned: form.lessonsLearned || undefined,
+      exitChartImageUrl: form.exitChartImageUrl || undefined,
       createdAt: editTrade?.createdAt || Date.now(),
     };
 
@@ -226,7 +246,7 @@ function TradeFormContent() {
     setSaving(false);
     setSaved(true);
     setTimeout(() => {
-      router.push("/trades");
+      router.back();
     }, 800);
   };
 
@@ -250,15 +270,25 @@ function TradeFormContent() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-4">
-          <Link href="/trades">
-            <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
               <FontAwesomeIcon icon={faArrowLeft} className="h-4 w-4" />
-            </Button>
-          </Link>
+          </Button>
           <div>
-            <h1 className="text-2xl font-bold">
-              {editTrade ? "Sửa lệnh" : "Thêm lệnh mới"}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold">
+                {editTrade ? "Sửa lệnh" : "Thêm lệnh mới"}
+              </h1>
+              <Badge
+                className={form.status === "OPEN"
+                  ? "bg-blue-600 text-white cursor-pointer"
+                  : "bg-gray-600 text-white cursor-pointer"
+                }
+                onClick={() => updateForm({ status: form.status === "OPEN" ? "CLOSED" : "OPEN" })}
+              >
+                <FontAwesomeIcon icon={form.status === "OPEN" ? faPlay : faFlagCheckered} className="mr-1 h-3 w-3" />
+                {form.status === "OPEN" ? "Đang chạy" : "Đã đóng"}
+              </Badge>
+            </div>
             {autoSaveStatus && (
               <p className="text-xs text-muted-foreground">{autoSaveStatus}</p>
             )}
@@ -312,46 +342,30 @@ function TradeFormContent() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Cặp tiền *</Label>
-                  <Select
+                  <EditableSelect
                     value={form.pair}
-                    onValueChange={(v) => v && updateForm({ pair: v })}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Chọn cặp tiền" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {library.pairs.map((p) => (
-                        <SelectItem key={p} value={p}>
-                          {p}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(v) => updateForm({ pair: v })}
+                    items={library.pairs}
+                    onItemsChange={(items) => handleLibraryUpdate("pairs", items)}
+                    placeholder="Chọn cặp tiền"
+                  />
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Sàn *</Label>
-                  <Select
+                  <EditableSelect
                     value={form.platform}
-                    onValueChange={(v) => v && updateForm({ platform: v })}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Chọn sàn" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {library.platforms.map((p) => (
-                        <SelectItem key={p} value={p}>
-                          {p}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(v) => updateForm({ platform: v })}
+                    items={library.platforms}
+                    onItemsChange={(items) => handleLibraryUpdate("platforms", items)}
+                    placeholder="Chọn sàn"
+                  />
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Lợi nhuận ($)</Label>
                   <Input
                     type="number"
                     step="0.01"
-                    placeholder="VD: 50.00 hoặc -20.00"
+                    placeholder={form.status === "OPEN" ? "Chưa xác định" : "VD: 50.00 hoặc -20.00"}
                     value={form.pnl ?? ""}
                     onChange={(e) =>
                       updateForm({
@@ -359,11 +373,15 @@ function TradeFormContent() {
                       })
                     }
                     className="mt-1"
+                    disabled={form.status === "OPEN"}
                   />
+                  {form.status === "OPEN" && (
+                    <p className="text-xs text-muted-foreground mt-1">Đóng lệnh để nhập P&L</p>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className={`grid grid-cols-1 ${form.status === "CLOSED" ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-4`}>
                 <div>
                   <Label className="text-sm font-medium">Loại lệnh *</Label>
                   <div className="mt-1 flex gap-2">
@@ -385,47 +403,41 @@ function TradeFormContent() {
                     </Button>
                   </div>
                 </div>
-                <div>
-                  <Label className="text-sm font-medium">Kết quả *</Label>
-                  <div className="mt-1 flex gap-2">
-                    {(["WIN", "LOSS", "BREAKEVEN"] as const).map((r) => (
-                      <Button
-                        key={r}
-                        type="button"
-                        variant={form.result === r ? "default" : "outline"}
-                        className={`flex-1 ${
-                          form.result === r
-                            ? r === "WIN"
-                              ? "bg-green-600 hover:bg-green-700 text-white"
-                              : r === "LOSS"
-                              ? "bg-red-600 hover:bg-red-700 text-white"
-                              : "bg-yellow-600 hover:bg-yellow-700 text-white"
-                            : ""
-                        }`}
-                        onClick={() => updateForm({ result: r })}
-                      >
-                        {r === "WIN" ? "Thắng" : r === "LOSS" ? "Thua" : "Hoà"}
-                      </Button>
-                    ))}
+                {form.status === "CLOSED" && (
+                  <div>
+                    <Label className="text-sm font-medium">Kết quả *</Label>
+                    <div className="mt-1 flex gap-2">
+                      {(["WIN", "LOSS", "BREAKEVEN"] as const).map((r) => (
+                        <Button
+                          key={r}
+                          type="button"
+                          variant={form.result === r ? "default" : "outline"}
+                          className={`flex-1 ${
+                            form.result === r
+                              ? r === "WIN"
+                                ? "bg-green-600 hover:bg-green-700 text-white"
+                                : r === "LOSS"
+                                ? "bg-red-600 hover:bg-red-700 text-white"
+                                : "bg-yellow-600 hover:bg-yellow-700 text-white"
+                              : ""
+                          }`}
+                          onClick={() => updateForm({ result: r })}
+                        >
+                          {r === "WIN" ? "Thắng" : r === "LOSS" ? "Thua" : "Hoà"}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
                 <div>
                   <Label className="text-sm font-medium">Tâm lý *</Label>
-                  <Select
+                  <EditableSelect
                     value={form.emotion}
-                    onValueChange={(v) => v && updateForm({ emotion: v })}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Tâm lý lúc vào lệnh" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {library.emotions.map((e) => (
-                        <SelectItem key={e} value={e}>
-                          {e}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(v) => updateForm({ emotion: v })}
+                    items={library.emotions}
+                    onItemsChange={(items) => handleLibraryUpdate("emotions", items)}
+                    placeholder="Tâm lý lúc vào lệnh"
+                  />
                 </div>
               </div>
             </CardContent>
@@ -457,35 +469,59 @@ function TradeFormContent() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Lý do vào lệnh</Label>
-                  <Select
+                  <EditableSelect
                     value={form.reason}
-                    onValueChange={(v) => v && updateForm({ reason: v })}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Chọn lý do" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {library.reasons.map((r) => (
-                        <SelectItem key={r} value={r}>
-                          {r}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(v) => updateForm({ reason: v })}
+                    items={library.reasons}
+                    onItemsChange={(items) => handleLibraryUpdate("reasons", items)}
+                    placeholder="Chọn lý do"
+                  />
                 </div>
               </div>
 
               <div>
                 <Label className="text-sm font-medium">
                   <FontAwesomeIcon icon={faImage} className="mr-1" />
-                  Link ảnh chart
+                  Ảnh chart
                 </Label>
-                <Input
-                  placeholder="https://www.tradingview.com/x/..."
-                  value={form.chartImageUrl}
-                  onChange={(e) => updateForm({ chartImageUrl: e.target.value })}
-                  className="mt-1"
-                />
+                <div className="mt-1 flex gap-2">
+                  <Input
+                    placeholder="Paste link ảnh hoặc upload bên dưới..."
+                    value={form.chartImageUrl}
+                    onChange={(e) => updateForm({ chartImageUrl: e.target.value })}
+                    className="flex-1"
+                  />
+                  <label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !user) return;
+                        setUploading(true);
+                        try {
+                          const url = await uploadChartImage(user.uid, file);
+                          updateForm({ chartImageUrl: url });
+                        } catch (err) {
+                          alert("Lỗi upload ảnh. Vui lòng thử lại hoặc dùng link.");
+                        }
+                        setUploading(false);
+                        e.target.value = "";
+                      }}
+                    />
+                    <span className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
+                      {uploading ? (
+                        <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <FontAwesomeIcon icon={faUpload} className="h-4 w-4" />
+                      )}
+                    </span>
+                  </label>
+                </div>
+                {uploading && (
+                  <p className="text-xs text-muted-foreground mt-1">Đang upload ảnh...</p>
+                )}
                 {form.chartImageUrl && (
                   <div className="mt-2">
                     <a
@@ -512,17 +548,104 @@ function TradeFormContent() {
               </div>
 
               <div>
-                <Label className="text-sm font-medium">Ghi chú</Label>
+                <Label className="text-sm font-medium">Ghi chú lúc vào lệnh</Label>
                 <Textarea
-                  placeholder="Ghi chú thêm về lệnh, bài học rút ra..."
+                  placeholder="Phân tích, nhận định, lý do chi tiết..."
                   value={form.note}
                   onChange={(e) => updateForm({ note: e.target.value })}
-                  rows={4}
+                  rows={3}
                   className="mt-1"
                 />
               </div>
             </CardContent>
           </Card>
+
+          {/* Phase 2 - Đóng lệnh */}
+          {form.status === "CLOSED" && (
+            <Card className="border-green-500/30">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FontAwesomeIcon icon={faFlagCheckered} className="h-4 w-4 text-green-500" />
+                  Tổng kết sau đóng lệnh
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Lý do thoát lệnh</Label>
+                    <Textarea
+                      placeholder="Đạt TP, chạm SL, thoát sớm vì..."
+                      value={form.exitReason}
+                      onChange={(e) => updateForm({ exitReason: e.target.value })}
+                      rows={3}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Bài học / Kinh nghiệm</Label>
+                    <Textarea
+                      placeholder="Điều gì làm tốt? Cần cải thiện gì? Lần sau sẽ..."
+                      value={form.lessonsLearned}
+                      onChange={(e) => updateForm({ lessonsLearned: e.target.value })}
+                      rows={3}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium">
+                    <FontAwesomeIcon icon={faImage} className="mr-1" />
+                    Ảnh chart lúc đóng lệnh
+                  </Label>
+                  <div className="mt-1 flex gap-2">
+                    <Input
+                      placeholder="Paste link hoặc upload..."
+                      value={form.exitChartImageUrl}
+                      onChange={(e) => updateForm({ exitChartImageUrl: e.target.value })}
+                      className="flex-1"
+                    />
+                    <label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file || !user) return;
+                          setUploading(true);
+                          try {
+                            const url = await uploadChartImage(user.uid, file);
+                            updateForm({ exitChartImageUrl: url });
+                          } catch {
+                            alert("Lỗi upload ảnh.");
+                          }
+                          setUploading(false);
+                          e.target.value = "";
+                        }}
+                      />
+                      <span className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
+                        <FontAwesomeIcon icon={faUpload} className="h-4 w-4" />
+                      </span>
+                    </label>
+                  </div>
+                  {form.exitChartImageUrl && (
+                    <div className="mt-2">
+                      <a href={form.exitChartImageUrl} target="_blank" rel="noopener noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={form.exitChartImageUrl}
+                          alt="Exit chart"
+                          className="rounded-lg border max-h-48 w-full object-contain bg-muted cursor-pointer hover:opacity-90 transition-opacity"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Advanced */}
           <Card>
@@ -587,21 +710,13 @@ function TradeFormContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <Label className="text-sm font-medium">Timeframe</Label>
-                    <Select
+                    <EditableSelect
                       value={form.timeframe}
-                      onValueChange={(v) => v && updateForm({ timeframe: v })}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Chọn TF" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {library.timeframes.map((tf) => (
-                          <SelectItem key={tf} value={tf}>
-                            {tf}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onValueChange={(v) => updateForm({ timeframe: v })}
+                      items={library.timeframes}
+                      onItemsChange={(items) => handleLibraryUpdate("timeframes", items)}
+                      placeholder="Chọn TF"
+                    />
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Ngày đóng lệnh</Label>
@@ -614,21 +729,13 @@ function TradeFormContent() {
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Strategy</Label>
-                    <Select
+                    <EditableSelect
                       value={form.strategy}
-                      onValueChange={(v) => v && updateForm({ strategy: v })}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Chọn strategy" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {library.strategies.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onValueChange={(v) => updateForm({ strategy: v })}
+                      items={library.strategies}
+                      onItemsChange={(items) => handleLibraryUpdate("strategies", items)}
+                      placeholder="Chọn strategy"
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -643,11 +750,16 @@ function TradeFormContent() {
               <CardTitle className="text-base">Xem trước</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge
                   className={form.type === "BUY" ? "bg-emerald-600 text-white" : "bg-orange-600 text-white"}
                 >
                   {form.type}
+                </Badge>
+                <Badge
+                  className={form.status === "OPEN" ? "bg-blue-600 text-white" : "bg-gray-600 text-white"}
+                >
+                  {form.status === "OPEN" ? "🔵 Đang chạy" : "✅ Đã đóng"}
                 </Badge>
                 <span className="font-semibold text-lg">
                   {form.pair || "---"}
@@ -669,25 +781,27 @@ function TradeFormContent() {
                   <span className="text-muted-foreground">Tâm lý</span>
                   <Badge variant="secondary">{form.emotion || "---"}</Badge>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Kết quả</span>
-                  <span
-                    className={`font-semibold ${
-                      form.result === "WIN"
-                        ? "text-green-500"
+                {form.status === "CLOSED" && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Kết quả</span>
+                    <span
+                      className={`font-semibold ${
+                        form.result === "WIN"
+                          ? "text-green-500"
+                          : form.result === "LOSS"
+                          ? "text-red-500"
+                          : "text-yellow-500"
+                      }`}
+                    >
+                      {form.result === "WIN"
+                        ? "Thắng"
                         : form.result === "LOSS"
-                        ? "text-red-500"
-                        : "text-yellow-500"
-                    }`}
-                  >
-                    {form.result === "WIN"
-                      ? "Thắng"
-                      : form.result === "LOSS"
-                      ? "Thua"
-                      : "Hoà"}
-                  </span>
-                </div>
-                {form.pnl !== undefined && (
+                        ? "Thua"
+                        : "Hoà"}
+                    </span>
+                  </div>
+                )}
+                {form.pnl !== undefined && form.status === "CLOSED" && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">P&L</span>
                     <span
@@ -741,8 +855,29 @@ function TradeFormContent() {
                 <>
                   <Separator />
                   <div>
-                    <span className="text-xs text-muted-foreground">Ghi chú:</span>
+                    <span className="text-xs text-muted-foreground">Ghi chú vào lệnh:</span>
                     <p className="text-sm mt-1">{form.note}</p>
+                  </div>
+                </>
+              )}
+
+              {form.status === "CLOSED" && (form.exitReason || form.lessonsLearned) && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <span className="text-xs font-medium text-green-500">📝 Tổng kết:</span>
+                    {form.exitReason && (
+                      <div>
+                        <span className="text-xs text-muted-foreground">Lý do thoát:</span>
+                        <p className="text-sm">{form.exitReason}</p>
+                      </div>
+                    )}
+                    {form.lessonsLearned && (
+                      <div>
+                        <span className="text-xs text-muted-foreground">Bài học:</span>
+                        <p className="text-sm">{form.lessonsLearned}</p>
+                      </div>
+                    )}
                   </div>
                 </>
               )}

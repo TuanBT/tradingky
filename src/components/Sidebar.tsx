@@ -14,15 +14,26 @@ import {
   faBars,
   faXmark,
   faRightFromBracket,
+  faShieldHalved,
+  faBookOpen,
 } from "@fortawesome/free-solid-svg-icons";
 import { useTheme } from "./ThemeProvider";
 import { useAuth } from "./AuthProvider";
+import { isAdmin } from "@/lib/services";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: faChartLine },
-  { href: "/trades", label: "Quản lý lệnh", icon: faListCheck },
+  {
+    href: "/trades",
+    label: "Quản lý lệnh",
+    icon: faListCheck,
+    children: [
+      { href: "/trades", label: "Danh sách lệnh" },
+      { href: "/review", label: "Review lệnh" },
+    ],
+  },
   { href: "/statistics", label: "Thống kê", icon: faChartPie },
   { href: "/calendar", label: "Lịch", icon: faCalendarDays },
   { href: "/settings", label: "Cài đặt", icon: faGear },
@@ -46,24 +57,72 @@ export function Sidebar() {
 
       <nav className="flex-1 p-3 space-y-1">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = item.children
+            ? pathname === item.href || pathname.startsWith("/trades/") || pathname === "/review"
+            : pathname === item.href;
+
           return (
+            <div key={item.href}>
+              <Link
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  isActive
+                    ? item.children ? "bg-accent text-accent-foreground" : "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <FontAwesomeIcon icon={item.icon} className="w-4 h-4" />
+                {item.label}
+              </Link>
+              {item.children && isActive && (
+                <div className="ml-6 mt-1 space-y-0.5 border-l-2 border-border pl-3">
+                  {item.children.map((child) => {
+                    const childActive = child.href === "/trades"
+                      ? pathname === "/trades" || pathname.startsWith("/trades/")
+                      : pathname === child.href;
+                    return (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        onClick={() => setMobileOpen(false)}
+                        className={cn(
+                          "block px-2 py-1.5 rounded text-xs font-medium transition-colors",
+                          childActive
+                            ? "text-primary bg-primary/10"
+                            : "text-muted-foreground hover:text-accent-foreground"
+                        )}
+                      >
+                        {child.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {user && isAdmin(user.uid) && (
+          <>
+            <div className="pt-2 pb-1 px-3">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">Admin</span>
+            </div>
             <Link
-              key={item.href}
-              href={item.href}
+              href="/admin"
               onClick={() => setMobileOpen(false)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                isActive
+                pathname === "/admin"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
             >
-              <FontAwesomeIcon icon={item.icon} className="w-4 h-4" />
-              {item.label}
+              <FontAwesomeIcon icon={faShieldHalved} className="w-4 h-4" />
+              Admin Panel
             </Link>
-          );
-        })}
+          </>
+        )}
       </nav>
 
       <div className="p-3 border-t border-border space-y-1">

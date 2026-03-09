@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Trade } from "@/lib/types";
 import { getTrades } from "@/lib/services";
@@ -28,10 +28,15 @@ import {
   faNoteSticky,
   faFaceSmile,
   faDollarSign,
+  faPlay,
+  faFlagCheckered,
+  faGraduationCap,
+  faArrowRightFromBracket,
 } from "@fortawesome/free-solid-svg-icons";
 import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
 import Link from "next/link";
+import { TradeEditModal } from "@/components/TradeEditModal";
 
 export default function TradeDetailPage() {
   const { user } = useAuth();
@@ -41,17 +46,19 @@ export default function TradeDetailPage() {
 
   const [trade, setTrade] = useState<Trade | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+
+  const loadData = useCallback(async () => {
+    if (!user) return;
+    const trades = await getTrades(user.uid);
+    const found = trades.find((t) => t.id === tradeId);
+    setTrade(found || null);
+    setLoading(false);
+  }, [user, tradeId]);
 
   useEffect(() => {
-    async function load() {
-      if (!user) return;
-      const trades = await getTrades(user.uid);
-      const found = trades.find((t) => t.id === tradeId);
-      setTrade(found || null);
-      setLoading(false);
-    }
-    load();
-  }, [user, tradeId]);
+    loadData();
+  }, [loadData]);
 
   if (loading) {
     return (
@@ -65,12 +72,10 @@ export default function TradeDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <p className="text-muted-foreground">Không tìm thấy lệnh này.</p>
-        <Link href="/trades">
-          <Button variant="outline">
-            <FontAwesomeIcon icon={faArrowLeft} className="mr-2 h-4 w-4" />
-            Quay lại
-          </Button>
-        </Link>
+        <Button variant="outline" onClick={() => router.back()}>
+          <FontAwesomeIcon icon={faArrowLeft} className="mr-2 h-4 w-4" />
+          Quay lại
+        </Button>
       </div>
     );
   }
@@ -78,17 +83,17 @@ export default function TradeDetailPage() {
   const resultLabel = trade.result === "WIN" ? "Thắng" : trade.result === "LOSS" ? "Thua" : "Hoà";
   const resultColor = trade.result === "WIN" ? "text-green-500" : trade.result === "LOSS" ? "text-red-500" : "text-yellow-500";
   const resultBg = trade.result === "WIN" ? "bg-green-500/10 border-green-500/20" : trade.result === "LOSS" ? "bg-red-500/10 border-red-500/20" : "bg-yellow-500/10 border-yellow-500/20";
+  const tradeStatus = trade.status || "CLOSED";
+  const isOpen = tradeStatus === "OPEN";
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-4">
-          <Link href="/trades">
-            <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
               <FontAwesomeIcon icon={faArrowLeft} className="h-4 w-4" />
-            </Button>
-          </Link>
+          </Button>
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">{trade.pair}</h1>
@@ -97,21 +102,31 @@ export default function TradeDetailPage() {
               >
                 {trade.type}
               </Badge>
+              {isOpen ? (
+                <Badge className="bg-blue-500/15 text-blue-500 border-blue-500/30">
+                  <FontAwesomeIcon icon={faPlay} className="mr-1 h-3 w-3" />
+                  Đang chạy
+                </Badge>
+              ) : (
+                <Badge className="bg-green-500/15 text-green-500 border-green-500/30">
+                  <FontAwesomeIcon icon={faFlagCheckered} className="mr-1 h-3 w-3" />
+                  Đã đóng
+                </Badge>
+              )}
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">
               {format(parseISO(trade.date), "EEEE, dd MMMM yyyy", { locale: vi })}
             </p>
           </div>
         </div>
-        <Link href={`/trades/new?edit=${trade.id}`}>
-          <Button variant="outline">
+        <Button variant="outline" onClick={() => setEditOpen(true)}>
             <FontAwesomeIcon icon={faPenToSquare} className="mr-2 h-4 w-4" />
-            Sửa lệnh
-          </Button>
-        </Link>
+            {isOpen ? "Đóng lệnh & Tổng kết" : "Sửa lệnh"}
+        </Button>
       </div>
 
-      {/* Result Banner */}
+      {/* Result Banner - only for CLOSED trades */}
+      {!isOpen && (
       <div className={`rounded-lg border p-4 ${resultBg}`}>
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
@@ -128,6 +143,18 @@ export default function TradeDetailPage() {
           )}
         </div>
       </div>
+      )}
+
+      {/* OPEN trade banner */}
+      {isOpen && (
+        <div className="rounded-lg border p-4 bg-blue-500/10 border-blue-500/20">
+          <div className="flex items-center gap-3">
+            <FontAwesomeIcon icon={faPlay} className="h-5 w-5 text-blue-500 animate-pulse" />
+            <span className="text-lg font-semibold text-blue-500">Lệnh đang chạy - chưa có kết quả</span>
+            <Badge variant="outline">{trade.platform}</Badge>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Trade Info */}
@@ -233,7 +260,7 @@ export default function TradeDetailPage() {
           <CardHeader>
             <CardTitle className="text-base">
               <FontAwesomeIcon icon={faNoteSticky} className="mr-2 h-4 w-4" />
-              Nhật ký / Ghi chú
+              Ghi chú lúc vào lệnh
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -241,6 +268,61 @@ export default function TradeDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Phase 2 - Exit Review (only for CLOSED trades) */}
+      {!isOpen && (trade.exitReason || trade.lessonsLearned || trade.exitChartImageUrl) && (
+        <Card className="border-green-500/30">
+          <CardHeader>
+            <CardTitle className="text-base text-green-500">
+              <FontAwesomeIcon icon={faFlagCheckered} className="mr-2 h-4 w-4" />
+              Tổng kết sau đóng lệnh
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {trade.exitReason && (
+              <div>
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <FontAwesomeIcon icon={faArrowRightFromBracket} className="h-3.5 w-3.5" />
+                  <span className="text-sm">Lý do thoát lệnh</span>
+                </div>
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{trade.exitReason}</p>
+              </div>
+            )}
+            {trade.lessonsLearned && (
+              <div>
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <FontAwesomeIcon icon={faGraduationCap} className="h-3.5 w-3.5" />
+                  <span className="text-sm">Bài học & Kinh nghiệm</span>
+                </div>
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{trade.lessonsLearned}</p>
+              </div>
+            )}
+            {trade.exitChartImageUrl && (
+              <div>
+                <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                  <FontAwesomeIcon icon={faImage} className="h-3.5 w-3.5" />
+                  <span className="text-sm">Ảnh chart lúc đóng</span>
+                </div>
+                <a href={trade.exitChartImageUrl} target="_blank" rel="noopener noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={trade.exitChartImageUrl}
+                    alt="Exit Chart"
+                    className="rounded-lg border w-full object-contain max-h-[500px] bg-muted cursor-pointer hover:opacity-90 transition-opacity"
+                  />
+                </a>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <TradeEditModal
+        tradeId={trade.id}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSaved={loadData}
+      />
     </div>
   );
 }

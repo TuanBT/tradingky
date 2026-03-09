@@ -32,6 +32,7 @@ import {
   startOfDay,
   subMonths,
   eachWeekOfInterval,
+  eachMonthOfInterval,
 } from "date-fns";
 import { vi } from "date-fns/locale";
 import {
@@ -235,6 +236,34 @@ export default function StatisticsPage() {
     }));
   }, [filteredTrades]);
 
+  // Monthly performance comparison (uses ALL trades, not filtered)
+  const monthlyComparison = useMemo(() => {
+    if (trades.length === 0) return [];
+    const sorted = [...trades].sort((a, b) => a.date.localeCompare(b.date));
+    const start = parseISO(sorted[0].date);
+    const end = parseISO(sorted[sorted.length - 1].date);
+    const months = eachMonthOfInterval({ start, end });
+
+    return months.map((monthStart) => {
+      const monthEnd = endOfMonth(monthStart);
+      const monthTrades = trades.filter((t) => {
+        const d = parseISO(t.date);
+        return d >= monthStart && d <= monthEnd;
+      });
+      const pnl = monthTrades.reduce((s, t) => s + (t.pnl || 0), 0);
+      const wins = monthTrades.filter((t) => t.result === "WIN").length;
+      const winRate = monthTrades.length > 0 ? (wins / monthTrades.length) * 100 : 0;
+      return {
+        month: format(monthStart, "MM/yyyy"),
+        monthShort: format(monthStart, "MMM", { locale: vi }),
+        pnl,
+        trades: monthTrades.length,
+        wins,
+        winRate,
+      };
+    });
+  }, [trades]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -405,6 +434,56 @@ export default function StatisticsPage() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
+
+          {/* Monthly Performance Comparison */}
+          {monthlyComparison.length > 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">So sánh Performance theo tháng</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={monthlyComparison}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis yAxisId="pnl" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis yAxisId="wr" orientation="right" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" domain={[0, 100]} unit="%" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        color: "hsl(var(--foreground))",
+                      }}
+                      formatter={(value, name) => {
+                        if (name === "P&L") return [`$${Number(value).toFixed(2)}`, name];
+                        if (name === "Win Rate") return [`${Number(value).toFixed(1)}%`, name];
+                        return [value, name];
+                      }}
+                    />
+                    <Legend />
+                    <Bar yAxisId="pnl" dataKey="pnl" name="P&L" radius={[4, 4, 0, 0]}>
+                      {monthlyComparison.map((entry, i) => (
+                        <Cell key={i} fill={entry.pnl >= 0 ? "#22c55e" : "#ef4444"} />
+                      ))}
+                    </Bar>
+                    <Line yAxisId="wr" type="monotone" dataKey="winRate" name="Win Rate" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+                  {monthlyComparison.map((m) => (
+                    <div key={m.month} className="text-center p-2 rounded bg-muted/50">
+                      <div className="font-medium">{m.month}</div>
+                      <div className={`font-mono font-bold ${m.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
+                        {m.pnl >= 0 ? "+" : ""}${m.pnl.toFixed(0)}
+                      </div>
+                      <div className="text-muted-foreground">{m.trades} lệnh · {m.winRate.toFixed(0)}% WR</div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Analysis Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

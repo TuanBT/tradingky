@@ -6,6 +6,7 @@ export interface Trade {
   type: "BUY" | "SELL";
   emotion: string;
   result: "WIN" | "LOSS" | "BREAKEVEN";
+  status: "OPEN" | "CLOSED"; // Lệnh đang chạy hay đã đóng
   pnl?: number;
   stopLoss?: string;
   takeProfit?: string;
@@ -20,6 +21,10 @@ export interface Trade {
   timeframe?: string;
   closeDate?: string;
   strategy?: string;
+  // Phase 2 (đóng lệnh)
+  exitReason?: string; // Lý do thoát lệnh
+  lessonsLearned?: string; // Bài học rút ra
+  exitChartImageUrl?: string; // Ảnh chart lúc đóng lệnh
   createdAt: number;
 }
 

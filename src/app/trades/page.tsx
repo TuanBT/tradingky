@@ -1,21 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Trade, DropdownLibrary, DEFAULT_LIBRARY } from "@/lib/types";
 import { getTrades, deleteTrade, getLibrary } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
+import { useTradeFilters } from "@/components/TradeFilterContext";
+import { TradeFilterBar } from "@/components/TradeFilterBar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -29,23 +23,24 @@ import {
   faPlus,
   faPenToSquare,
   faTrash,
-  faFilter,
-  faImage,
   faEye,
+  faChevronLeft,
+  faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isToday, isThisWeek, isThisMonth, isThisYear } from "date-fns";
 import Link from "next/link";
+import { TradeEditModal } from "@/components/TradeEditModal";
 
 export default function TradesPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const { filters } = useTradeFilters();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [library, setLibrary] = useState<DropdownLibrary>(DEFAULT_LIBRARY);
   const [loading, setLoading] = useState(true);
-  const [filterPlatform, setFilterPlatform] = useState("all");
-  const [filterResult, setFilterResult] = useState("all");
-  const [filterPair, setFilterPair] = useState("all");
-  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [editTradeId, setEditTradeId] = useState<string | null>(null);
+  const pageSize = 20;
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -63,21 +58,40 @@ export default function TradesPage() {
     loadData();
   }, [loadData]);
 
-  const filteredTrades = trades.filter((t) => {
-    if (filterPlatform !== "all" && t.platform !== filterPlatform) return false;
-    if (filterResult !== "all" && t.result !== filterResult) return false;
-    if (filterPair !== "all" && t.pair !== filterPair) return false;
-    if (search) {
-      const s = search.toLowerCase();
-      return (
-        t.pair.toLowerCase().includes(s) ||
-        t.note?.toLowerCase().includes(s) ||
-        t.reason?.toLowerCase().includes(s) ||
-        t.emotion.toLowerCase().includes(s)
-      );
-    }
-    return true;
-  });
+  const filteredTrades = useMemo(() => {
+    return trades.filter((t) => {
+      if (filters.platform !== "all" && t.platform !== filters.platform) return false;
+      if (filters.result !== "all" && t.result !== filters.result) return false;
+      if (filters.pair !== "all" && t.pair !== filters.pair) return false;
+      const status = t.status || "CLOSED";
+      if (filters.status !== "all" && status !== filters.status) return false;
+      if (filters.dateRange !== "all") {
+        const date = parseISO(t.date);
+        if (filters.dateRange === "today" && !isToday(date)) return false;
+        if (filters.dateRange === "this-week" && !isThisWeek(date, { weekStartsOn: 1 })) return false;
+        if (filters.dateRange === "this-month" && !isThisMonth(date)) return false;
+        if (filters.dateRange === "this-year" && !isThisYear(date)) return false;
+        if (filters.dateRange.startsWith("year-") && t.date.substring(0, 4) !== filters.dateRange.slice(5)) return false;
+      }
+      if (filters.search) {
+        const s = filters.search.toLowerCase();
+        return (
+          t.pair.toLowerCase().includes(s) ||
+          t.note?.toLowerCase().includes(s) ||
+          t.reason?.toLowerCase().includes(s) ||
+          t.emotion.toLowerCase().includes(s)
+        );
+      }
+      return true;
+    });
+  }, [trades, filters]);
+
+  const totalPages = Math.ceil(filteredTrades.length / pageSize);
+  const paginatedTrades = filteredTrades.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Xoá lệnh này?")) return;
@@ -106,65 +120,8 @@ export default function TradesPage() {
         </Link>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4 flex-wrap">
-            <FontAwesomeIcon
-              icon={faFilter}
-              className="text-muted-foreground h-4 w-4"
-            />
-            <Input
-              placeholder="Tìm kiếm..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-48"
-            />
-            <Select value={filterPlatform} onValueChange={(v) => v && setFilterPlatform(v)}>
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder="Sàn" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả sàn</SelectItem>
-                {library.platforms.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterPair} onValueChange={(v) => v && setFilterPair(v)}>
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder="Cặp tiền" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả cặp</SelectItem>
-                {library.pairs.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterResult} onValueChange={(v) => v && setFilterResult(v)}>
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder="Kết quả" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả</SelectItem>
-                <SelectItem value="WIN">Thắng</SelectItem>
-                <SelectItem value="LOSS">Thua</SelectItem>
-                <SelectItem value="BREAKEVEN">Hoà</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-sm text-muted-foreground ml-auto">
-              {filteredTrades.length} lệnh
-            </span>
-          </div>
-        </CardContent>
-      </Card>
+      <TradeFilterBar library={library} totalCount={filteredTrades.length} trades={trades} />
 
-      {/* Trades Table */}
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -172,6 +129,7 @@ export default function TradesPage() {
               <TableRow>
                 <TableHead>Ngày</TableHead>
                 <TableHead>Cặp tiền</TableHead>
+                <TableHead>Trạng thái</TableHead>
                 <TableHead>Sàn</TableHead>
                 <TableHead>Loại</TableHead>
                 <TableHead>Tâm lý</TableHead>
@@ -184,26 +142,31 @@ export default function TradesPage() {
             <TableBody>
               {filteredTrades.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     {trades.length === 0
                       ? "Chưa có lệnh nào. Bấm \"Thêm lệnh\" để bắt đầu!"
                       : "Không tìm thấy lệnh phù hợp"}
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTrades.map((trade) => (
+                paginatedTrades.map((trade) => (
                   <TableRow key={trade.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/trades/${trade.id}`)}>
                     <TableCell className="font-medium">
                       {format(parseISO(trade.date), "dd/MM/yyyy")}
                     </TableCell>
                     <TableCell className="font-semibold">{trade.pair}</TableCell>
                     <TableCell>
+                      {(trade.status || "CLOSED") === "OPEN" ? (
+                        <Badge className="bg-blue-500/15 text-blue-500 border-blue-500/30">🔵 Đang chạy</Badge>
+                      ) : (
+                        <Badge className="bg-green-500/15 text-green-500 border-green-500/30">✅ Đã đóng</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <Badge variant="outline">{trade.platform}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={trade.type === "BUY" ? "default" : "destructive"}
-                      >
+                      <Badge variant={trade.type === "BUY" ? "default" : "destructive"}>
                         {trade.type}
                       </Badge>
                     </TableCell>
@@ -211,53 +174,27 @@ export default function TradesPage() {
                       <Badge variant="secondary">{trade.emotion}</Badge>
                     </TableCell>
                     <TableCell>
-                      <span
-                        className={`font-semibold ${
-                          trade.result === "WIN"
-                            ? "text-green-500"
-                            : trade.result === "LOSS"
-                            ? "text-red-500"
-                            : "text-yellow-500"
-                        }`}
-                      >
-                        {trade.result === "WIN"
-                          ? "Thắng"
-                          : trade.result === "LOSS"
-                          ? "Thua"
-                          : "Hoà"}
+                      <span className={`font-semibold ${
+                        trade.result === "WIN" ? "text-green-500" : trade.result === "LOSS" ? "text-red-500" : "text-yellow-500"
+                      }`}>
+                        {trade.result === "WIN" ? "Thắng" : trade.result === "LOSS" ? "Thua" : "Hoà"}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
                       {trade.pnl !== undefined ? (
-                        <span
-                          className={`font-mono ${
-                            trade.pnl >= 0 ? "text-green-500" : "text-red-500"
-                          }`}
-                        >
+                        <span className={`font-mono ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
                           {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
                         </span>
-                      ) : (
-                        "-"
-                      )}
+                      ) : "-"}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {trade.chartImageUrl && (
-                        <a
-                          href={trade.chartImageUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block"
-                        >
+                        <a href={trade.chartImageUrl} target="_blank" rel="noopener noreferrer" className="block">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={trade.chartImageUrl}
                             alt="Chart"
                             className="h-10 w-16 object-cover rounded border bg-muted hover:opacity-80 transition-opacity"
-                            onError={(e) => {
-                              const el = e.target as HTMLImageElement;
-                              el.style.display = 'none';
-                              el.insertAdjacentHTML('afterend', '<span class="text-blue-500"><svg class="h-4 w-4" viewBox="0 0 512 512"><path fill="currentColor" d="M0 96C0 60.7 28.7 32 64 32H448c35.3 0 64 28.7 64 64V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96zM323.8 202.5c-4.5-6.6-11.9-10.5-19.8-10.5s-15.4 3.9-19.8 10.5l-87 127.6L170.7 297c-4.6-5.7-11.5-9-18.7-9s-14.2 3.3-18.7 9l-64 80c-5.8 7.2-6.9 17.1-2.9 25.4s12.4 13.6 21.6 13.6h96 32H424c8.9 0 17.1-4.9 21.2-12.8s3.6-17.4-1.4-24.7l-120-176zM112 192a48 48 0 1 0 0-96 48 48 0 1 0 0 96z"/></svg></span>');
-                            }}
                           />
                         </a>
                       )}
@@ -269,11 +206,9 @@ export default function TradesPage() {
                             <FontAwesomeIcon icon={faEye} className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Link href={`/trades/new?edit=${trade.id}`}>
-                          <Button variant="ghost" size="sm" title="Sửa">
-                            <FontAwesomeIcon icon={faPenToSquare} className="h-4 w-4" />
-                          </Button>
-                        </Link>
+                        <Button variant="ghost" size="sm" title="Sửa" onClick={() => setEditTradeId(trade.id)}>
+                          <FontAwesomeIcon icon={faPenToSquare} className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -292,6 +227,53 @@ export default function TradesPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">
+            Hiển thị {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, filteredTrades.length)} / {filteredTrades.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={page === 1}>
+              <FontAwesomeIcon icon={faChevronLeft} className="h-3 w-3 mr-1" />
+              Trước
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+              .reduce<(number | string)[]>((acc, p, i, arr) => {
+                if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("...");
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, i) =>
+                typeof p === "string" ? (
+                  <span key={`ellipsis-${i}`} className="text-muted-foreground px-1">...</span>
+                ) : (
+                  <Button
+                    key={p}
+                    variant={p === page ? "default" : "outline"}
+                    size="sm"
+                    className="w-8 h-8 p-0"
+                    onClick={() => setPage(p)}
+                  >
+                    {p}
+                  </Button>
+                )
+              )}
+            <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={page === totalPages}>
+              Sau
+              <FontAwesomeIcon icon={faChevronRight} className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <TradeEditModal
+        tradeId={editTradeId}
+        open={!!editTradeId}
+        onClose={() => setEditTradeId(null)}
+        onSaved={loadData}
+      />
     </div>
   );
 }
