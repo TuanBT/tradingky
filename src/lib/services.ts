@@ -1,5 +1,4 @@
 import { db } from "./firebase";
-import { storage } from "./firebase";
 import {
   collection,
   doc,
@@ -14,7 +13,6 @@ import {
   setDoc,
   writeBatch,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Trade, DailyJournal, DropdownLibrary, DEFAULT_LIBRARY } from "./types";
 
 // Strip undefined values — Firestore rejects undefined fields
@@ -212,14 +210,28 @@ export async function uploadChartImage(uid: string, file: File): Promise<string>
     throw new Error("Đuôi file không hợp lệ.");
   }
 
+  const uploadUrl = process.env.NEXT_PUBLIC_UPLOAD_URL;
+  if (!uploadUrl) {
+    throw new Error("Chưa cấu hình server upload ảnh.");
+  }
+
   try {
-    const filename = `${Date.now()}.${ext}`;
-    const storageRef = ref(storage, `users/${uid}/charts/${filename}`);
-    await uploadBytes(storageRef, file);
-    return getDownloadURL(storageRef);
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`${uploadUrl}/upload/${encodeURIComponent(uid)}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.NEXT_PUBLIC_UPLOAD_API_KEY}` },
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Upload thất bại" }));
+      throw new Error(err.error || "Upload thất bại");
+    }
+    const data = await res.json();
+    return data.url;
   } catch (error) {
     console.error("Lỗi upload ảnh:", error);
-    throw new Error("Không thể upload ảnh. Vui lòng thử lại.");
+    throw new Error((error as Error).message || "Không thể upload ảnh. Vui lòng thử lại.");
   }
 }
 
