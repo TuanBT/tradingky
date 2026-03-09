@@ -9,7 +9,11 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // Network-first strategy for all requests
+  // Skip non-GET requests and external API calls (Firebase, etc.)
+  if (event.request.method !== "GET" || !event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+  // Network-first strategy for same-origin GET requests
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   );
