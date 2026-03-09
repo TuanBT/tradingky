@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Trade } from "@/lib/types";
 import { getTrades } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
@@ -16,6 +17,7 @@ import {
   faArrowTrendUp,
   faArrowTrendDown,
   faFire,
+  faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   format,
@@ -62,6 +64,7 @@ function filterByPeriod(trades: Trade[], period: "today" | "week" | "month") {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -169,15 +172,21 @@ export default function DashboardPage() {
             {format(new Date(), "EEEE, dd/MM/yyyy", { locale: vi })}
           </p>
         </div>
-        {streak.count > 1 && (
-          <Badge
-            variant={streak.type === "WIN" ? "default" : "destructive"}
-            className="text-sm px-3 py-1"
-          >
-            <FontAwesomeIcon icon={faFire} className="mr-1" />
-            {streak.type === "WIN" ? "Thắng" : "Thua"} {streak.count} lệnh liên tiếp
-          </Badge>
-        )}
+        <div className="flex items-center gap-3">
+          {streak.count > 1 && (
+            <Badge
+              variant={streak.type === "WIN" ? "default" : "destructive"}
+              className="text-sm px-3 py-1"
+            >
+              <FontAwesomeIcon icon={faFire} className="mr-1" />
+              {streak.type === "WIN" ? "Thắng" : "Thua"} {streak.count} lệnh liên tiếp
+            </Badge>
+          )}
+          <Button onClick={() => router.push("/trades/new")} size="default">
+            <FontAwesomeIcon icon={faPlus} className="mr-2" />
+            Thêm lệnh
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -356,9 +365,15 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <p className="text-muted-foreground text-center py-8">
-              Chưa có lệnh nào. Hãy thêm lệnh đầu tiên!
-            </p>
+            <div className="text-center py-8 space-y-3">
+              <p className="text-muted-foreground">
+                Chưa có lệnh nào. Hãy thêm lệnh đầu tiên!
+              </p>
+              <Button onClick={() => router.push("/trades/new")}>
+                <FontAwesomeIcon icon={faPlus} className="mr-2" />
+                Thêm lệnh
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>

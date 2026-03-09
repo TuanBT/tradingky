@@ -441,7 +441,7 @@ function TradeFormContent() {
                       className={`flex-1 ${form.type === "BUY" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}`}
                       onClick={() => updateForm({ type: "BUY" })}
                     >
-                      BUY (Mua)
+                      BUY
                     </Button>
                     <Button
                       type="button"
@@ -449,7 +449,7 @@ function TradeFormContent() {
                       className={`flex-1 ${form.type === "SELL" ? "bg-orange-600 hover:bg-orange-700 text-white" : ""}`}
                       onClick={() => updateForm({ type: "SELL" })}
                     >
-                      SELL (Bán)
+                      SELL
                     </Button>
                   </div>
                 </div>

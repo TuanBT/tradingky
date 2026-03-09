@@ -17,6 +17,14 @@ import {
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Trade, DailyJournal, DropdownLibrary, DEFAULT_LIBRARY } from "./types";
 
+// Strip undefined values — Firestore rejects undefined fields
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function stripUndefined<T extends Record<string, any>>(obj: T): T {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as T;
+}
+
 // Admin UID list
 export const ADMIN_UIDS = ["KffhYOBycQggcxA6ROXbed43Nav1"];
 
@@ -68,7 +76,7 @@ export async function getTradesByDateRange(uid: string, startDate: string, endDa
 
 export async function addTrade(uid: string, trade: Omit<Trade, "id">): Promise<string> {
   try {
-    const docRef = await addDoc(userTradesCollection(uid), trade);
+    const docRef = await addDoc(userTradesCollection(uid), stripUndefined(trade));
     return docRef.id;
   } catch (error) {
     console.error("Lỗi thêm lệnh:", error);
@@ -79,7 +87,7 @@ export async function addTrade(uid: string, trade: Omit<Trade, "id">): Promise<s
 export async function updateTrade(uid: string, id: string, trade: Partial<Trade>): Promise<void> {
   try {
     const docRef = doc(db, "users", uid, "trades", id);
-    await updateDoc(docRef, trade);
+    await updateDoc(docRef, stripUndefined(trade));
   } catch (error) {
     console.error("Lỗi cập nhật lệnh:", error);
     throw new Error("Không thể cập nhật lệnh. Vui lòng thử lại.");
@@ -111,7 +119,7 @@ export async function getJournals(uid: string): Promise<DailyJournal[]> {
 
 export async function addJournal(uid: string, journal: Omit<DailyJournal, "id">): Promise<string> {
   try {
-    const docRef = await addDoc(userJournalCollection(uid), journal);
+    const docRef = await addDoc(userJournalCollection(uid), stripUndefined(journal));
     return docRef.id;
   } catch (error) {
     console.error("Lỗi thêm nhật ký:", error);
@@ -122,7 +130,7 @@ export async function addJournal(uid: string, journal: Omit<DailyJournal, "id">)
 export async function updateJournal(uid: string, id: string, journal: Partial<DailyJournal>): Promise<void> {
   try {
     const docRef = doc(db, "users", uid, "dailyJournal", id);
-    await updateDoc(docRef, journal);
+    await updateDoc(docRef, stripUndefined(journal));
   } catch (error) {
     console.error("Lỗi cập nhật nhật ký:", error);
     throw new Error("Không thể cập nhật nhật ký.");

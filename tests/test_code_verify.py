@@ -117,16 +117,15 @@ class TestDateFilter:
         assert "Năm nay" in content
 
     def test_trades_page_year_filter_logic(self):
-        """Trades page should filter by year, not month."""
-        content = read_file("app/trades/page.tsx")
+        """Filter logic should filter by year, not month (now in lib/filters.ts)."""
+        content = read_file("lib/filters.ts")
         assert 'year-' in content, "Should filter by year prefix"
         assert 'month-' not in content, "Should NOT filter by month prefix"
 
     def test_review_page_year_filter_logic(self):
-        """Review page should filter by year, not month."""
+        """Review page should use shared filterTrades function."""
         content = read_file("app/review/page.tsx")
-        assert 'year-' in content, "Should filter by year prefix"
-        assert 'month-' not in content, "Should NOT filter by month prefix"
+        assert 'filterTrades' in content, "Should use shared filterTrades"
 
 
 # ============================================================
@@ -219,3 +218,106 @@ class TestFilterContext:
         content = read_file("components/TradeFilterContext.tsx")
         assert 'dateRange: "all"' in content or "dateRange: 'all'" in content, \
             "Default dateRange should be 'all'"
+
+
+# ============================================================
+# 7. SECURITY & ERROR HANDLING
+# ============================================================
+class TestSecurity:
+    def test_firebase_uses_env_vars(self):
+        """Firebase config should use environment variables."""
+        content = read_file("lib/firebase.ts")
+        assert "process.env.NEXT_PUBLIC_FIREBASE" in content
+
+    def test_no_hardcoded_firebase_key(self):
+        """Firebase config should NOT have hardcoded API keys."""
+        content = read_file("lib/firebase.ts")
+        assert "AIzaSy" not in content, "Should not have hardcoded API key"
+
+    def test_services_have_try_catch(self):
+        """Service functions should have error handling."""
+        content = read_file("lib/services.ts")
+        assert content.count("try {") >= 10, "Should have try-catch in all service functions"
+
+    def test_image_upload_validation(self):
+        """Image upload should validate file size and type."""
+        content = read_file("lib/services.ts")
+        assert "MAX_IMAGE_SIZE" in content
+        assert "ALLOWED_IMAGE_TYPES" in content
+
+    def test_no_xss_insert_adjacent(self):
+        """Should not use insertAdjacentHTML (XSS risk)."""
+        for page in ["app/trades/[id]/page.tsx", "app/trades/new/page.tsx"]:
+            content = read_file(page)
+            assert "insertAdjacentHTML" not in content
+
+    def test_admin_n1_fixed(self):
+        """Admin getRegisteredUsers should use Promise.all (parallel)."""
+        content = read_file("lib/services.ts")
+        assert "Promise.all(promises)" in content or "Promise.all(" in content
+
+
+# ============================================================
+# 8. TOAST & CONFIRM DIALOG
+# ============================================================
+class TestToastAndConfirm:
+    def test_toast_provider_exists(self):
+        content = read_file("components/ToastProvider.tsx")
+        assert "useToast" in content
+
+    def test_confirm_dialog_exists(self):
+        content = read_file("components/ConfirmDialog.tsx")
+        assert "ConfirmDialog" in content
+        assert "onConfirm" in content
+
+    def test_no_alert_in_trades_page(self):
+        content = read_file("app/trades/page.tsx")
+        assert "alert(" not in content
+        assert 'confirm(' not in content
+
+    def test_no_alert_in_edit_modal(self):
+        content = read_file("components/TradeEditModal.tsx")
+        assert "alert(" not in content
+
+
+# ============================================================
+# 9. NEW FEATURES
+# ============================================================
+class TestNewFeatures:
+    def test_risk_page_exists(self):
+        content = read_file("app/risk/page.tsx")
+        assert "Position Size" in content
+        assert "Risk:Reward" in content
+
+    def test_checklist_page_exists(self):
+        content = read_file("app/checklist/page.tsx")
+        assert "Checklist" in content
+        assert "pre" in content and "post" in content
+
+    def test_shared_filter_utility(self):
+        content = read_file("lib/filters.ts")
+        assert "filterTrades" in content
+        assert "TradeFilters" in content
+
+    def test_statistics_has_streak(self):
+        content = read_file("app/statistics/page.tsx")
+        assert "streakStats" in content
+        assert "maxWinStreak" in content
+
+    def test_statistics_has_timeframe(self):
+        content = read_file("app/statistics/page.tsx")
+        assert "timeframeStats" in content
+
+    def test_statistics_has_strategy(self):
+        content = read_file("app/statistics/page.tsx")
+        assert "strategyStats" in content
+
+    def test_form_validation(self):
+        content = read_file("app/trades/new/page.tsx")
+        assert "formErrors" in content
+        assert "setFormErrors" in content
+
+    def test_error_states_in_pages(self):
+        for page in ["app/trades/page.tsx", "app/review/page.tsx", "app/page.tsx"]:
+            content = read_file(page)
+            assert "setError" in content, f"{page} should have error state"
