@@ -266,9 +266,9 @@ export default function CalendarPage() {
                       </Badge>
                       <div>
                         <span className="font-medium">{trade.pair}</span>
-                        <span className="text-muted-foreground text-sm ml-2">
+                        {trade.platform && <span className="text-muted-foreground text-sm ml-2">
                           {trade.platform}
-                        </span>
+                        </span>}
                       </div>
                     </div>
                     <div className="flex items-center gap-4">

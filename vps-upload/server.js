@@ -101,6 +101,30 @@ app.post("/upload/:uid", authMiddleware, (req, res) => {
   });
 });
 
+// Delete file endpoint
+app.delete("/files/:uid/:filename", authMiddleware, (req, res) => {
+  const uid = req.params.uid;
+  const filename = req.params.filename;
+  // Validate: only allow simple filenames (no path traversal)
+  if (!uid || !filename || filename.includes("/") || filename.includes("..") || uid.includes("/") || uid.includes("..")) {
+    return res.status(400).json({ error: "Invalid path." });
+  }
+  const filePath = path.join(UPLOAD_DIR, uid, filename);
+  // Ensure resolved path is within UPLOAD_DIR
+  if (!filePath.startsWith(path.resolve(UPLOAD_DIR))) {
+    return res.status(400).json({ error: "Invalid path." });
+  }
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: "File not found." });
+  }
+  try {
+    fs.unlinkSync(filePath);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Could not delete file." });
+  }
+});
+
 // Serve uploaded files (public read)
 app.use("/files", express.static(UPLOAD_DIR, {
   maxAge: "365d",

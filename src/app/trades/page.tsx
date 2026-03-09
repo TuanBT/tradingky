@@ -308,7 +308,7 @@ export default function TradesPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline">{trade.platform}</Badge>
+                            <Badge variant="outline">{trade.platform || "—"}</Badge>
                           </TableCell>
                           <TableCell>
                             <Badge variant={trade.type === "BUY" ? "default" : "destructive"}>
@@ -460,7 +460,7 @@ export default function TradesPage() {
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        {format(parseISO(t.date), "dd/MM/yyyy")} · {t.platform} · {t.emotion}
+                        {format(parseISO(t.date), "dd/MM/yyyy")}{t.platform ? ` · ${t.platform}` : ""} · {t.emotion}
                       </div>
                     </button>
                   );
@@ -684,7 +684,7 @@ function TradeDetail({ trade }: { trade: Trade }) {
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
               <span className={`text-2xl font-bold ${resultColor}`}>{resultLabel}</span>
-              <Badge variant="outline">{trade.platform}</Badge>
+              {trade.platform && <Badge variant="outline">{trade.platform}</Badge>}
             </div>
             {trade.pnl !== undefined && (
               <div className="text-right">
@@ -703,7 +703,7 @@ function TradeDetail({ trade }: { trade: Trade }) {
           <div className="flex items-center gap-3">
             <FontAwesomeIcon icon={faPlay} className="h-5 w-5 text-blue-500 animate-pulse" />
             <span className="text-lg font-semibold text-blue-500">Lệnh đang chạy - chưa có kết quả</span>
-            <Badge variant="outline">{trade.platform}</Badge>
+            {trade.platform && <Badge variant="outline">{trade.platform}</Badge>}
           </div>
         </div>
       )}
@@ -718,7 +718,7 @@ function TradeDetail({ trade }: { trade: Trade }) {
             {trade.closeDate && (
               <InfoRow icon={faCalendarDays} label="Ngày đóng" value={format(parseISO(trade.closeDate), "dd/MM/yyyy")} />
             )}
-            <InfoRow icon={faBuildingColumns} label="Sàn" value={trade.platform} />
+            {trade.platform && <InfoRow icon={faBuildingColumns} label="Sàn" value={trade.platform} />}
             <InfoRow icon={faFaceSmile} label="Tâm lý" value={trade.emotion} />
             {trade.timeframe && <InfoRow icon={faClock} label="Timeframe" value={trade.timeframe} />}
           </CardContent>

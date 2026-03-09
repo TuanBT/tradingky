@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Trade, DropdownLibrary, DEFAULT_LIBRARY } from "@/lib/types";
-import { addTrade, updateTrade, getLibrary, getTrades, uploadChartImage, updateLibrary } from "@/lib/services";
+import { addTrade, updateTrade, getLibrary, getTrades, uploadChartImage, deleteChartImage, updateLibrary } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
 import { format } from "date-fns";
 import { useToast } from "@/components/ToastProvider";
@@ -31,6 +31,7 @@ import {
   faPaste,
   faPlay,
   faFlagCheckered,
+  faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 
 interface TradeForm {
@@ -143,7 +144,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
           setForm({
             date: trade.date,
             pair: trade.pair,
-            platform: trade.platform,
+            platform: trade.platform || "",
             type: trade.type,
             emotion: trade.emotion,
             result: trade.result,
@@ -199,6 +200,32 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
     if (user) updateLibrary(user.uid, updated);
   };
 
+  // Upload new image and delete old one (ensure 1 image per trade)
+  const handleUploadImage = async (file: File) => {
+    if (!user) return;
+    setUploading(true);
+    try {
+      // Delete old image from server before uploading new one
+      if (form?.chartImageUrl) {
+        await deleteChartImage(form.chartImageUrl);
+      }
+      const url = await uploadChartImage(user.uid, file);
+      updateForm({ chartImageUrl: url });
+      toast("Đã upload ảnh", "success");
+    } catch (err) {
+      toast((err as Error).message || "Lỗi upload ảnh.", "error");
+    }
+    setUploading(false);
+  };
+
+  // Delete image from server and clear form
+  const handleRemoveImage = async () => {
+    if (form?.chartImageUrl) {
+      await deleteChartImage(form.chartImageUrl);
+    }
+    updateForm({ chartImageUrl: "" });
+  };
+
   const handlePasteImage = async (e: React.ClipboardEvent | ClipboardEvent) => {
     const items = (e instanceof ClipboardEvent ? e.clipboardData : e.clipboardData)?.items;
     if (!items || !user) return;
@@ -207,15 +234,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
         e.preventDefault();
         const file = item.getAsFile();
         if (!file) return;
-        setUploading(true);
-        try {
-          const url = await uploadChartImage(user.uid, file);
-          updateForm({ chartImageUrl: url });
-          toast("Đã paste ảnh từ clipboard", "success");
-        } catch (err) {
-          toast((err as Error).message || "Lỗi upload ảnh.", "error");
-        }
-        setUploading(false);
+        await handleUploadImage(file);
         return;
       }
     }
@@ -227,8 +246,8 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
       toast("Ngày vào lệnh là bắt buộc", "error");
       return;
     }
-    if (!form.pair || !form.platform || !form.emotion) {
-      toast("Vui lòng điền đầy đủ: Cặp tiền, Sàn, và Tâm lý", "error");
+    if (!form.pair || !form.emotion) {
+      toast("Vui lòng điền đầy đủ: Cặp tiền và Tâm lý", "error");
       return;
     }
     if (!user) return;
@@ -238,7 +257,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
     const tradeData = {
       date: form.date,
       pair: form.pair,
-      platform: form.platform,
+      platform: form.platform || undefined,
       type: form.type,
       emotion: form.emotion,
       result: form.result,
@@ -342,7 +361,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                 <CardHeader>
                   <CardTitle className={`text-base flex items-center gap-2 ${isCloseMode ? "text-amber-600 dark:text-amber-400" : ""}`}>
                     <FontAwesomeIcon icon={faFlagCheckered} className={`h-4 w-4 ${isCloseMode ? "" : "text-green-500"}`} />
-                    {isCloseMode ? "Thông tin đóng lệnh" : "Tổng kết sau đóng lệnh"}
+                    Tổng kết sau đóng lệnh
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -366,7 +385,6 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                       <Input type="date" value={form.closeDate} onChange={(e) => updateForm({ closeDate: e.target.value })} className="mt-1" />
                     </div>
                   </div>
-                  {!isCloseMode && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm text-muted-foreground">Lý do thoát lệnh</Label>
@@ -376,37 +394,6 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                       <Label className="text-sm text-muted-foreground">Bài học / Kinh nghiệm</Label>
                       <Textarea placeholder="Điều gì làm tốt? Cần cải thiện?" value={form.lessonsLearned} onChange={(e) => updateForm({ lessonsLearned: e.target.value })} rows={3} className="mt-1" />
                     </div>
-                  </div>
-                  )}
-                  <div>
-                    <Label className="text-sm text-muted-foreground">
-                      <FontAwesomeIcon icon={faImage} className="mr-1" /> Cập nhật ảnh chart (đè ảnh lúc mở lệnh)
-                    </Label>
-                    <div className="mt-1 flex gap-2" onPaste={handlePasteImage}>
-                      <Input placeholder="Paste ảnh từ clipboard hoặc link..." value={form.chartImageUrl} onChange={(e) => updateForm({ chartImageUrl: e.target.value })} className="flex-1" />
-                      <button type="button" onClick={async () => { try { const items = await navigator.clipboard.read(); for (const item of items) { const imageType = item.types.find(t => t.startsWith('image/')); if (imageType) { const blob = await item.getType(imageType); const file = new File([blob], `paste-${Date.now()}.png`, { type: imageType }); setUploading(true); try { const url = await uploadChartImage(user!.uid, file); updateForm({ chartImageUrl: url }); toast("Đã paste ảnh từ clipboard", "success"); } catch (err) { toast((err as Error).message || "Lỗi upload ảnh.", "error"); } setUploading(false); return; } } toast("Clipboard không có ảnh", "error"); } catch { toast("Không thể đọc clipboard. Hãy dùng Ctrl+V.", "error"); } }} className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer" title="Paste ảnh từ clipboard">
-                        <FontAwesomeIcon icon={faPaste} className="h-4 w-4" />
-                      </button>
-                      <label>
-                        <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file || !user) return;
-                          setUploading(true);
-                          try { const url = await uploadChartImage(user.uid, file); updateForm({ chartImageUrl: url }); } catch (err) { toast((err as Error).message || "Lỗi upload ảnh.", "error"); }
-                          setUploading(false);
-                          e.target.value = "";
-                        }} />
-                        <span className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
-                          {uploading ? <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin" /> : <FontAwesomeIcon icon={faUpload} className="h-4 w-4" />}
-                        </span>
-                      </label>
-                    </div>
-                    {form.chartImageUrl && (
-                      <div className="mt-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={form.chartImageUrl} alt="Chart" className="rounded-lg border max-h-48 w-full object-contain bg-muted" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                      </div>
-                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -448,16 +435,14 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                   </Label>
                   <div className="mt-1 flex gap-2" onPaste={handlePasteImage}>
                     <Input placeholder="Paste ảnh từ clipboard hoặc link..." value={form.chartImageUrl} onChange={(e) => updateForm({ chartImageUrl: e.target.value })} className="flex-1" />
-                    <button type="button" onClick={async () => { try { const items = await navigator.clipboard.read(); for (const item of items) { const imageType = item.types.find(t => t.startsWith('image/')); if (imageType) { const blob = await item.getType(imageType); const file = new File([blob], `paste-${Date.now()}.png`, { type: imageType }); setUploading(true); try { const url = await uploadChartImage(user!.uid, file); updateForm({ chartImageUrl: url }); toast("Đã paste ảnh từ clipboard", "success"); } catch (err) { toast((err as Error).message || "Lỗi upload ảnh.", "error"); } setUploading(false); return; } } toast("Clipboard không có ảnh", "error"); } catch { toast("Không thể đọc clipboard. Hãy dùng Ctrl+V.", "error"); } }} className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer" title="Paste ảnh từ clipboard">
+                    <button type="button" onClick={async () => { try { const items = await navigator.clipboard.read(); for (const item of items) { const imageType = item.types.find(t => t.startsWith('image/')); if (imageType) { const blob = await item.getType(imageType); const file = new File([blob], `paste-${Date.now()}.png`, { type: imageType }); await handleUploadImage(file); return; } } toast("Clipboard không có ảnh", "error"); } catch { toast("Không thể đọc clipboard. Hãy dùng Ctrl+V.", "error"); } }} className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer" title="Paste ảnh từ clipboard">
                       <FontAwesomeIcon icon={faPaste} className="h-4 w-4" />
                     </button>
                     <label>
                       <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file || !user) return;
-                        setUploading(true);
-                        try { const url = await uploadChartImage(user.uid, file); updateForm({ chartImageUrl: url }); } catch (err) { toast((err as Error).message || "Lỗi upload ảnh.", "error"); }
-                        setUploading(false);
+                        await handleUploadImage(file);
                         e.target.value = "";
                       }} />
                       <span className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
@@ -466,16 +451,17 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                     </label>
                   </div>
                   {form.chartImageUrl && (
-                    <div className="mt-2">
+                    <div className="mt-2 relative inline-block">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={form.chartImageUrl} alt="Chart" className="rounded-lg border max-h-48 w-full object-contain bg-muted" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      <button type="button" onClick={() => handleRemoveImage()} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-600 text-white flex items-center justify-center hover:bg-red-700 transition-colors" title="Xoá ảnh">
+                        <FontAwesomeIcon icon={faXmark} className="h-3 w-3" />
+                      </button>
                     </div>
                   )}
                 </div>
               </CardContent>
             </Card>
-
-            {/* Advanced */}
             <Card className="bg-muted/30 ring-foreground/5">
               <CardHeader>
                 <button className="flex items-center justify-between w-full text-left" onClick={() => setShowAdvanced(!showAdvanced)}>

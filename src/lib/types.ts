@@ -2,7 +2,7 @@ export interface Trade {
   id: string;
   date: string; // YYYY-MM-DD
   pair: string;
-  platform: string;
+  platform?: string;
   type: "BUY" | "SELL";
   emotion: string;
   result: "WIN" | "LOSS" | "BREAKEVEN";

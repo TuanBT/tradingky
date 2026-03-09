@@ -235,11 +235,12 @@ export default function StatisticsPage() {
   const platformStats = useMemo(() => {
     const map = new Map<string, { total: number; wins: number; pnl: number }>();
     for (const t of filteredTrades) {
-      const curr = map.get(t.platform) || { total: 0, wins: 0, pnl: 0 };
+      const platform = t.platform || "Không rõ";
+      const curr = map.get(platform) || { total: 0, wins: 0, pnl: 0 };
       curr.total++;
       if (t.result === "WIN") curr.wins++;
       curr.pnl += t.pnl || 0;
-      map.set(t.platform, curr);
+      map.set(platform, curr);
     }
     return Array.from(map.entries()).map(([platform, data]) => ({
       platform,

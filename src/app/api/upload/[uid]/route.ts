@@ -27,7 +27,15 @@ export async function POST(
     if (!res.ok) {
       return NextResponse.json(data, { status: res.status });
     }
-    return NextResponse.json(data);
+    // Convert VPS URL to proxy URL (HTTPS-safe)
+    // VPS returns: http://ip:port/files/uid/filename.png
+    // Proxy URL:   /api/files/uid/filename.png
+    const vpsUrl: string = data.url || "";
+    const filesIdx = vpsUrl.indexOf("/files/");
+    const proxyUrl = filesIdx >= 0
+      ? `/api${vpsUrl.slice(filesIdx)}`
+      : vpsUrl;
+    return NextResponse.json({ url: proxyUrl });
   } catch {
     return NextResponse.json(
       { error: "Không thể kết nối server upload." },

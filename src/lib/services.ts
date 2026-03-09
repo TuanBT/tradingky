@@ -229,6 +229,17 @@ export async function uploadChartImage(uid: string, file: File): Promise<string>
   }
 }
 
+export async function deleteChartImage(imageUrl: string): Promise<void> {
+  // Only delete images hosted on our proxy (starts with /api/files/)
+  if (!imageUrl.startsWith("/api/files/")) return;
+  try {
+    await fetch(imageUrl, { method: "DELETE" });
+  } catch {
+    // Non-critical — don't block the user
+    console.error("Lỗi xoá ảnh:", imageUrl);
+  }
+}
+
 // ==================== ADMIN ====================
 
 export interface UserInfo {

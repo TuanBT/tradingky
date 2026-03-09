@@ -128,7 +128,7 @@ export default function TradeDetailPage() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <span className={`text-2xl font-bold ${resultColor}`}>{resultLabel}</span>
-            <Badge variant="outline">{trade.platform}</Badge>
+            {trade.platform && <Badge variant="outline">{trade.platform}</Badge>}
           </div>
           {trade.pnl !== undefined && (
             <div className="text-right">
@@ -148,7 +148,7 @@ export default function TradeDetailPage() {
           <div className="flex items-center gap-3">
             <FontAwesomeIcon icon={faPlay} className="h-5 w-5 text-blue-500 animate-pulse" />
             <span className="text-lg font-semibold text-blue-500">Lệnh đang chạy - chưa có kết quả</span>
-            <Badge variant="outline">{trade.platform}</Badge>
+            {trade.platform && <Badge variant="outline">{trade.platform}</Badge>}
           </div>
         </div>
       )}
@@ -164,7 +164,7 @@ export default function TradeDetailPage() {
             {trade.closeDate && (
               <InfoRow icon={faCalendarDays} label="Ngày đóng" value={format(parseISO(trade.closeDate), "dd/MM/yyyy")} />
             )}
-            <InfoRow icon={faBuildingColumns} label="Sàn" value={trade.platform} />
+            {trade.platform && <InfoRow icon={faBuildingColumns} label="Sàn" value={trade.platform} />}
             <InfoRow icon={faFaceSmile} label="Tâm lý" value={trade.emotion} />
             {trade.timeframe && <InfoRow icon={faClock} label="Timeframe" value={trade.timeframe} />}
           </CardContent>
