@@ -42,7 +42,7 @@ const DEFAULT_POST: ChecklistItem[] = [
   { id: "q2", text: "Quản lý rủi ro có đúng kế hoạch?", checked: false },
   { id: "q3", text: "Có bị ảnh hưởng cảm xúc không?", checked: false },
   { id: "q4", text: "Bài học rút ra từ lệnh này?", checked: false },
-  { id: "q5", text: "Có nên điều chỉnh strategy?", checked: false },
+  { id: "q5", text: "Có nên điều chỉnh cách giao dịch?", checked: false },
 ];
 
 const STORAGE_KEY = "tradingky_checklist";

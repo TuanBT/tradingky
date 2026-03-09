@@ -15,7 +15,6 @@ import {
   faXmark,
   faRightFromBracket,
   faShieldHalved,
-  faShield,
   faClipboardCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import { useTheme } from "./ThemeProvider";
@@ -28,7 +27,6 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: faChartLine },
   { href: "/trades", label: "Quản lý lệnh", icon: faListCheck },
   { href: "/statistics", label: "Thống kê", icon: faChartPie },
-  { href: "/risk", label: "Quản lý rủi ro", icon: faShield },
   { href: "/checklist", label: "Checklist", icon: faClipboardCheck },
   { href: "/calendar", label: "Lịch", icon: faCalendarDays },
   { href: "/settings", label: "Cài đặt", icon: faGear },
@@ -45,7 +43,7 @@ export function Sidebar() {
       <div className="p-5 border-b border-border">
         <h1 className="text-xl font-bold text-primary flex items-center gap-2">
           <FontAwesomeIcon icon={faChartLine} className="text-green-500" />
-          TradingKý
+          Trading Ký
         </h1>
         <p className="text-xs text-muted-foreground mt-1">Nhật ký giao dịch</p>
       </div>
@@ -129,6 +127,12 @@ export function Sidebar() {
           <FontAwesomeIcon icon={faRightFromBracket} className="w-4 h-4" />
           Đăng xuất
         </button>
+      </div>
+
+      <div className="px-4 py-2 border-t border-border text-center">
+        <p className="text-[10px] text-muted-foreground/60">
+          © 2025 Trading Ký v{process.env.NEXT_PUBLIC_APP_VERSION} — by Tuan
+        </p>
       </div>
     </>
   );

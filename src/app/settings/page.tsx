@@ -18,11 +18,8 @@ import {
   faRotateLeft,
   faCoins,
   faFaceSmile,
-  faLightbulb,
-  faChessKnight,
   faBuildingColumns,
   faClock,
-  faTags,
   faFileExport,
   faFileImport,
   faCheck,
@@ -32,12 +29,9 @@ type LibraryKey = keyof DropdownLibrary;
 
 const SECTIONS: { key: LibraryKey; label: string; icon: typeof faCoins; emojis: string[] }[] = [
   { key: "pairs", label: "Cặp tiền", icon: faCoins, emojis: ["🥇", "₿", "💰", "💎", "🪙", "💵", "💶", "💷", "🇺🇸", "🇪🇺", "🇬🇧", "🇯🇵", "🇦🇺"] },
-  { key: "emotions", label: "Tâm lý", icon: faFaceSmile, emojis: ["😎", "😌", "😤", "😰", "🤑", "💪", "🔥", "❄️", "😡", "🤔", "😱", "🧘", "🎯"] },
-  { key: "reasons", label: "Lý do vào lệnh", icon: faLightbulb, emojis: ["🚀", "📊", "📈", "📉", "🎯", "💡", "🔄", "⚡", "🏗️", "🕯️", "📐", "🔔", "📰"] },
-  { key: "strategies", label: "Strategy", icon: faChessKnight, emojis: ["⚡", "🎯", "🏄", "🏃", "🐢", "🦅", "♟️", "🎲", "🧠", "📏"] },
   { key: "platforms", label: "Sàn giao dịch", icon: faBuildingColumns, emojis: ["🏦", "💹", "🌐", "📱", "💻", "🔗"] },
+  { key: "emotions", label: "Tâm lý", icon: faFaceSmile, emojis: ["😎", "😌", "😤", "😰", "🤑", "💪", "🔥", "❄️", "😡", "🤔", "😱", "🧘", "🎯"] },
   { key: "timeframes", label: "Timeframe", icon: faClock, emojis: ["⏱️", "⏰", "🕐", "📅", "📆", "🗓️"] },
-  { key: "tags", label: "Tags", icon: faTags, emojis: ["🏷️", "🔖", "⭐", "📌", "🔥", "💎", "🎉", "⚠️", "✅", "❌"] },
 ];
 
 export default function SettingsPage() {
@@ -130,7 +124,7 @@ export default function SettingsPage() {
   const handleExportCSV = async () => {
     if (!user) return;
     const trades = await getTrades(user.uid);
-    const headers = ["date", "pair", "platform", "type", "emotion", "result", "pnl", "stopLoss", "takeProfit", "reason", "chartImageUrl", "note", "entryPrice", "exitPrice", "lotSize", "timeframe", "closeDate", "strategy", "tags"];
+    const headers = ["date", "pair", "platform", "type", "emotion", "result", "pnl", "stopLoss", "takeProfit", "chartImageUrl", "note", "entryPrice", "exitPrice", "lotSize", "timeframe", "closeDate"];
     const csvRows = [headers.join(",")];
     for (const t of trades) {
       const row = headers.map((h) => {

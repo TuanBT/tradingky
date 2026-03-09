@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { DropdownLibrary, Trade } from "@/lib/types";
 import { useTradeFilters } from "./TradeFilterContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFilter, faRotateLeft } from "@fortawesome/free-solid-svg-icons";
+import { faFilter, faRotateLeft, faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 
 const resultLabels: Record<string, string> = {
   all: "Tất cả",
@@ -87,15 +87,36 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
     );
   }
 
+  // Collapsible on mobile (default collapsed)
+  const [collapsed, setCollapsed] = useState(true);
+
+  const activeFilterCount = [
+    filters.search !== "",
+    filters.platform !== "all",
+    filters.pair !== "all",
+    filters.result !== "all",
+    filters.status !== "all",
+    filters.dateRange !== "all",
+  ].filter(Boolean).length;
+
   return (
     <Card>
       <CardContent className="p-4">
-        <div className="flex items-center gap-2 mb-3">
+        <button
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          className="flex items-center gap-2 w-full sm:cursor-default"
+        >
           <FontAwesomeIcon icon={faFilter} className="text-muted-foreground h-4 w-4" />
           <span className="text-sm font-medium">Bộ lọc</span>
+          {activeFilterCount > 0 && (
+            <span className="text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 sm:hidden">
+              {activeFilterCount}
+            </span>
+          )}
           {hasActiveFilters && (
             <button
-              onClick={resetFilters}
+              onClick={(e) => { e.stopPropagation(); resetFilters(); }}
               className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
             >
               <FontAwesomeIcon icon={faRotateLeft} className="h-3 w-3" />
@@ -105,8 +126,12 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
           <span className="text-xs text-muted-foreground ml-auto">
             {totalCount} lệnh
           </span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <FontAwesomeIcon
+            icon={collapsed ? faChevronDown : faChevronUp}
+            className="h-3 w-3 text-muted-foreground sm:hidden"
+          />
+        </button>
+        <div className={`${collapsed ? "hidden sm:grid" : "grid"} grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-3`}>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Tìm kiếm</label>
             <Input

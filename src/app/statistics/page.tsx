@@ -292,26 +292,6 @@ export default function StatisticsPage() {
       .sort((a, b) => b.total - a.total);
   }, [filteredTrades]);
 
-  // Strategy stats
-  const strategyStats = useMemo(() => {
-    const map = new Map<string, { total: number; wins: number; pnl: number }>();
-    for (const t of filteredTrades) {
-      const s = t.strategy || "N/A";
-      const curr = map.get(s) || { total: 0, wins: 0, pnl: 0 };
-      curr.total++;
-      if (t.result === "WIN") curr.wins++;
-      curr.pnl += t.pnl || 0;
-      map.set(s, curr);
-    }
-    return Array.from(map.entries())
-      .map(([strategy, data]) => ({
-        strategy,
-        ...data,
-        winRate: data.total > 0 ? (data.wins / data.total) * 100 : 0,
-      }))
-      .sort((a, b) => b.total - a.total);
-  }, [filteredTrades]);
-
   // Monthly performance comparison (uses ALL trades, not filtered)
   const monthlyComparison = useMemo(() => {
     if (trades.length === 0) return [];
@@ -749,8 +729,8 @@ export default function StatisticsPage() {
             )}
           </div>
 
-          {/* Timeframe & Strategy Analysis */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Timeframe Analysis */}
+          <div>
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">⏱️ Theo Timeframe</CardTitle>
@@ -787,47 +767,6 @@ export default function StatisticsPage() {
                   ))}
                   {timeframeStats.length === 0 && (
                     <p className="text-sm text-muted-foreground">Chưa có dữ liệu timeframe</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">♟️ Theo Strategy</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {strategyStats.map((s) => (
-                    <div
-                      key={s.strategy}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <span className="font-medium w-24 truncate">{s.strategy}</span>
-                      <div className="flex-1 mx-3">
-                        <div className="h-2 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${
-                              s.winRate >= 50 ? "bg-green-500" : "bg-red-500"
-                            }`}
-                            style={{ width: `${Math.min(s.winRate, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                      <span className="w-20 text-right text-muted-foreground">
-                        {s.winRate.toFixed(0)}% ({s.total})
-                      </span>
-                      <span
-                        className={`w-24 text-right font-mono ${
-                          s.pnl >= 0 ? "text-green-500" : "text-red-500"
-                        }`}
-                      >
-                        {s.pnl >= 0 ? "+" : ""}${s.pnl.toFixed(0)}
-                      </span>
-                    </div>
-                  ))}
-                  {strategyStats.length === 0 && (
-                    <p className="text-sm text-muted-foreground">Chưa có dữ liệu strategy</p>
                   )}
                 </div>
               </CardContent>

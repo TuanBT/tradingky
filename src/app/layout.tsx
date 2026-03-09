@@ -15,13 +15,13 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TradingKý - Nhật ký giao dịch",
+  title: "Trading Ký - Nhật ký giao dịch",
   description: "Ghi lại nhật ký trading, theo dõi lợi nhuận và tâm lý giao dịch",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "TradingKý",
+    title: "Trading Ký",
   },
 };
 

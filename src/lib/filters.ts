@@ -22,7 +22,6 @@ export function filterTrades(trades: Trade[], filters: TradeFilters): Trade[] {
       return (
         t.pair.toLowerCase().includes(s) ||
         t.note?.toLowerCase().includes(s) ||
-        t.reason?.toLowerCase().includes(s) ||
         t.emotion.toLowerCase().includes(s)
       );
     }

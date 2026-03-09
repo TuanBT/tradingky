@@ -273,9 +273,6 @@ export default function CalendarPage() {
                     </div>
                     <div className="flex items-center gap-4">
                       <Badge variant="secondary">{trade.emotion}</Badge>
-                      {trade.reason && (
-                        <Badge variant="outline">{trade.reason}</Badge>
-                      )}
                       <span
                         className={`font-semibold ${
                           trade.result === "WIN"

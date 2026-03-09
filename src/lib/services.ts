@@ -299,8 +299,7 @@ export async function createSmokeTestTrades(uid: string): Promise<number> {
 
   const pairs = ["XAUUSD", "BTCUSDT", "EURUSD"];
   const platforms = ["Exness", "Binance"];
-  const emotions = ["Tự tin", "Bình tĩnh", "FOMO"];
-  const reasons = ["Breakout", "Pullback", "Support/Resistance"];
+  const emotions = ["😎 Tự tin", "🧘 Bình tĩnh", "😱 FOMO"];
   const results: ("WIN" | "LOSS" | "BREAKEVEN")[] = ["WIN", "LOSS", "BREAKEVEN"];
   const types: ("BUY" | "SELL")[] = ["BUY", "SELL"];
 
@@ -320,9 +319,7 @@ export async function createSmokeTestTrades(uid: string): Promise<number> {
       result,
       pnl,
       status: "CLOSED" as const,
-      reason: reasons[i % reasons.length],
       note: `[Smoke Test] Lệnh test #${i + 1} - tạo tự động`,
-      tags: ["smoke-test"],
       createdAt: now - i * 60000,
     });
   }

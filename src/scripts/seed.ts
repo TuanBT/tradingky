@@ -19,14 +19,7 @@ const db = getFirestore(app);
 
 const pairs = ["XAUUSD", "BTCUSDT", "EURUSD", "GBPUSD", "USDJPY", "ETHUSDT", "SOLUSDT", "AUDUSD"];
 const platforms = ["Exness", "Binance", "XM"];
-const emotions = ["Tự tin", "Bình tĩnh", "FOMO", "Sợ hãi", "Tham lam", "Nóng vội", "Revenge trade", "Không chắc chắn", "Hào hứng", "Kiên nhẫn"];
-const reasons = [
-  "Breakout vùng tích lũy", "Pullback về EMA50", "Support/Resistance bounce", "Trendline bounce",
-  "Supply/Demand zone", "News NFP", "Bearish engulfing D1", "Bullish engulfing D1",
-  "RSI divergence", "MACD cross", "Double bottom", "Head & Shoulders", "FVG entry",
-  "Fibonacci retracement 61.8%", "London session breakout", "Asian range breakout",
-];
-const tagsPool = ["Scalping", "Swing", "Breakout", "Reversal", "Trend following", "Counter-trend", "News trading", "Pullback", "Pattern"];
+const emotions = ["😎 Tự tin", "🧘 Bình tĩnh", "😱 FOMO", "😨 Sợ hãi", "🤑 Tham lam", "😤 Nóng vội", "😡 Revenge trade", "🤔 Không chắc chắn", "🤩 Hào hứng", "💪 Kiên nhẫn"];
 const exitReasons = [
   "Chạm TP đặt trước", "Trailing stop hit", "Manual close khi thấy divergence",
   "SL hit", "Break even sau khi dời SL", "Chạm resistance, close 80%",
@@ -44,11 +37,6 @@ const lessons = [
 ];
 
 function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
-function pickTags(): string[] { 
-  const count = Math.floor(Math.random() * 3) + 1;
-  const shuffled = [...tagsPool].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
-}
 function randomPnl(result: string): number {
   if (result === "WIN") return +(Math.random() * 180 + 10).toFixed(2);
   if (result === "LOSS") return +(-Math.random() * 120 - 5).toFixed(2);
@@ -88,7 +76,6 @@ function generateTrades() {
       const rng = Math.random();
       const result = rng < 0.55 ? "WIN" as const : rng < 0.85 ? "LOSS" as const : "BREAKEVEN" as const;
       const pnl = randomPnl(result);
-      const reason = pick(reasons);
       
       const trade: Record<string, unknown> = {
         date: dateStr,
@@ -99,8 +86,6 @@ function generateTrades() {
         result,
         pnl,
         status: "CLOSED" as const,
-        reason,
-        tags: pickTags(),
         createdAt: current.getTime() + i * 3600000,
       };
       
@@ -133,7 +118,7 @@ function generateTrades() {
       
       // Add note for ~80% of trades
       if (Math.random() < 0.8) {
-        trade.note = `${reason}. ${emotion === "FOMO" ? "Vào hơi vội, cần cải thiện." : emotion === "Revenge trade" ? "Đang nóng sau lệnh thua trước." : "Setup nhìn OK theo kế hoạch."}`;
+        trade.note = `${emotion === "FOMO" ? "Vào hơi vội, cần cải thiện." : emotion === "Revenge trade" ? "Đang nóng sau lệnh thua trước." : "Setup nhìn OK theo kế hoạch."}`;
       }
       
       // Add exit review for ~60% of closed trades
@@ -154,43 +139,39 @@ function generateTrades() {
   const openTrades = [
     {
       date: "2026-03-09", pair: "XAUUSD", platform: "Exness", type: "BUY" as const,
-      emotion: "Tự tin", result: "WIN" as const, pnl: 0, status: "OPEN" as const,
-      reason: "Breakout vùng accumulation H4", stopLoss: "2920", takeProfit: "2980",
+      emotion: "😎 Tự tin", result: "WIN" as const, pnl: 0, status: "OPEN" as const,
+      stopLoss: "2920", takeProfit: "2980",
       entryPrice: 2935, lotSize: 0.3,
       note: "Break ra khỏi accumulation 2920-2935, entry khi retest thành công.",
-      tags: ["Breakout", "Trend following"], createdAt: Date.now() - 3600000,
+      createdAt: Date.now() - 3600000,
     },
     {
       date: "2026-03-09", pair: "BTCUSDT", platform: "Binance", type: "SELL" as const,
-      emotion: "Bình tĩnh", result: "WIN" as const, pnl: 0, status: "OPEN" as const,
-      reason: "Bearish divergence RSI H4 tại resistance",
+      emotion: "🧘 Bình tĩnh", result: "WIN" as const, pnl: 0, status: "OPEN" as const,
       stopLoss: "69500", takeProfit: "66000", entryPrice: 68800, lotSize: 0.005,
       note: "RSI divergence bearish rõ khi test resistance 69000.",
-      tags: ["Reversal"], createdAt: Date.now() - 1800000,
+      createdAt: Date.now() - 1800000,
     },
     {
       date: "2026-03-09", pair: "GBPUSD", platform: "Exness", type: "BUY" as const,
-      emotion: "Không chắc chắn", result: "WIN" as const, pnl: 0, status: "OPEN" as const,
-      reason: "Support bounce + NFP setup",
+      emotion: "🤔 Không chắc chắn", result: "WIN" as const, pnl: 0, status: "OPEN" as const,
       stopLoss: "1.2650", takeProfit: "1.2780", entryPrice: 1.2700, lotSize: 0.2,
       note: "Bounce trên support 1.2650, NFP sắp ra - SL chặt.",
-      tags: ["News trading"], createdAt: Date.now() - 900000,
+      createdAt: Date.now() - 900000,
     },
     {
       date: "2026-03-09", pair: "ETHUSDT", platform: "Binance", type: "BUY" as const,
-      emotion: "Hào hứng", result: "WIN" as const, pnl: 0, status: "OPEN" as const,
-      reason: "Break trendline giảm D1",
+      emotion: "🤩 Hào hứng", result: "WIN" as const, pnl: 0, status: "OPEN" as const,
       stopLoss: "3400", takeProfit: "3700", entryPrice: 3520, lotSize: 0.1,
       note: "ETH break trendline giảm kéo dài 2 tháng, volume spike.",
-      tags: ["Breakout"], createdAt: Date.now() - 600000,
+      createdAt: Date.now() - 600000,
     },
     {
       date: "2026-03-09", pair: "USDJPY", platform: "XM", type: "SELL" as const,
-      emotion: "Bình tĩnh", result: "WIN" as const, pnl: 0, status: "OPEN" as const,
-      reason: "Double top H4 + BOJ news",
+      emotion: "🧘 Bình tĩnh", result: "WIN" as const, pnl: 0, status: "OPEN" as const,
       stopLoss: "152.500", takeProfit: "149.000", entryPrice: 151.200, lotSize: 0.3,
       note: "Double top rõ ràng trên H4, BOJ có thể can thiệp.",
-      tags: ["Reversal", "News trading"], createdAt: Date.now() - 300000,
+      createdAt: Date.now() - 300000,
     },
   ];
   
@@ -200,12 +181,9 @@ function generateTrades() {
 
 const defaultLibrary = {
   pairs: ["XAUUSD", "BTCUSDT", "EURUSD", "GBPUSD", "USDJPY", "ETHUSDT", "SOLUSDT", "AUDUSD"],
-  emotions: ["Tự tin", "Bình tĩnh", "FOMO", "Sợ hãi", "Tham lam", "Nóng vội", "Revenge trade", "Không chắc chắn", "Hào hứng", "Kiên nhẫn"],
-  reasons: ["Breakout", "Pullback", "Support/Resistance", "Trendline", "Supply/Demand", "News", "Cảm tính", "Pattern (nến)", "Divergence", "Fibonacci"],
-  strategies: ["Scalping", "Day trade", "Swing", "Position"],
+  emotions: ["😎 Tự tin", "🧘 Bình tĩnh", "😱 FOMO", "😨 Sợ hãi", "🤑 Tham lam", "😤 Nóng vội", "😡 Revenge trade", "🤔 Không chắc chắn", "🤩 Hào hứng", "💪 Kiên nhẫn"],
   platforms: ["Exness", "Binance", "XM"],
   timeframes: ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1"],
-  tags: ["Scalping", "Swing", "Breakout", "Reversal", "Trend following", "Counter-trend", "News trading", "Pullback", "Pattern"],
 };
 
 async function seed() {

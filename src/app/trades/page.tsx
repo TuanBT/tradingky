@@ -29,16 +29,13 @@ import {
   faTableList,
   faMagnifyingGlass,
   faCalendarDays,
-  faChartLine,
   faBuildingColumns,
   faArrowTrendUp,
   faArrowTrendDown,
   faBullseye,
   faShieldHalved,
-  faLightbulb,
   faClock,
   faLayerGroup,
-  faTags,
   faImage,
   faNoteSticky,
   faFaceSmile,
@@ -723,8 +720,6 @@ function TradeDetail({ trade }: { trade: Trade }) {
             )}
             <InfoRow icon={faBuildingColumns} label="Sàn" value={trade.platform} />
             <InfoRow icon={faFaceSmile} label="Tâm lý" value={trade.emotion} />
-            {trade.reason && <InfoRow icon={faLightbulb} label="Lý do vào lệnh" value={trade.reason} />}
-            {trade.strategy && <InfoRow icon={faChartLine} label="Strategy" value={trade.strategy} />}
             {trade.timeframe && <InfoRow icon={faClock} label="Timeframe" value={trade.timeframe} />}
           </CardContent>
         </Card>
@@ -760,24 +755,6 @@ function TradeDetail({ trade }: { trade: Trade }) {
           </CardContent>
         </Card>
       </div>
-
-      {trade.tags && trade.tags.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              <FontAwesomeIcon icon={faTags} className="mr-2 h-4 w-4" />
-              Tags
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {trade.tags.map((tag) => (
-                <Badge key={tag} variant="secondary">{tag}</Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {trade.chartImageUrl && (
         <Card>

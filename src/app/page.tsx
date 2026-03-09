@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { Trade } from "@/lib/types";
 import { getTrades } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
@@ -27,6 +26,7 @@ import {
   parseISO,
 } from "date-fns";
 import { vi } from "date-fns/locale";
+import { TradeEditModal } from "@/components/TradeEditModal";
 import {
   BarChart,
   Bar,
@@ -63,10 +63,10 @@ function filterByPeriod(trades: Trade[], period: "today" | "week" | "month") {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const router = useRouter();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   const loadTrades = useCallback(async () => {
     if (!user) return;
@@ -157,7 +157,7 @@ export default function DashboardPage() {
             {format(new Date(), "EEEE, dd/MM/yyyy", { locale: vi })}
           </p>
         </div>
-        <Button onClick={() => router.push("/trades/new")} size="default">
+        <Button onClick={() => setAddModalOpen(true)} size="default">
           <FontAwesomeIcon icon={faPlus} className="mr-2" />
           Thêm lệnh
         </Button>
@@ -343,7 +343,7 @@ export default function DashboardPage() {
               <p className="text-muted-foreground">
                 Chưa có lệnh nào. Hãy thêm lệnh đầu tiên!
               </p>
-              <Button onClick={() => router.push("/trades/new")}>
+              <Button onClick={() => setAddModalOpen(true)}>
                 <FontAwesomeIcon icon={faPlus} className="mr-2" />
                 Thêm lệnh
               </Button>
@@ -351,6 +351,14 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      <TradeEditModal
+        tradeId={null}
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onSaved={loadTrades}
+        mode="add"
+      />
     </div>
   );
 }

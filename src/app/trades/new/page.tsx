@@ -23,6 +23,7 @@ import {
   faChevronDown,
   faChevronUp,
   faUpload,
+  faPaste,
   faPlay,
   faFlagCheckered,
 } from "@fortawesome/free-solid-svg-icons";
@@ -45,13 +46,11 @@ interface TradeForm {
   reason: string;
   chartImageUrl: string;
   note: string;
-  tags: string[];
   entryPrice: number | undefined;
   exitPrice: number | undefined;
   lotSize: number | undefined;
   timeframe: string;
   closeDate: string;
-  strategy: string;
   exitReason: string;
   lessonsLearned: string;
 }
@@ -70,13 +69,11 @@ const emptyForm: TradeForm = {
   reason: "",
   chartImageUrl: "",
   note: "",
-  tags: [],
   entryPrice: undefined,
   exitPrice: undefined,
   lotSize: undefined,
   timeframe: "",
   closeDate: "",
-  strategy: "",
   exitReason: "",
   lessonsLearned: "",
 };
@@ -143,17 +140,15 @@ function TradeFormContent() {
             reason: trade.reason || "",
             chartImageUrl: trade.chartImageUrl || "",
             note: trade.note || "",
-            tags: trade.tags || [],
             entryPrice: trade.entryPrice,
             exitPrice: trade.exitPrice,
             lotSize: trade.lotSize,
             timeframe: trade.timeframe || "",
             closeDate: trade.closeDate || "",
-            strategy: trade.strategy || "",
             exitReason: trade.exitReason || "",
             lessonsLearned: trade.lessonsLearned || "",
           });
-          if (trade.entryPrice || trade.exitPrice || trade.lotSize || trade.timeframe || trade.closeDate || trade.strategy) {
+          if (trade.entryPrice || trade.exitPrice || trade.lotSize || trade.timeframe || trade.closeDate) {
             setShowAdvanced(true);
           }
         }
@@ -197,6 +192,27 @@ function TradeFormContent() {
     const updated = { ...library, [key]: items };
     setLibrary(updated);
     if (user) updateLibrary(user.uid, updated);
+  };
+
+  const handlePasteImage = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items || !user) return;
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) return;
+        setUploading(true);
+        try {
+          const url = await uploadChartImage(user.uid, file);
+          updateForm({ chartImageUrl: url });
+        } catch (err) {
+          setFormErrors([(err as Error).message || "Lỗi upload ảnh."]);
+        }
+        setUploading(false);
+        return;
+      }
+    }
   };
 
   // Cleanup auto-save timer on unmount
@@ -253,13 +269,11 @@ function TradeFormContent() {
       reason: form.reason || undefined,
       chartImageUrl: form.chartImageUrl || undefined,
       note: form.note || undefined,
-      tags: form.tags.length > 0 ? form.tags : undefined,
       entryPrice: form.entryPrice,
       exitPrice: form.exitPrice,
       lotSize: form.lotSize,
       timeframe: form.timeframe || undefined,
       closeDate: form.closeDate || undefined,
-      strategy: form.strategy || undefined,
       exitReason: form.exitReason || undefined,
       lessonsLearned: form.lessonsLearned || undefined,
       createdAt: editTrade?.createdAt || Date.now(),
@@ -367,6 +381,39 @@ function TradeFormContent() {
         </div>
       )}
 
+      {/* Toggle: Open vs Closed trade (only for new trades) */}
+      {!editTrade && (
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant={form.status === "OPEN" ? "default" : "outline"}
+            className={form.status === "OPEN" ? "bg-blue-600 hover:bg-blue-700 text-white" : ""}
+            onClick={() => {
+              updateForm({
+                status: "OPEN",
+                pnl: undefined,
+                result: "WIN",
+                closeDate: "",
+                exitReason: "",
+                lessonsLearned: "",
+              });
+            }}
+          >
+            📝 Ghi lệnh đang mở
+          </Button>
+          <Button
+            type="button"
+            variant={form.status === "CLOSED" ? "default" : "outline"}
+            className={form.status === "CLOSED" ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+            onClick={() => {
+              updateForm({ status: "CLOSED" });
+            }}
+          >
+            ✅ Ghi lệnh đã đóng
+          </Button>
+        </div>
+      )}
+
       {/* Main Form */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         {/* Left column - Main info (3/4 width on desktop) */}
@@ -406,6 +453,7 @@ function TradeFormContent() {
                     placeholder="Chọn sàn"
                   />
                 </div>
+                {editTrade && (
                 <div>
                   <Label className="text-sm text-muted-foreground">Lợi nhuận ($)</Label>
                   <Input
@@ -425,6 +473,7 @@ function TradeFormContent() {
                     <p className="text-xs text-muted-foreground mt-1">Đóng lệnh để nhập P&L</p>
                   )}
                 </div>
+                )}
               </div>
 
               <div className={`grid grid-cols-1 ${form.status === "CLOSED" ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-4`}>
@@ -530,13 +579,16 @@ function TradeFormContent() {
                   <FontAwesomeIcon icon={faImage} className="mr-1" />
                   Ảnh chart
                 </Label>
-                <div className="mt-1 flex gap-2">
+                <div className="mt-1 flex gap-2" onPaste={handlePasteImage}>
                   <Input
-                    placeholder="Paste link ảnh hoặc upload bên dưới..."
+                    placeholder="Paste ảnh từ clipboard hoặc link..."
                     value={form.chartImageUrl}
                     onChange={(e) => updateForm({ chartImageUrl: e.target.value })}
                     className="flex-1"
                   />
+                  <button type="button" onClick={async () => { try { const items = await navigator.clipboard.read(); for (const item of items) { const imageType = item.types.find(t => t.startsWith('image/')); if (imageType) { const blob = await item.getType(imageType); const file = new File([blob], `paste-${Date.now()}.png`, { type: imageType }); setUploading(true); try { const url = await uploadChartImage(user!.uid, file); updateForm({ chartImageUrl: url }); } catch (err) { setFormErrors([(err as Error).message || "Lỗi upload ảnh."]); } setUploading(false); return; } } setFormErrors(["Clipboard không có ảnh"]); } catch { setFormErrors(["Không thể đọc clipboard. Hãy dùng Ctrl+V."]); } }} className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer" title="Paste ảnh từ clipboard">
+                    <FontAwesomeIcon icon={faPaste} className="h-4 w-4" />
+                  </button>
                   <label>
                     <input
                       type="file"
@@ -644,13 +696,16 @@ function TradeFormContent() {
                     <FontAwesomeIcon icon={faImage} className="mr-1" />
                     Cập nhật ảnh chart (đè ảnh lúc mở lệnh)
                   </Label>
-                  <div className="mt-1 flex gap-2">
+                  <div className="mt-1 flex gap-2" onPaste={handlePasteImage}>
                     <Input
-                      placeholder="Paste link ảnh..."
+                      placeholder="Paste ảnh từ clipboard hoặc link..."
                       value={form.chartImageUrl}
                       onChange={(e) => updateForm({ chartImageUrl: e.target.value })}
                       className="flex-1"
                     />
+                    <button type="button" onClick={async () => { try { const items = await navigator.clipboard.read(); for (const item of items) { const imageType = item.types.find(t => t.startsWith('image/')); if (imageType) { const blob = await item.getType(imageType); const file = new File([blob], `paste-${Date.now()}.png`, { type: imageType }); setUploading(true); try { const url = await uploadChartImage(user!.uid, file); updateForm({ chartImageUrl: url }); } catch (err) { setFormErrors([(err as Error).message || "Lỗi upload ảnh."]); } setUploading(false); return; } } setFormErrors(["Clipboard không có ảnh"]); } catch { setFormErrors(["Không thể đọc clipboard. Hãy dùng Ctrl+V."]); } }} className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer" title="Paste ảnh từ clipboard">
+                      <FontAwesomeIcon icon={faPaste} className="h-4 w-4" />
+                    </button>
                     <label>
                       <input
                         type="file"
@@ -777,16 +832,7 @@ function TradeFormContent() {
                       className="mt-1"
                     />
                   </div>
-                  <div>
-                    <Label className="text-sm text-muted-foreground">Strategy</Label>
-                    <EditableSelect
-                      value={form.strategy}
-                      onValueChange={(v) => updateForm({ strategy: v })}
-                      items={library.strategies}
-                      onItemsChange={(items) => handleLibraryUpdate("strategies", items)}
-                      placeholder="Chọn strategy"
-                    />
-                  </div>
+
                 </div>
               </CardContent>
             )}
