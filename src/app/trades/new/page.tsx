@@ -202,11 +202,44 @@ function TradeFormContent() {
     if (user) updateLibrary(user.uid, updated);
   };
 
+  // Cleanup auto-save timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+  }, []);
+
+  const [formErrors, setFormErrors] = useState<string[]>([]);
+
   const handleSubmit = async () => {
-    if (!form.pair || !form.platform || !form.emotion) {
-      alert("Vui lòng điền đầy đủ: Cặp tiền, Sàn, và Tâm lý");
+    const errors: string[] = [];
+    if (!form.date) errors.push("Ngày vào lệnh là bắt buộc");
+    if (!form.pair) errors.push("Cặp tiền là bắt buộc");
+    if (!form.platform) errors.push("Sàn là bắt buộc");
+    if (!form.emotion) errors.push("Tâm lý là bắt buộc");
+    if (form.status === "CLOSED" && form.pnl !== undefined && form.result === "WIN" && form.pnl < 0) {
+      errors.push("Kết quả Thắng nhưng P&L âm — kiểm tra lại");
+    }
+    if (form.status === "CLOSED" && form.pnl !== undefined && form.result === "LOSS" && form.pnl > 0) {
+      errors.push("Kết quả Thua nhưng P&L dương — kiểm tra lại");
+    }
+    if (form.closeDate && form.date && form.closeDate < form.date) {
+      errors.push("Ngày đóng lệnh không thể trước ngày vào lệnh");
+    }
+    if (form.entryPrice !== undefined && form.entryPrice <= 0) {
+      errors.push("Giá vào phải lớn hơn 0");
+    }
+    if (form.exitPrice !== undefined && form.exitPrice <= 0) {
+      errors.push("Giá ra phải lớn hơn 0");
+    }
+    if (form.lotSize !== undefined && form.lotSize <= 0) {
+      errors.push("Lot size phải lớn hơn 0");
+    }
+    if (errors.length > 0) {
+      setFormErrors(errors);
       return;
     }
+    setFormErrors([]);
 
     setSaving(true);
     const tradeData = {
@@ -236,18 +269,23 @@ function TradeFormContent() {
       createdAt: editTrade?.createdAt || Date.now(),
     };
 
-    if (editTrade) {
-      await updateTrade(user!.uid, editTrade.id, tradeData);
-    } else {
-      await addTrade(user!.uid, tradeData);
-      localStorage.removeItem(AUTOSAVE_KEY);
-    }
+    try {
+      if (editTrade) {
+        await updateTrade(user!.uid, editTrade.id, tradeData);
+      } else {
+        await addTrade(user!.uid, tradeData);
+        localStorage.removeItem(AUTOSAVE_KEY);
+      }
 
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => {
-      router.back();
-    }, 800);
+      setSaving(false);
+      setSaved(true);
+      setTimeout(() => {
+        router.back();
+      }, 800);
+    } catch (error) {
+      setSaving(false);
+      setFormErrors([(error as Error).message || "Lỗi khi lưu lệnh. Vui lòng thử lại."]);
+    }
   };
 
   const handleClearDraft = () => {
@@ -320,6 +358,18 @@ function TradeFormContent() {
           </Button>
         </div>
       </div>
+
+      {/* Validation Errors */}
+      {formErrors.length > 0 && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+          <p className="font-medium text-red-500 text-sm mb-1">Vui lòng sửa lại:</p>
+          <ul className="list-disc list-inside text-sm text-red-400 space-y-0.5">
+            {formErrors.map((err, i) => (
+              <li key={i}>{err}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Main Form */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
@@ -504,7 +554,7 @@ function TradeFormContent() {
                           const url = await uploadChartImage(user.uid, file);
                           updateForm({ chartImageUrl: url });
                         } catch (err) {
-                          alert("Lỗi upload ảnh. Vui lòng thử lại hoặc dùng link.");
+                          setFormErrors([(err as Error).message || "Lỗi upload ảnh."]);
                         }
                         setUploading(false);
                         e.target.value = "";
@@ -617,8 +667,8 @@ function TradeFormContent() {
                           try {
                             const url = await uploadChartImage(user.uid, file);
                             updateForm({ exitChartImageUrl: url });
-                          } catch {
-                            alert("Lỗi upload ảnh.");
+                          } catch (err) {
+                            setFormErrors([(err as Error).message || "Lỗi upload ảnh."]);
                           }
                           setUploading(false);
                           e.target.value = "";

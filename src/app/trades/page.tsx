@@ -27,9 +27,12 @@ import {
   faChevronLeft,
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
-import { format, parseISO, isToday, isThisWeek, isThisMonth, isThisYear } from "date-fns";
+import { format, parseISO } from "date-fns";
 import Link from "next/link";
 import { TradeEditModal } from "@/components/TradeEditModal";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/ToastProvider";
+import { filterTrades } from "@/lib/filters";
 
 export default function TradesPage() {
   const { user } = useAuth();
@@ -38,19 +41,27 @@ export default function TradesPage() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [library, setLibrary] = useState<DropdownLibrary>(DEFAULT_LIBRARY);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [editTradeId, setEditTradeId] = useState<string | null>(null);
+  const [deleteTradeId, setDeleteTradeId] = useState<string | null>(null);
+  const { toast } = useToast();
   const pageSize = 20;
 
   const loadData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const [tradesData, libraryData] = await Promise.all([
-      getTrades(user.uid),
-      getLibrary(user.uid),
-    ]);
-    setTrades(tradesData);
-    setLibrary(libraryData);
+    setError(null);
+    try {
+      const [tradesData, libraryData] = await Promise.all([
+        getTrades(user.uid),
+        getLibrary(user.uid),
+      ]);
+      setTrades(tradesData);
+      setLibrary(libraryData);
+    } catch (err) {
+      setError((err as Error).message || "Không thể tải dữ liệu");
+    }
     setLoading(false);
   }, [user]);
 
@@ -59,31 +70,7 @@ export default function TradesPage() {
   }, [loadData]);
 
   const filteredTrades = useMemo(() => {
-    return trades.filter((t) => {
-      if (filters.platform !== "all" && t.platform !== filters.platform) return false;
-      if (filters.result !== "all" && t.result !== filters.result) return false;
-      if (filters.pair !== "all" && t.pair !== filters.pair) return false;
-      const status = t.status || "CLOSED";
-      if (filters.status !== "all" && status !== filters.status) return false;
-      if (filters.dateRange !== "all") {
-        const date = parseISO(t.date);
-        if (filters.dateRange === "today" && !isToday(date)) return false;
-        if (filters.dateRange === "this-week" && !isThisWeek(date, { weekStartsOn: 1 })) return false;
-        if (filters.dateRange === "this-month" && !isThisMonth(date)) return false;
-        if (filters.dateRange === "this-year" && !isThisYear(date)) return false;
-        if (filters.dateRange.startsWith("year-") && t.date.substring(0, 4) !== filters.dateRange.slice(5)) return false;
-      }
-      if (filters.search) {
-        const s = filters.search.toLowerCase();
-        return (
-          t.pair.toLowerCase().includes(s) ||
-          t.note?.toLowerCase().includes(s) ||
-          t.reason?.toLowerCase().includes(s) ||
-          t.emotion.toLowerCase().includes(s)
-        );
-      }
-      return true;
-    });
+    return filterTrades(trades, filters);
   }, [trades, filters]);
 
   const totalPages = Math.ceil(filteredTrades.length / pageSize);
@@ -94,16 +81,29 @@ export default function TradesPage() {
   }, [filters]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Xoá lệnh này?")) return;
     if (!user) return;
-    await deleteTrade(user.uid, id);
-    await loadData();
+    try {
+      await deleteTrade(user.uid, id);
+      toast("Đã xoá lệnh", "success");
+      await loadData();
+    } catch (error) {
+      toast((error as Error).message || "Lỗi khi xoá lệnh", "error");
+    }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <p className="text-red-500">{error}</p>
+        <Button onClick={loadData}>Thử lại</Button>
       </div>
     );
   }
@@ -213,7 +213,7 @@ export default function TradesPage() {
                           variant="ghost"
                           size="sm"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => handleDelete(trade.id)}
+                          onClick={() => setDeleteTradeId(trade.id)}
                           title="Xoá"
                         >
                           <FontAwesomeIcon icon={faTrash} className="h-4 w-4" />
@@ -273,6 +273,16 @@ export default function TradesPage() {
         open={!!editTradeId}
         onClose={() => setEditTradeId(null)}
         onSaved={loadData}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTradeId}
+        onClose={() => setDeleteTradeId(null)}
+        onConfirm={() => { if (deleteTradeId) handleDelete(deleteTradeId); }}
+        title="Xoá lệnh"
+        message="Bạn có chắc muốn xoá lệnh này? Hành động không thể hoàn tác."
+        confirmText="Xoá"
+        variant="danger"
       />
     </div>
   );

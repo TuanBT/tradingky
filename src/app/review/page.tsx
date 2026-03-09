@@ -37,7 +37,8 @@ import {
   faChevronDown,
   faChevronUp,
 } from "@fortawesome/free-solid-svg-icons";
-import { format, parseISO, isToday, isThisWeek, isThisMonth, isThisYear } from "date-fns";
+import { format, parseISO } from "date-fns";
+import { filterTrades } from "@/lib/filters";
 import { vi } from "date-fns/locale";
 import { TradeEditModal } from "@/components/TradeEditModal";
 import Link from "next/link";
@@ -51,6 +52,7 @@ export default function ReviewPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showList, setShowList] = useState(false);
   const [editTradeId, setEditTradeId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [listPage, setListPage] = useState(1);
   const listPageSize = 10;
@@ -58,13 +60,20 @@ export default function ReviewPage() {
 
   const loadData = useCallback(async () => {
     if (!user) return;
-    const [tradesData, libraryData] = await Promise.all([
-      getTrades(user.uid),
-      getLibrary(user.uid),
-    ]);
-    setAllTrades(tradesData);
-    setLibrary(libraryData);
-    setLoading(false);
+    setError(null);
+    setLoading(true);
+    try {
+      const [tradesData, libraryData] = await Promise.all([
+        getTrades(user.uid),
+        getLibrary(user.uid),
+      ]);
+      setAllTrades(tradesData);
+      setLibrary(libraryData);
+    } catch (err) {
+      setError((err as Error).message || "Không thể tải dữ liệu");
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -72,31 +81,7 @@ export default function ReviewPage() {
   }, [loadData]);
 
   const filteredTrades = useMemo(() => {
-    return allTrades.filter((t) => {
-      if (filters.result !== "all" && t.result !== filters.result) return false;
-      const status = t.status || "CLOSED";
-      if (filters.status !== "all" && status !== filters.status) return false;
-      if (filters.platform !== "all" && t.platform !== filters.platform) return false;
-      if (filters.pair !== "all" && t.pair !== filters.pair) return false;
-      if (filters.dateRange !== "all") {
-        const date = parseISO(t.date);
-        if (filters.dateRange === "today" && !isToday(date)) return false;
-        if (filters.dateRange === "this-week" && !isThisWeek(date, { weekStartsOn: 1 })) return false;
-        if (filters.dateRange === "this-month" && !isThisMonth(date)) return false;
-        if (filters.dateRange === "this-year" && !isThisYear(date)) return false;
-        if (filters.dateRange.startsWith("year-") && t.date.substring(0, 4) !== filters.dateRange.slice(5)) return false;
-      }
-      if (filters.search) {
-        const s = filters.search.toLowerCase();
-        return (
-          t.pair.toLowerCase().includes(s) ||
-          t.note?.toLowerCase().includes(s) ||
-          t.reason?.toLowerCase().includes(s) ||
-          t.emotion.toLowerCase().includes(s)
-        );
-      }
-      return true;
-    });
+    return filterTrades(allTrades, filters);
   }, [allTrades, filters]);
 
   // Reset index when filters change
@@ -144,6 +129,15 @@ export default function ReviewPage() {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <p className="text-red-500">{error}</p>
+        <Button onClick={loadData}>Thử lại</Button>
       </div>
     );
   }

@@ -40,84 +40,157 @@ function userLibraryDocRef(uid: string) {
 // ==================== TRADES ====================
 
 export async function getTrades(uid: string): Promise<Trade[]> {
-  const q = query(userTradesCollection(uid), orderBy("date", "desc"));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Trade));
+  try {
+    const q = query(userTradesCollection(uid), orderBy("date", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Trade));
+  } catch (error) {
+    console.error("Lỗi tải danh sách lệnh:", error);
+    throw new Error("Không thể tải danh sách lệnh. Vui lòng thử lại.");
+  }
 }
 
 export async function getTradesByDateRange(uid: string, startDate: string, endDate: string): Promise<Trade[]> {
-  const q = query(
-    userTradesCollection(uid),
-    where("date", ">=", startDate),
-    where("date", "<=", endDate),
-    orderBy("date", "desc")
-  );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Trade));
+  try {
+    const q = query(
+      userTradesCollection(uid),
+      where("date", ">=", startDate),
+      where("date", "<=", endDate),
+      orderBy("date", "desc")
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Trade));
+  } catch (error) {
+    console.error("Lỗi tải lệnh theo ngày:", error);
+    throw new Error("Không thể tải lệnh theo khoảng ngày.");
+  }
 }
 
 export async function addTrade(uid: string, trade: Omit<Trade, "id">): Promise<string> {
-  const docRef = await addDoc(userTradesCollection(uid), trade);
-  return docRef.id;
+  try {
+    const docRef = await addDoc(userTradesCollection(uid), trade);
+    return docRef.id;
+  } catch (error) {
+    console.error("Lỗi thêm lệnh:", error);
+    throw new Error("Không thể lưu lệnh. Vui lòng thử lại.");
+  }
 }
 
 export async function updateTrade(uid: string, id: string, trade: Partial<Trade>): Promise<void> {
-  const docRef = doc(db, "users", uid, "trades", id);
-  await updateDoc(docRef, trade);
+  try {
+    const docRef = doc(db, "users", uid, "trades", id);
+    await updateDoc(docRef, trade);
+  } catch (error) {
+    console.error("Lỗi cập nhật lệnh:", error);
+    throw new Error("Không thể cập nhật lệnh. Vui lòng thử lại.");
+  }
 }
 
 export async function deleteTrade(uid: string, id: string): Promise<void> {
-  const docRef = doc(db, "users", uid, "trades", id);
-  await deleteDoc(docRef);
+  try {
+    const docRef = doc(db, "users", uid, "trades", id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    console.error("Lỗi xoá lệnh:", error);
+    throw new Error("Không thể xoá lệnh. Vui lòng thử lại.");
+  }
 }
 
 // ==================== DAILY JOURNAL ====================
 
 export async function getJournals(uid: string): Promise<DailyJournal[]> {
-  const q = query(userJournalCollection(uid), orderBy("date", "desc"));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as DailyJournal));
+  try {
+    const q = query(userJournalCollection(uid), orderBy("date", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as DailyJournal));
+  } catch (error) {
+    console.error("Lỗi tải nhật ký:", error);
+    throw new Error("Không thể tải nhật ký. Vui lòng thử lại.");
+  }
 }
 
 export async function addJournal(uid: string, journal: Omit<DailyJournal, "id">): Promise<string> {
-  const docRef = await addDoc(userJournalCollection(uid), journal);
-  return docRef.id;
+  try {
+    const docRef = await addDoc(userJournalCollection(uid), journal);
+    return docRef.id;
+  } catch (error) {
+    console.error("Lỗi thêm nhật ký:", error);
+    throw new Error("Không thể lưu nhật ký.");
+  }
 }
 
 export async function updateJournal(uid: string, id: string, journal: Partial<DailyJournal>): Promise<void> {
-  const docRef = doc(db, "users", uid, "dailyJournal", id);
-  await updateDoc(docRef, journal);
+  try {
+    const docRef = doc(db, "users", uid, "dailyJournal", id);
+    await updateDoc(docRef, journal);
+  } catch (error) {
+    console.error("Lỗi cập nhật nhật ký:", error);
+    throw new Error("Không thể cập nhật nhật ký.");
+  }
 }
 
 export async function deleteJournal(uid: string, id: string): Promise<void> {
-  const docRef = doc(db, "users", uid, "dailyJournal", id);
-  await deleteDoc(docRef);
+  try {
+    const docRef = doc(db, "users", uid, "dailyJournal", id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    console.error("Lỗi xoá nhật ký:", error);
+    throw new Error("Không thể xoá nhật ký.");
+  }
 }
 
 // ==================== DROPDOWN LIBRARY ====================
 
 export async function getLibrary(uid: string): Promise<DropdownLibrary> {
-  const snapshot = await getDoc(userLibraryDocRef(uid));
-  if (snapshot.exists()) {
-    return snapshot.data() as DropdownLibrary;
+  try {
+    const snapshot = await getDoc(userLibraryDocRef(uid));
+    if (snapshot.exists()) {
+      return snapshot.data() as DropdownLibrary;
+    }
+    await setDoc(userLibraryDocRef(uid), DEFAULT_LIBRARY);
+    return DEFAULT_LIBRARY;
+  } catch (error) {
+    console.error("Lỗi tải dropdown library:", error);
+    return DEFAULT_LIBRARY;
   }
-  // Initialize with defaults
-  await setDoc(userLibraryDocRef(uid), DEFAULT_LIBRARY);
-  return DEFAULT_LIBRARY;
 }
 
 export async function updateLibrary(uid: string, library: DropdownLibrary): Promise<void> {
-  await setDoc(userLibraryDocRef(uid), library);
+  try {
+    await setDoc(userLibraryDocRef(uid), library);
+  } catch (error) {
+    console.error("Lỗi cập nhật dropdown library:", error);
+    throw new Error("Không thể lưu cài đặt dropdown.");
+  }
 }
 
 // ==================== FILE UPLOAD ====================
 
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif"];
+
 export async function uploadChartImage(uid: string, file: File): Promise<string> {
-  const ext = file.name.split(".").pop() || "png";
-  const filename = `${Date.now()}.${ext}`;
-  const storageRef = ref(storage, `users/${uid}/charts/${filename}`);
-  await uploadBytes(storageRef, file);
-  return getDownloadURL(storageRef);
+  if (file.size > MAX_IMAGE_SIZE) {
+    throw new Error("File quá lớn (tối đa 5MB).");
+  }
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    throw new Error("Chỉ hỗ trợ file ảnh (JPG, PNG, WebP, GIF).");
+  }
+  const ext = (file.name.split(".").pop() || "png").toLowerCase();
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    throw new Error("Đuôi file không hợp lệ.");
+  }
+
+  try {
+    const filename = `${Date.now()}.${ext}`;
+    const storageRef = ref(storage, `users/${uid}/charts/${filename}`);
+    await uploadBytes(storageRef, file);
+    return getDownloadURL(storageRef);
+  } catch (error) {
+    console.error("Lỗi upload ảnh:", error);
+    throw new Error("Không thể upload ảnh. Vui lòng thử lại.");
+  }
 }
 
 // ==================== ADMIN ====================
@@ -131,47 +204,60 @@ export interface UserInfo {
 }
 
 export async function getRegisteredUsers(): Promise<UserInfo[]> {
-  const usersSnapshot = await getDocs(collection(db, "users"));
-  const users: UserInfo[] = [];
+  try {
+    const usersSnapshot = await getDocs(collection(db, "users"));
 
-  for (const userDoc of usersSnapshot.docs) {
-    const uid = userDoc.id;
-    const tradesSnapshot = await getDocs(
-      query(collection(db, "users", uid, "trades"), orderBy("date", "desc"))
-    );
-    const trades = tradesSnapshot.docs.map((d) => d.data() as Omit<Trade, "id">);
-    const tradeCount = trades.length;
-    const totalPnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-    const wins = trades.filter((t) => t.result === "WIN").length;
-    const winRate = tradeCount > 0 ? (wins / tradeCount) * 100 : 0;
-    const lastTradeDate = trades.length > 0 ? trades[0].date : null;
+    // Parallel fetch instead of sequential N+1
+    const promises = usersSnapshot.docs.map(async (userDoc) => {
+      const uid = userDoc.id;
+      const tradesSnapshot = await getDocs(
+        query(collection(db, "users", uid, "trades"), orderBy("date", "desc"))
+      );
+      const trades = tradesSnapshot.docs.map((d) => d.data() as Omit<Trade, "id">);
+      const tradeCount = trades.length;
+      const totalPnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+      const wins = trades.filter((t) => t.result === "WIN").length;
+      const winRate = tradeCount > 0 ? (wins / tradeCount) * 100 : 0;
+      const lastTradeDate = trades.length > 0 ? trades[0].date : null;
+      return { uid, tradeCount, totalPnl, winRate, lastTradeDate } as UserInfo;
+    });
 
-    users.push({ uid, tradeCount, totalPnl, winRate, lastTradeDate });
+    return Promise.all(promises);
+  } catch (error) {
+    console.error("Lỗi tải danh sách users:", error);
+    throw new Error("Không thể tải danh sách users.");
   }
-
-  return users;
 }
 
 export async function resetUserTrades(uid: string): Promise<number> {
-  const tradesSnapshot = await getDocs(collection(db, "users", uid, "trades"));
-  const batch = writeBatch(db);
-  tradesSnapshot.docs.forEach((d) => batch.delete(d.ref));
-  await batch.commit();
-  return tradesSnapshot.size;
+  try {
+    const tradesSnapshot = await getDocs(collection(db, "users", uid, "trades"));
+    const batch = writeBatch(db);
+    tradesSnapshot.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    return tradesSnapshot.size;
+  } catch (error) {
+    console.error("Lỗi reset trades:", error);
+    throw new Error("Không thể reset trades.");
+  }
 }
 
 export async function resetUserJournals(uid: string): Promise<number> {
-  const journalSnapshot = await getDocs(collection(db, "users", uid, "dailyJournal"));
-  const batch = writeBatch(db);
-  journalSnapshot.docs.forEach((d) => batch.delete(d.ref));
-  await batch.commit();
-  return journalSnapshot.size;
+  try {
+    const journalSnapshot = await getDocs(collection(db, "users", uid, "dailyJournal"));
+    const batch = writeBatch(db);
+    journalSnapshot.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    return journalSnapshot.size;
+  } catch (error) {
+    console.error("Lỗi reset journals:", error);
+    throw new Error("Không thể reset journals.");
+  }
 }
 
 export async function resetUserAll(uid: string): Promise<{ trades: number; journals: number }> {
   const trades = await resetUserTrades(uid);
   const journals = await resetUserJournals(uid);
-  // Reset library to default
   await setDoc(userLibraryDocRef(uid), DEFAULT_LIBRARY);
   return { trades, journals };
 }
@@ -211,9 +297,13 @@ export async function createSmokeTestTrades(uid: string): Promise<number> {
     });
   }
 
-  for (const trade of testTrades) {
-    await addDoc(collection(db, "users", uid, "trades"), trade);
+  try {
+    for (const trade of testTrades) {
+      await addDoc(collection(db, "users", uid, "trades"), trade);
+    }
+    return testTrades.length;
+  } catch (error) {
+    console.error("Lỗi tạo smoke test trades:", error);
+    throw new Error("Không thể tạo test trades.");
   }
-
-  return testTrades.length;
 }

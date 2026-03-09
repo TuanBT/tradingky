@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
 
-interface TradeFilters {
+export interface TradeFilters {
   search: string;
   platform: string;
   pair: string;

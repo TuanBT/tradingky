@@ -246,7 +246,13 @@ export default function TradeDetailPage() {
                 onError={(e) => {
                   const el = e.target as HTMLImageElement;
                   el.style.display = 'none';
-                  el.insertAdjacentHTML('afterend', '<a href="' + trade.chartImageUrl + '" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline">Xem ảnh ↗ (không load được preview)</a>');
+                  const a = document.createElement('a');
+                  a.href = trade.chartImageUrl!;
+                  a.target = '_blank';
+                  a.rel = 'noopener noreferrer';
+                  a.className = 'text-blue-500 hover:underline';
+                  a.textContent = 'Xem ảnh ↗ (không load được preview)';
+                  el.parentElement?.appendChild(a);
                 }}
               />
             </a>

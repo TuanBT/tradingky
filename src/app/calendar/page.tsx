@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Trade } from "@/lib/types";
 import { getTrades } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
@@ -31,15 +31,27 @@ export default function CalendarPage() {
   const { user } = useAuth();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadTrades = useCallback(async () => {
     if (!user) return;
-    getTrades(user.uid)
-      .then(setTrades)
-      .finally(() => setLoading(false));
+    setError(null);
+    setLoading(true);
+    try {
+      const data = await getTrades(user.uid);
+      setTrades(data);
+    } catch (err) {
+      setError((err as Error).message || "Không thể tải dữ liệu");
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    loadTrades();
+  }, [loadTrades]);
 
   // Group trades by date with P&L
   const dailyData = useMemo(() => {
@@ -101,6 +113,15 @@ export default function CalendarPage() {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <p className="text-red-500">{error}</p>
+        <Button onClick={loadTrades}>Thử lại</Button>
       </div>
     );
   }

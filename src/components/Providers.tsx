@@ -9,6 +9,7 @@ import { ThemeProvider } from "./ThemeProvider";
 import { AuthProvider } from "./AuthProvider";
 import { TradeFilterProvider } from "./TradeFilterContext";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ToastProvider } from "./ToastProvider";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -16,7 +17,9 @@ export function Providers({ children }: { children: ReactNode }) {
       <AuthProvider>
         <TradeFilterProvider>
           <TooltipProvider>
-            {children}
+            <ToastProvider>
+              {children}
+            </ToastProvider>
           </TooltipProvider>
         </TradeFilterProvider>
       </AuthProvider>

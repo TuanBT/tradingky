@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Trade } from "@/lib/types";
 import { getTrades } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faDollarSign,
@@ -63,13 +64,25 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadTrades = useCallback(async () => {
+    if (!user) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const data = await getTrades(user.uid);
+      setTrades(data);
+    } catch (err) {
+      setError((err as Error).message || "Không thể tải dữ liệu");
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => {
-    if (!user) return;
-    getTrades(user.uid)
-      .then(setTrades)
-      .finally(() => setLoading(false));
-  }, [user]);
+    loadTrades();
+  }, [loadTrades]);
 
   const todayTrades = useMemo(() => filterByPeriod(trades, "today"), [trades]);
   const weekTrades = useMemo(() => filterByPeriod(trades, "week"), [trades]);
@@ -134,6 +147,15 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <p className="text-red-500">{error}</p>
+        <Button onClick={loadTrades}>Thử lại</Button>
       </div>
     );
   }

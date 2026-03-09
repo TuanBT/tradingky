@@ -35,6 +35,7 @@ import {
   faBroom,
   faServer,
 } from "@fortawesome/free-solid-svg-icons";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function AdminPage() {
   const { user } = useAuth();
@@ -42,6 +43,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [logs, setLogs] = useState<{ time: string; message: string; type: "info" | "success" | "error" }[]>([]);
+  const [confirmAction, setConfirmAction] = useState<{ type: "reset-trades" | "reset-all"; uid: string } | null>(null);
 
   const addLog = (message: string, type: "info" | "success" | "error" = "info") => {
     const time = new Date().toLocaleTimeString("vi-VN");
@@ -78,7 +80,6 @@ export default function AdminPage() {
   }
 
   const handleResetTrades = async (uid: string) => {
-    if (!confirm(`Xoá TẤT CẢ trades của user ${uid.slice(0, 8)}...? Hành động này không thể hoàn tác!`)) return;
     setActionLoading(`reset-trades-${uid}`);
     try {
       const count = await resetUserTrades(uid);
@@ -91,7 +92,6 @@ export default function AdminPage() {
   };
 
   const handleResetAll = async (uid: string) => {
-    if (!confirm(`⚠️ RESET TOÀN BỘ DATA của user ${uid.slice(0, 8)}...?\n\nSẽ xoá: tất cả trades, journals, và reset dropdown library.\nHành động này KHÔNG THỂ hoàn tác!`)) return;
     setActionLoading(`reset-all-${uid}`);
     try {
       const result = await resetUserAll(uid);
@@ -263,7 +263,7 @@ export default function AdminPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleResetTrades(u.uid)}
+                            onClick={() => setConfirmAction({ type: "reset-trades", uid: u.uid })}
                             disabled={actionLoading !== null}
                             title="Xoá tất cả trades"
                             className="text-orange-500 hover:text-orange-600"
@@ -277,7 +277,7 @@ export default function AdminPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleResetAll(u.uid)}
+                            onClick={() => setConfirmAction({ type: "reset-all", uid: u.uid })}
                             disabled={actionLoading !== null}
                             title="⚠️ Reset toàn bộ data"
                             className="text-red-500 hover:text-red-600"
@@ -359,6 +359,23 @@ export default function AdminPage() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => {
+          if (confirmAction?.type === "reset-trades") handleResetTrades(confirmAction.uid);
+          if (confirmAction?.type === "reset-all") handleResetAll(confirmAction.uid);
+        }}
+        title={confirmAction?.type === "reset-all" ? "⚠️ Reset toàn bộ" : "Xoá trades"}
+        message={
+          confirmAction?.type === "reset-all"
+            ? `Reset TOÀN BỘ DATA của user ${confirmAction?.uid.slice(0, 8)}...? Sẽ xoá tất cả trades, journals, và reset dropdown library. Hành động KHÔNG THỂ hoàn tác!`
+            : `Xoá TẤT CẢ trades của user ${confirmAction?.uid.slice(0, 8)}...? Hành động không thể hoàn tác!`
+        }
+        confirmText={confirmAction?.type === "reset-all" ? "Reset toàn bộ" : "Xoá trades"}
+        variant="danger"
+      />
     </div>
   );
 }

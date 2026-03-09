@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Trade, DropdownLibrary, DEFAULT_LIBRARY } from "@/lib/types";
 import { updateTrade, getLibrary, getTrades, uploadChartImage, updateLibrary } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
+import { useToast } from "@/components/ToastProvider";
 import {
   Dialog,
   DialogContent,
@@ -65,6 +66,7 @@ interface TradeEditModalProps {
 
 export function TradeEditModal({ tradeId, open, onClose, onSaved }: TradeEditModalProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [form, setForm] = useState<TradeForm | null>(null);
   const [library, setLibrary] = useState<DropdownLibrary>(DEFAULT_LIBRARY);
   const [loading, setLoading] = useState(true);
@@ -132,7 +134,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved }: TradeEditMod
 
   const handleSubmit = async () => {
     if (!form.pair || !form.platform || !form.emotion) {
-      alert("Vui lòng điền đầy đủ: Cặp tiền, Sàn, và Tâm lý");
+      toast("Vui lòng điền đầy đủ: Cặp tiền, Sàn, và Tâm lý", "error");
       return;
     }
     if (!user || !tradeRef.current) return;
@@ -165,13 +167,18 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved }: TradeEditMod
       createdAt: tradeRef.current.createdAt || Date.now(),
     };
 
-    await updateTrade(user.uid, tradeRef.current.id, tradeData);
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => {
-      onSaved();
-      onClose();
-    }, 600);
+    try {
+      await updateTrade(user.uid, tradeRef.current.id, tradeData);
+      setSaving(false);
+      setSaved(true);
+      setTimeout(() => {
+        onSaved();
+        onClose();
+      }, 600);
+    } catch (error) {
+      setSaving(false);
+      toast((error as Error).message || "Lỗi khi lưu lệnh.", "error");
+    }
   };
 
   return (
@@ -280,7 +287,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved }: TradeEditMod
                         const file = e.target.files?.[0];
                         if (!file || !user) return;
                         setUploading(true);
-                        try { const url = await uploadChartImage(user.uid, file); updateForm({ chartImageUrl: url }); } catch { alert("Lỗi upload ảnh."); }
+                        try { const url = await uploadChartImage(user.uid, file); updateForm({ chartImageUrl: url }); } catch (err) { toast((err as Error).message || "Lỗi upload ảnh.", "error"); }
                         setUploading(false);
                         e.target.value = "";
                       }} />
@@ -333,7 +340,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved }: TradeEditMod
                           const file = e.target.files?.[0];
                           if (!file || !user) return;
                           setUploading(true);
-                          try { const url = await uploadChartImage(user.uid, file); updateForm({ exitChartImageUrl: url }); } catch { alert("Lỗi upload."); }
+                          try { const url = await uploadChartImage(user.uid, file); updateForm({ exitChartImageUrl: url }); } catch (err) { toast((err as Error).message || "Lỗi upload ảnh.", "error"); }
                           setUploading(false);
                           e.target.value = "";
                         }} />

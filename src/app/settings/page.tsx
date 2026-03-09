@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { DropdownLibrary, DEFAULT_LIBRARY, Trade } from "@/lib/types";
 import { getLibrary, updateLibrary, getTrades, addTrade } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/ToastProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,20 +42,30 @@ const SECTIONS: { key: LibraryKey; label: string; icon: typeof faCoins; emojis: 
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [library, setLibrary] = useState<DropdownLibrary>(DEFAULT_LIBRARY);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [newItems, setNewItems] = useState<Record<string, string>>({});
   const [importStatus, setImportStatus] = useState<string>("");
   const [selectedEmoji, setSelectedEmoji] = useState<Record<string, string>>({});
   const [showEmojis, setShowEmojis] = useState<Record<string, boolean>>({});
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [importData, setImportData] = useState<{ trades: unknown[]; library?: DropdownLibrary } | null>(null);
 
   const loadLibrary = useCallback(async () => {
     if (!user) return;
+    setError(null);
     setLoading(true);
-    const data = await getLibrary(user.uid);
-    setLibrary(data);
-    setLoading(false);
+    try {
+      const data = await getLibrary(user.uid);
+      setLibrary(data);
+    } catch (err) {
+      setError((err as Error).message || "Không thể tải dữ liệu");
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -90,8 +102,12 @@ export default function SettingsPage() {
   };
 
   const handleReset = () => {
-    if (!confirm("Reset về giá trị mặc định? Bạn sẽ mất các thay đổi!")) return;
+    setConfirmReset(true);
+  };
+
+  const doReset = () => {
     setLibrary(DEFAULT_LIBRARY);
+    toast("Đã reset về giá trị mặc định", "success");
   };
 
   const handleExportJSON = async () => {
@@ -147,31 +163,45 @@ export default function SettingsPage() {
         setImportStatus("Lỗi: File không hợp lệ (thiếu trades)");
         return;
       }
-      if (!confirm(`Import ${data.trades.length} trades? Dữ liệu mới sẽ được THÊM VÀO (không ghi đè).`)) {
-        e.target.value = "";
-        return;
-      }
-      let count = 0;
-      for (const trade of data.trades) {
-        await addTrade(user.uid, { ...trade, createdAt: trade.createdAt || Date.now() });
-        count++;
-      }
-      if (data.library) {
-        await updateLibrary(user.uid, data.library);
-        setLibrary(data.library);
-      }
-      setImportStatus(`Đã import ${count} trades thành công!`);
-      setTimeout(() => setImportStatus(""), 4000);
+      setImportData(data);
+      e.target.value = "";
     } catch {
       setImportStatus("Lỗi: Không thể đọc file JSON");
     }
-    e.target.value = "";
+  };
+
+  const doImport = async () => {
+    if (!importData || !user) return;
+    try {
+      let count = 0;
+      for (const trade of importData.trades) {
+        await addTrade(user.uid, { ...(trade as Record<string, unknown>), createdAt: (trade as Record<string, unknown>).createdAt || Date.now() } as Parameters<typeof addTrade>[1]);
+        count++;
+      }
+      if (importData.library) {
+        await updateLibrary(user.uid, importData.library);
+        setLibrary(importData.library);
+      }
+      toast(`Đã import ${count} trades thành công!`, "success");
+      setImportData(null);
+    } catch {
+      toast("Lỗi khi import trades", "error");
+    }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <p className="text-red-500">{error}</p>
+        <Button onClick={loadLibrary}>Thử lại</Button>
       </div>
     );
   }
@@ -332,6 +362,26 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={confirmReset}
+        onClose={() => setConfirmReset(false)}
+        onConfirm={doReset}
+        title="Reset cài đặt"
+        message="Reset về giá trị mặc định? Bạn sẽ mất các thay đổi!"
+        confirmText="Reset"
+        variant="warning"
+      />
+
+      <ConfirmDialog
+        open={!!importData}
+        onClose={() => setImportData(null)}
+        onConfirm={doImport}
+        title="Import dữ liệu"
+        message={`Import ${importData?.trades.length || 0} trades? Dữ liệu mới sẽ được THÊM VÀO (không ghi đè).`}
+        confirmText="Import"
+        variant="default"
+      />
     </div>
   );
 }

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Trade } from "@/lib/types";
 import { getTrades } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -54,16 +55,28 @@ export default function StatisticsPage() {
   const { user } = useAuth();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
 
-  useEffect(() => {
+  const loadTrades = useCallback(async () => {
     if (!user) return;
-    getTrades(user.uid)
-      .then(setTrades)
-      .finally(() => setLoading(false));
+    setError(null);
+    setLoading(true);
+    try {
+      const data = await getTrades(user.uid);
+      setTrades(data);
+    } catch (err) {
+      setError((err as Error).message || "Không thể tải dữ liệu");
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    loadTrades();
+  }, [loadTrades]);
 
   const filteredTrades = useMemo(() => {
     if (period === "all") return trades;
@@ -235,6 +248,70 @@ export default function StatisticsPage() {
     }));
   }, [filteredTrades]);
 
+  // Streak analysis
+  const streakStats = useMemo(() => {
+    const sorted = [...filteredTrades].sort((a, b) => a.date.localeCompare(b.date));
+    let currentWinStreak = 0;
+    let currentLossStreak = 0;
+    let maxWinStreak = 0;
+    let maxLossStreak = 0;
+    for (const t of sorted) {
+      if (t.result === "WIN") {
+        currentWinStreak++;
+        currentLossStreak = 0;
+        if (currentWinStreak > maxWinStreak) maxWinStreak = currentWinStreak;
+      } else if (t.result === "LOSS") {
+        currentLossStreak++;
+        currentWinStreak = 0;
+        if (currentLossStreak > maxLossStreak) maxLossStreak = currentLossStreak;
+      } else {
+        currentWinStreak = 0;
+        currentLossStreak = 0;
+      }
+    }
+    return { maxWinStreak, maxLossStreak, currentWinStreak, currentLossStreak };
+  }, [filteredTrades]);
+
+  // Win rate by timeframe
+  const timeframeStats = useMemo(() => {
+    const map = new Map<string, { total: number; wins: number; pnl: number }>();
+    for (const t of filteredTrades) {
+      const tf = t.timeframe || "N/A";
+      const curr = map.get(tf) || { total: 0, wins: 0, pnl: 0 };
+      curr.total++;
+      if (t.result === "WIN") curr.wins++;
+      curr.pnl += t.pnl || 0;
+      map.set(tf, curr);
+    }
+    return Array.from(map.entries())
+      .map(([timeframe, data]) => ({
+        timeframe,
+        ...data,
+        winRate: data.total > 0 ? (data.wins / data.total) * 100 : 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [filteredTrades]);
+
+  // Strategy stats
+  const strategyStats = useMemo(() => {
+    const map = new Map<string, { total: number; wins: number; pnl: number }>();
+    for (const t of filteredTrades) {
+      const s = t.strategy || "N/A";
+      const curr = map.get(s) || { total: 0, wins: 0, pnl: 0 };
+      curr.total++;
+      if (t.result === "WIN") curr.wins++;
+      curr.pnl += t.pnl || 0;
+      map.set(s, curr);
+    }
+    return Array.from(map.entries())
+      .map(([strategy, data]) => ({
+        strategy,
+        ...data,
+        winRate: data.total > 0 ? (data.wins / data.total) * 100 : 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [filteredTrades]);
+
   // Monthly performance comparison (uses ALL trades, not filtered)
   const monthlyComparison = useMemo(() => {
     if (trades.length === 0) return [];
@@ -267,6 +344,15 @@ export default function StatisticsPage() {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <p className="text-red-500">{error}</p>
+        <Button onClick={loadTrades}>Thử lại</Button>
       </div>
     );
   }
@@ -330,6 +416,14 @@ export default function StatisticsPage() {
             <StatCard label="Profit Factor" value={stats.profitFactor === Infinity ? "∞" : stats.profitFactor.toFixed(2)} color={stats.profitFactor >= 1 ? "green" : "red"} />
             <StatCard label="Avg Win" value={`$${stats.avgWin.toFixed(2)}`} color="green" />
             <StatCard label="Max Drawdown" value={`-$${stats.maxDrawdown.toFixed(2)}`} color="red" />
+          </div>
+
+          {/* Streak + R:R Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard label="🔥 Win Streak (max)" value={streakStats.maxWinStreak.toString()} color="green" />
+            <StatCard label="❄️ Loss Streak (max)" value={streakStats.maxLossStreak.toString()} color="red" />
+            <StatCard label="Avg R:R" value={stats.avgRR.toFixed(2)} color={stats.avgRR >= 1 ? "green" : "red"} />
+            <StatCard label="Avg Loss" value={`$${stats.avgLoss.toFixed(2)}`} color="red" />
           </div>
 
           {/* Charts Row 1 */}
@@ -653,6 +747,91 @@ export default function StatisticsPage() {
                 </CardContent>
               </Card>
             )}
+          </div>
+
+          {/* Timeframe & Strategy Analysis */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">⏱️ Theo Timeframe</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {timeframeStats.map((tf) => (
+                    <div
+                      key={tf.timeframe}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <span className="font-medium w-16">{tf.timeframe}</span>
+                      <div className="flex-1 mx-3">
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              tf.winRate >= 50 ? "bg-green-500" : "bg-red-500"
+                            }`}
+                            style={{ width: `${Math.min(tf.winRate, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="w-20 text-right text-muted-foreground">
+                        {tf.winRate.toFixed(0)}% ({tf.total})
+                      </span>
+                      <span
+                        className={`w-24 text-right font-mono ${
+                          tf.pnl >= 0 ? "text-green-500" : "text-red-500"
+                        }`}
+                      >
+                        {tf.pnl >= 0 ? "+" : ""}${tf.pnl.toFixed(0)}
+                      </span>
+                    </div>
+                  ))}
+                  {timeframeStats.length === 0 && (
+                    <p className="text-sm text-muted-foreground">Chưa có dữ liệu timeframe</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">♟️ Theo Strategy</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {strategyStats.map((s) => (
+                    <div
+                      key={s.strategy}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <span className="font-medium w-24 truncate">{s.strategy}</span>
+                      <div className="flex-1 mx-3">
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              s.winRate >= 50 ? "bg-green-500" : "bg-red-500"
+                            }`}
+                            style={{ width: `${Math.min(s.winRate, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="w-20 text-right text-muted-foreground">
+                        {s.winRate.toFixed(0)}% ({s.total})
+                      </span>
+                      <span
+                        className={`w-24 text-right font-mono ${
+                          s.pnl >= 0 ? "text-green-500" : "text-red-500"
+                        }`}
+                      >
+                        {s.pnl >= 0 ? "+" : ""}${s.pnl.toFixed(0)}
+                      </span>
+                    </div>
+                  ))}
+                  {strategyStats.length === 0 && (
+                    <p className="text-sm text-muted-foreground">Chưa có dữ liệu strategy</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </>
       )}
