@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python / selenium tests
+.venv/
+tests/.chrome-profile/
+tests/.pytest_cache/
+__pycache__/

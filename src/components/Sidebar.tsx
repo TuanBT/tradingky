@@ -31,7 +31,7 @@ const navItems = [
     icon: faListCheck,
     children: [
       { href: "/trades", label: "Danh sách lệnh" },
-      { href: "/review", label: "Review lệnh" },
+      { href: "/review", label: "Xem lại lệnh" },
     ],
   },
   { href: "/statistics", label: "Thống kê", icon: faChartPie },

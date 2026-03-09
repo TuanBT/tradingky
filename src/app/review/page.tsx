@@ -153,7 +153,7 @@ export default function ReviewPage() {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">Chọn lệnh để review</h1>
+          <h1 className="text-xl font-bold">Chọn lệnh để xem lại</h1>
           <Button variant="outline" size="sm" onClick={() => setShowList(false)}>
             Đóng
           </Button>
@@ -329,7 +329,7 @@ export default function ReviewPage() {
           <TradeDetail trade={trade} />
         ) : (
           <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
-            <p className="text-muted-foreground">Không có lệnh nào để review.</p>
+            <p className="text-muted-foreground">Không có lệnh nào để xem lại.</p>
             <Link href="/trades/new">
               <Button>Thêm lệnh mới</Button>
             </Link>

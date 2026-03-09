@@ -13,7 +13,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -279,7 +278,7 @@ export default function StatisticsPage() {
         <div className="flex items-center gap-3">
           <Select value={period} onValueChange={(v) => v && setPeriod(v)}>
             <SelectTrigger className="w-44">
-              <SelectValue />
+              <span>{{ today: "Hôm nay", week: "Tuần này", month: "Tháng này", "3months": "3 tháng", all: "Tất cả", custom: "Tuỳ chọn..." }[period] || period}</span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="today">Hôm nay</SelectItem>

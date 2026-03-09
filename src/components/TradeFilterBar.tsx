@@ -12,7 +12,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFilter } from "@fortawesome/free-solid-svg-icons";
+import { faFilter, faRotateLeft } from "@fortawesome/free-solid-svg-icons";
 
 const resultLabels: Record<string, string> = {
   all: "Tất cả",
@@ -43,7 +43,9 @@ interface TradeFilterBarProps {
 }
 
 export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFilterBarProps) {
-  const { filters, setFilter } = useTradeFilters();
+  const { filters, setFilter, resetFilters } = useTradeFilters();
+
+  const hasActiveFilters = filters.search !== "" || filters.platform !== "all" || filters.pair !== "all" || filters.result !== "all" || filters.status !== "all" || filters.dateRange !== "all";
 
   // Build year options from trades data
   const yearOptions = useMemo(() => {
@@ -91,6 +93,15 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
         <div className="flex items-center gap-2 mb-3">
           <FontAwesomeIcon icon={faFilter} className="text-muted-foreground h-4 w-4" />
           <span className="text-sm font-medium">Bộ lọc</span>
+          {hasActiveFilters && (
+            <button
+              onClick={resetFilters}
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+            >
+              <FontAwesomeIcon icon={faRotateLeft} className="h-3 w-3" />
+              Xoá bộ lọc
+            </button>
+          )}
           <span className="text-xs text-muted-foreground ml-auto">
             {totalCount} lệnh
           </span>
