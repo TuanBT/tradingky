@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Trade } from "@/lib/types";
 import { getTrades } from "@/lib/services";
-import { getImageSrc, getImageLink } from "@/lib/gdrive";
+import { getImageSrc } from "@/lib/gdrive";
 import { useAuth } from "@/components/AuthProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
 import Link from "next/link";
 import { TradeEditModal } from "@/components/TradeEditModal";
+import { ImageLightbox } from "@/components/ImageLightbox";
 
 export default function TradeDetailPage() {
   const { user } = useAuth();
@@ -45,6 +46,7 @@ export default function TradeDetailPage() {
   const [trade, setTrade] = useState<Trade | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string>("");
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -214,25 +216,14 @@ export default function TradeDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <a href={getImageLink(trade.chartImageUrl)} target="_blank" rel="noopener noreferrer">
+            <button type="button" onClick={() => setLightboxSrc(getImageSrc(trade.chartImageUrl!))}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={getImageSrc(trade.chartImageUrl)}
                 alt="Chart"
                 className="rounded-lg border w-full object-contain max-h-[500px] bg-muted cursor-pointer hover:opacity-90 transition-opacity"
-                onError={(e) => {
-                  const el = e.target as HTMLImageElement;
-                  el.style.display = 'none';
-                  const a = document.createElement('a');
-                  a.href = getImageLink(trade.chartImageUrl!);
-                  a.target = '_blank';
-                  a.rel = 'noopener noreferrer';
-                  a.className = 'text-blue-500 hover:underline';
-                  a.textContent = 'Xem ảnh ↗ (không load được preview)';
-                  el.parentElement?.appendChild(a);
-                }}
               />
-            </a>
+            </button>
           </CardContent>
         </Card>
       )}
@@ -290,6 +281,13 @@ export default function TradeDetailPage() {
         onClose={() => setEditOpen(false)}
         onSaved={loadData}
         mode={isOpen ? "close" : "edit"}
+      />
+
+      <ImageLightbox
+        src={lightboxSrc}
+        alt="Chart"
+        open={!!lightboxSrc}
+        onClose={() => setLightboxSrc("")}
       />
     </div>
   );

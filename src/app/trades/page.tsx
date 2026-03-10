@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Trade, DropdownLibrary, DEFAULT_LIBRARY } from "@/lib/types";
 import { getTrades, deleteTrade, getLibrary } from "@/lib/services";
-import { getImageSrc, getImageLink } from "@/lib/gdrive";
+import { getImageSrc } from "@/lib/gdrive";
 import { useAuth } from "@/components/AuthProvider";
 import { useTradeFilters } from "@/components/TradeFilterContext";
 import { TradeFilterBar } from "@/components/TradeFilterBar";
@@ -53,6 +53,7 @@ import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
 import Link from "next/link";
 import { TradeEditModal } from "@/components/TradeEditModal";
+import { ImageLightbox } from "@/components/ImageLightbox";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
 import { filterTrades } from "@/lib/filters";
@@ -72,6 +73,7 @@ export default function TradesPage() {
   const [tradeModalId, setTradeModalId] = useState<string | null>(null);
   const [tradeModalMode, setTradeModalMode] = useState<"add" | "edit" | "close">("edit");
   const [deleteTradeId, setDeleteTradeId] = useState<string | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string>("");
   const { toast } = useToast();
 
   // View mode: list or detail
@@ -336,14 +338,14 @@ export default function TradesPage() {
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             {trade.chartImageUrl && (
-                              <a href={getImageLink(trade.chartImageUrl)} target="_blank" rel="noopener noreferrer" className="block">
+                              <button type="button" onClick={() => setLightboxSrc(getImageSrc(trade.chartImageUrl!))} className="block">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={getImageSrc(trade.chartImageUrl)}
                                   alt="Chart"
-                                  className="h-10 w-16 object-cover rounded border bg-muted hover:opacity-80 transition-opacity"
+                                  className="h-10 w-16 object-cover rounded border bg-muted hover:opacity-80 transition-opacity cursor-pointer"
                                 />
-                              </a>
+                              </button>
                             )}
                           </TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -611,7 +613,7 @@ export default function TradesPage() {
 
                 {/* Trade detail */}
                 {currentTrade ? (
-                  <TradeDetail trade={currentTrade} />
+                  <TradeDetail trade={currentTrade} onImageClick={(src) => setLightboxSrc(src)} />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
                     <p className="text-muted-foreground">Không có lệnh nào để xem lại.</p>
@@ -641,13 +643,20 @@ export default function TradesPage() {
         confirmText="Xoá"
         variant="danger"
       />
+
+      <ImageLightbox
+        src={lightboxSrc}
+        alt="Chart"
+        open={!!lightboxSrc}
+        onClose={() => setLightboxSrc("")}
+      />
     </div>
   );
 }
 
 /* ===== DETAIL VIEW COMPONENTS ===== */
 
-function TradeDetail({ trade }: { trade: Trade }) {
+function TradeDetail({ trade, onImageClick }: { trade: Trade; onImageClick: (src: string) => void }) {
   const tradeStatus = trade.status || "CLOSED";
   const isOpen = tradeStatus === "OPEN";
   const resultLabel = trade.result === "WIN" ? "Thắng" : trade.result === "LOSS" ? "Thua" : "Hoà";
@@ -767,14 +776,14 @@ function TradeDetail({ trade }: { trade: Trade }) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <a href={getImageLink(trade.chartImageUrl)} target="_blank" rel="noopener noreferrer">
+            <button type="button" onClick={() => onImageClick(getImageSrc(trade.chartImageUrl!))}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={getImageSrc(trade.chartImageUrl)}
                 alt="Chart"
                 className="rounded-lg border w-full object-contain max-h-[500px] bg-muted cursor-pointer hover:opacity-90 transition-opacity"
               />
-            </a>
+            </button>
           </CardContent>
         </Card>
       )}
