@@ -45,7 +45,7 @@ interface TradeFilterBarProps {
 export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFilterBarProps) {
   const { filters, setFilter, resetFilters } = useTradeFilters();
 
-  const hasActiveFilters = filters.search !== "" || filters.platform !== "all" || filters.pair !== "all" || filters.result !== "all" || filters.status !== "all" || filters.dateRange !== "all";
+  const hasActiveFilters = filters.search !== "" || filters.pair !== "all" || filters.emotion !== "all" || filters.status !== "all" || filters.dateRange !== "all";
 
   // Build year options from trades data
   const yearOptions = useMemo(() => {
@@ -72,15 +72,15 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
             <SelectItem value="CLOSED"><FontAwesomeIcon icon={faFlagCheckered} className="mr-1 h-3 w-3 text-green-500" />Đã đóng</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={filters.result} onValueChange={(v) => v && setFilter("result", v)}>
+        <Select value={filters.emotion} onValueChange={(v) => v && setFilter("emotion", v)}>
           <SelectTrigger className="h-8 text-xs w-auto">
-            <span>{resultLabels[filters.result] || filters.result}</span>
+            <span>{filters.emotion === "all" ? "Tâm lý" : filters.emotion}</span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất cả</SelectItem>
-            <SelectItem value="WIN">Thắng</SelectItem>
-            <SelectItem value="LOSS">Thua</SelectItem>
-            <SelectItem value="BREAKEVEN">Hoà</SelectItem>
+            {library.emotions.map((e) => (
+              <SelectItem key={e} value={e}>{e}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -92,9 +92,8 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
 
   const activeFilterCount = [
     filters.search !== "",
-    filters.platform !== "all",
     filters.pair !== "all",
-    filters.result !== "all",
+    filters.emotion !== "all",
     filters.status !== "all",
     filters.dateRange !== "all",
   ].filter(Boolean).length;
@@ -131,7 +130,7 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
             className="h-3 w-3 text-muted-foreground sm:hidden"
           />
         </button>
-        <div className={`${collapsed ? "hidden sm:grid" : "grid"} grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-3`}>
+        <div className={`${collapsed ? "hidden sm:grid" : "grid"} grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-3`}>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Tìm kiếm</label>
             <Input
@@ -139,20 +138,6 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
               value={filters.search}
               onChange={(e) => setFilter("search", e.target.value)}
             />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Sàn giao dịch</label>
-            <Select value={filters.platform} onValueChange={(v) => v && setFilter("platform", v)}>
-              <SelectTrigger>
-                <span>{filters.platform === "all" ? "Tất cả" : filters.platform}</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả</SelectItem>
-                {library.platforms.map((p) => (
-                  <SelectItem key={p} value={p}>{p}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Cặp tiền</label>
@@ -169,16 +154,16 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
             </Select>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Kết quả</label>
-            <Select value={filters.result} onValueChange={(v) => v && setFilter("result", v)}>
+            <label className="text-xs text-muted-foreground mb-1 block">Tâm lý</label>
+            <Select value={filters.emotion} onValueChange={(v) => v && setFilter("emotion", v)}>
               <SelectTrigger>
-                <span>{resultLabels[filters.result] || filters.result}</span>
+                <span>{filters.emotion === "all" ? "Tất cả" : filters.emotion}</span>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả</SelectItem>
-                <SelectItem value="WIN">Thắng</SelectItem>
-                <SelectItem value="LOSS">Thua</SelectItem>
-                <SelectItem value="BREAKEVEN">Hoà</SelectItem>
+                {library.emotions.map((e) => (
+                  <SelectItem key={e} value={e}>{e}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

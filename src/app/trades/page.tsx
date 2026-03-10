@@ -281,7 +281,6 @@ export default function TradesPage() {
                     <TableHead>Cặp tiền</TableHead>
                     <TableHead className="hidden sm:table-cell">Trạng thái</TableHead>
                     <TableHead className="hidden lg:table-cell">Tâm lý</TableHead>
-                    <TableHead className="hidden md:table-cell">Kết quả</TableHead>
                     <TableHead className="text-right">P&L</TableHead>
                     <TableHead className="hidden sm:table-cell">Ảnh</TableHead>
                     <TableHead className="text-right">Thao tác</TableHead>
@@ -290,7 +289,7 @@ export default function TradesPage() {
                 <TableBody>
                   {filteredTrades.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         {trades.length === 0
                           ? "Chưa có lệnh nào. Bấm \"Thêm lệnh\" để bắt đầu!"
                           : "Không tìm thấy lệnh phù hợp"}
@@ -320,13 +319,6 @@ export default function TradesPage() {
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
                             <Badge variant="secondary">{trade.emotion}</Badge>
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            <span className={`font-semibold ${
-                              trade.result === "WIN" ? "text-green-500" : trade.result === "LOSS" ? "text-red-500" : "text-yellow-500"
-                            }`}>
-                              {trade.result === "WIN" ? "Thắng" : trade.result === "LOSS" ? "Thua" : "Hoà"}
-                            </span>
                           </TableCell>
                           <TableCell className="text-right">
                             {trade.pnl !== undefined ? (

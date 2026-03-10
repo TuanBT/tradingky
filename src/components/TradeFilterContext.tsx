@@ -9,6 +9,7 @@ export interface TradeFilters {
   result: string;
   status: string;
   dateRange: string;
+  emotion: string;
 }
 
 interface TradeFilterContextType {
@@ -24,6 +25,7 @@ const defaultFilters: TradeFilters = {
   result: "all",
   status: "all",
   dateRange: "all",
+  emotion: "all",
 };
 
 const TradeFilterContext = createContext<TradeFilterContextType>({
