@@ -34,6 +34,9 @@ import {
   faSpinner,
   faBroom,
   faServer,
+  faDollarSign,
+  faCircle,
+  faExclamationTriangle,
 } from "@fortawesome/free-solid-svg-icons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
@@ -167,7 +170,7 @@ export default function AdminPage() {
                   ${users.reduce((s, u) => s + u.totalPnl, 0).toFixed(2)}
                 </p>
               </div>
-              <span className="text-2xl opacity-50">💰</span>
+              <FontAwesomeIcon icon={faDollarSign} className="h-8 w-8 text-yellow-500 opacity-50" />
             </div>
           </CardContent>
         </Card>
@@ -178,7 +181,7 @@ export default function AdminPage() {
                 <p className="text-sm text-muted-foreground">Active Users</p>
                 <p className="text-2xl font-bold">{users.filter((u) => u.tradeCount > 0).length}</p>
               </div>
-              <span className="text-2xl opacity-50">🟢</span>
+              <FontAwesomeIcon icon={faCircle} className="h-8 w-8 text-green-500 opacity-50" />
             </div>
           </CardContent>
         </Card>
@@ -279,7 +282,7 @@ export default function AdminPage() {
                             size="sm"
                             onClick={() => setConfirmAction({ type: "reset-all", uid: u.uid })}
                             disabled={actionLoading !== null}
-                            title="⚠️ Reset toàn bộ data"
+                            title="Reset toàn bộ data"
                             className="text-red-500 hover:text-red-600"
                           >
                             {actionLoading === `reset-all-${u.uid}` ? (
@@ -367,7 +370,7 @@ export default function AdminPage() {
           if (confirmAction?.type === "reset-trades") handleResetTrades(confirmAction.uid);
           if (confirmAction?.type === "reset-all") handleResetAll(confirmAction.uid);
         }}
-        title={confirmAction?.type === "reset-all" ? "⚠️ Reset toàn bộ" : "Xoá trades"}
+        title={confirmAction?.type === "reset-all" ? <><FontAwesomeIcon icon={faExclamationTriangle} className="mr-1 h-4 w-4 text-yellow-500" />Reset toàn bộ</> : "Xoá trades"}
         message={
           confirmAction?.type === "reset-all"
             ? `Reset TOÀN BỘ DATA của user ${confirmAction?.uid.slice(0, 8)}...? Sẽ xoá tất cả trades, journals, và reset dropdown library. Hành động KHÔNG THỂ hoàn tác!`

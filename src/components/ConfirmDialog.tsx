@@ -11,12 +11,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+import { ReactNode } from "react";
 
 interface ConfirmDialogProps {
   open: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  title?: string;
+  title?: ReactNode;
   message: string;
   confirmText?: string;
   cancelText?: string;

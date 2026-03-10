@@ -13,6 +13,8 @@ import {
   faXmark,
   faCheck,
   faRotateLeft,
+  faCrosshairs,
+  faClipboardCheck,
 } from "@fortawesome/free-solid-svg-icons";
 
 interface ChecklistItem {
@@ -228,7 +230,7 @@ export default function ChecklistPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">🎯 Trước khi vào lệnh</CardTitle>
+              <CardTitle className="text-base"><FontAwesomeIcon icon={faCrosshairs} className="mr-2 h-4 w-4 text-blue-500" />Trước khi vào lệnh</CardTitle>
               <span className={`text-sm font-mono ${preProgress === 100 ? "text-green-500" : "text-muted-foreground"}`}>
                 {preProgress}%
               </span>
@@ -265,7 +267,7 @@ export default function ChecklistPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">📝 Sau khi đóng lệnh</CardTitle>
+              <CardTitle className="text-base"><FontAwesomeIcon icon={faClipboardCheck} className="mr-2 h-4 w-4 text-green-500" />Sau khi đóng lệnh</CardTitle>
               <span className={`text-sm font-mono ${postProgress === 100 ? "text-green-500" : "text-muted-foreground"}`}>
                 {postProgress}%
               </span>
