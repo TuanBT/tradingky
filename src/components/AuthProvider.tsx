@@ -31,8 +31,30 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
-  const [tokenExpiry, setTokenExpiry] = useState<number>(0);
+  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return sessionStorage.getItem("gdrive_token");
+  });
+  const [tokenExpiry, setTokenExpiry] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    const saved = sessionStorage.getItem("gdrive_token_expiry");
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  // Persist token to sessionStorage
+  const saveToken = (token: string, expiry: number) => {
+    setGoogleAccessToken(token);
+    setTokenExpiry(expiry);
+    sessionStorage.setItem("gdrive_token", token);
+    sessionStorage.setItem("gdrive_token_expiry", expiry.toString());
+  };
+
+  const clearToken = () => {
+    setGoogleAccessToken(null);
+    setTokenExpiry(0);
+    sessionStorage.removeItem("gdrive_token");
+    sessionStorage.removeItem("gdrive_token_expiry");
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -41,8 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user) {
         ensureUserDoc(user.uid);
       } else {
-        setGoogleAccessToken(null);
-        setTokenExpiry(0);
+        clearToken();
       }
     });
     // Check for redirect result (from signInWithRedirect fallback)
@@ -50,8 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (result) {
         const credential = GoogleAuthProvider.credentialFromResult(result);
         if (credential?.accessToken) {
-          setGoogleAccessToken(credential.accessToken);
-          setTokenExpiry(Date.now() + 50 * 60 * 1000);
+          saveToken(credential.accessToken, Date.now() + 50 * 60 * 1000);
         }
       }
     }).catch(() => {
@@ -65,8 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await signInWithPopup(auth, googleProvider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential?.accessToken) {
-        setGoogleAccessToken(credential.accessToken);
-        setTokenExpiry(Date.now() + 50 * 60 * 1000);
+        saveToken(credential.accessToken, Date.now() + 50 * 60 * 1000);
       }
     } catch (error: unknown) {
       const code = (error as { code?: string })?.code;
@@ -90,8 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!credential?.accessToken) {
         throw new Error("Không thể lấy Google access token. Vui lòng đăng nhập lại.");
       }
-      setGoogleAccessToken(credential.accessToken);
-      setTokenExpiry(Date.now() + 50 * 60 * 1000);
+      saveToken(credential.accessToken, Date.now() + 50 * 60 * 1000);
       return credential.accessToken;
     } catch (error: unknown) {
       const code = (error as { code?: string })?.code;
@@ -108,8 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await signInWithPopup(auth, googleProvider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential?.accessToken) {
-        setGoogleAccessToken(credential.accessToken);
-        setTokenExpiry(Date.now() + 50 * 60 * 1000);
+        saveToken(credential.accessToken, Date.now() + 50 * 60 * 1000);
       }
     } catch (error: unknown) {
       const code = (error as { code?: string })?.code;
@@ -125,8 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasGoogleToken = !!(googleAccessToken && Date.now() < tokenExpiry);
 
   const logout = async () => {
-    setGoogleAccessToken(null);
-    setTokenExpiry(0);
+    clearToken();
     await signOut(auth);
   };
 
