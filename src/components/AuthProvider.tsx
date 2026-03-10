@@ -12,6 +12,10 @@ interface AuthContextType {
   logout: () => Promise<void>;
   /** Get a valid Google OAuth access token (re-authenticates if expired) */
   getGoogleAccessToken: () => Promise<string>;
+  /** Whether a Google Drive access token is currently available */
+  hasGoogleToken: boolean;
+  /** Prompt user to connect Google Drive (must be called from direct user click) */
+  connectGoogleDrive: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -20,6 +24,8 @@ const AuthContext = createContext<AuthContextType>({
   signInWithGoogle: async () => {},
   logout: async () => {},
   getGoogleAccessToken: async () => "",
+  hasGoogleToken: false,
+  connectGoogleDrive: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -68,6 +74,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return credential.accessToken;
   }, [googleAccessToken, tokenExpiry]);
 
+  const connectGoogleDrive = useCallback(async () => {
+    const result = await signInWithPopup(auth, googleProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (credential?.accessToken) {
+      setGoogleAccessToken(credential.accessToken);
+      setTokenExpiry(Date.now() + 50 * 60 * 1000);
+    }
+  }, []);
+
+  const hasGoogleToken = !!(googleAccessToken && Date.now() < tokenExpiry);
+
   const logout = async () => {
     setGoogleAccessToken(null);
     setTokenExpiry(0);
@@ -75,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, logout, getGoogleAccessToken }}>
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, logout, getGoogleAccessToken, hasGoogleToken, connectGoogleDrive }}>
       {children}
     </AuthContext.Provider>
   );

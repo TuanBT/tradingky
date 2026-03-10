@@ -34,6 +34,7 @@ import {
   faPlay,
   faFlagCheckered,
   faXmark,
+  faCloudArrowUp,
 } from "@fortawesome/free-solid-svg-icons";
 
 interface TradeForm {
@@ -91,7 +92,7 @@ interface TradeEditModalProps {
 }
 
 export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" }: TradeEditModalProps) {
-  const { user, getGoogleAccessToken } = useAuth();
+  const { user, getGoogleAccessToken, hasGoogleToken, connectGoogleDrive } = useAuth();
   const { toast } = useToast();
   const [form, setForm] = useState<TradeForm | null>(null);
   const [library, setLibrary] = useState<DropdownLibrary>(DEFAULT_LIBRARY);
@@ -307,6 +308,76 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
 
   const isCloseMode = mode === "close";
 
+  const [connecting, setConnecting] = useState(false);
+
+  const handleConnectDrive = async () => {
+    setConnecting(true);
+    try {
+      await connectGoogleDrive();
+      toast("Đã kết nối Google Drive", "success");
+    } catch {
+      toast("Không thể kết nối Google Drive", "error");
+    }
+    setConnecting(false);
+  };
+
+  const renderImageUpload = () => {
+    if (!form) return null;
+    return (
+      <div>
+        <Label className="text-sm text-muted-foreground">
+          <FontAwesomeIcon icon={faImage} className="mr-1" /> Ảnh chart {!form.chartImageUrl && <span className="text-xs">(Ctrl+V paste ảnh vào bất kỳ đâu)</span>}
+        </Label>
+        {!hasGoogleToken && !form.chartImageUrl ? (
+          <div className="mt-1">
+            <button
+              type="button"
+              onClick={handleConnectDrive}
+              disabled={connecting}
+              className="w-full flex items-center justify-center gap-2 h-10 rounded-md border border-dashed border-blue-400/50 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 text-sm transition-colors cursor-pointer"
+            >
+              {connecting ? (
+                <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin" />
+              ) : (
+                <FontAwesomeIcon icon={faCloudArrowUp} className="h-4 w-4" />
+              )}
+              {connecting ? "Đang kết nối..." : "Kết nối Google Drive để upload ảnh"}
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="mt-1 flex gap-2">
+              <Input placeholder="Paste ảnh từ clipboard hoặc link..." value={form.chartImageUrl} onChange={(e) => updateForm({ chartImageUrl: e.target.value })} className="flex-1" />
+              <button type="button" onClick={async () => { try { const items = await navigator.clipboard.read(); for (const item of items) { const imageType = item.types.find(t => t.startsWith('image/')); if (imageType) { const blob = await item.getType(imageType); const file = new File([blob], `paste-${Date.now()}.png`, { type: imageType }); await handleUploadImage(file); return; } } toast("Clipboard không có ảnh", "error"); } catch { toast("Không thể đọc clipboard. Hãy dùng Ctrl+V.", "error"); } }} className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer" title="Paste ảnh từ clipboard">
+                <FontAwesomeIcon icon={faPaste} className="h-4 w-4" />
+              </button>
+              <label>
+                <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !user) return;
+                  await handleUploadImage(file);
+                  e.target.value = "";
+                }} />
+                <span className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
+                  {uploading ? <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin" /> : <FontAwesomeIcon icon={faUpload} className="h-4 w-4" />}
+                </span>
+              </label>
+            </div>
+            {form.chartImageUrl && (
+              <div className="mt-2 relative inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={getImageSrc(form.chartImageUrl)} alt="Chart" className="rounded-lg border max-h-48 w-full object-contain bg-muted cursor-pointer" onClick={() => setLightboxSrc(getImageSrc(form.chartImageUrl))} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                <button type="button" onClick={() => handleRemoveImage()} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-600 text-white flex items-center justify-center hover:bg-red-700 transition-colors" title="Xoá ảnh">
+                  <FontAwesomeIcon icon={faXmark} className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -379,37 +450,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                     </div>
                   </div>
                   {/* Image upload in close section */}
-                  <div>
-                    <Label className="text-sm text-muted-foreground">
-                      <FontAwesomeIcon icon={faImage} className="mr-1" /> Ảnh chart {!form.chartImageUrl && <span className="text-xs">(Ctrl+V paste ảnh vào bất kỳ đâu)</span>}
-                    </Label>
-                    <div className="mt-1 flex gap-2">
-                      <Input placeholder="Paste ảnh từ clipboard hoặc link..." value={form.chartImageUrl} onChange={(e) => updateForm({ chartImageUrl: e.target.value })} className="flex-1" />
-                      <button type="button" onClick={async () => { try { const items = await navigator.clipboard.read(); for (const item of items) { const imageType = item.types.find(t => t.startsWith('image/')); if (imageType) { const blob = await item.getType(imageType); const file = new File([blob], `paste-${Date.now()}.png`, { type: imageType }); await handleUploadImage(file); return; } } toast("Clipboard không có ảnh", "error"); } catch { toast("Không thể đọc clipboard. Hãy dùng Ctrl+V.", "error"); } }} className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer" title="Paste ảnh từ clipboard">
-                        <FontAwesomeIcon icon={faPaste} className="h-4 w-4" />
-                      </button>
-                      <label>
-                        <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file || !user) return;
-                          await handleUploadImage(file);
-                          e.target.value = "";
-                        }} />
-                        <span className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
-                          {uploading ? <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin" /> : <FontAwesomeIcon icon={faUpload} className="h-4 w-4" />}
-                        </span>
-                      </label>
-                    </div>
-                    {form.chartImageUrl && (
-                      <div className="mt-2 relative inline-block">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={getImageSrc(form.chartImageUrl)} alt="Chart" className="rounded-lg border max-h-48 w-full object-contain bg-muted cursor-pointer" onClick={() => setLightboxSrc(getImageSrc(form.chartImageUrl))} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                        <button type="button" onClick={() => handleRemoveImage()} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-600 text-white flex items-center justify-center hover:bg-red-700 transition-colors" title="Xoá ảnh">
-                          <FontAwesomeIcon icon={faXmark} className="h-3 w-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  {renderImageUpload()}
                 </CardContent>
               </Card>
             )}
@@ -436,39 +477,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                   </div>
                 </div>
                 {/* Image upload - right after core info (hidden in close mode, shown in close section instead) */}
-                {!isCloseMode && (
-                <div>
-                  <Label className="text-sm text-muted-foreground">
-                    <FontAwesomeIcon icon={faImage} className="mr-1" /> Ảnh chart {!form.chartImageUrl && <span className="text-xs">(Ctrl+V paste ảnh vào bất kỳ đâu)</span>}
-                  </Label>
-                  <div className="mt-1 flex gap-2">
-                    <Input placeholder="Paste ảnh từ clipboard hoặc link..." value={form.chartImageUrl} onChange={(e) => updateForm({ chartImageUrl: e.target.value })} className="flex-1" />
-                    <button type="button" onClick={async () => { try { const items = await navigator.clipboard.read(); for (const item of items) { const imageType = item.types.find(t => t.startsWith('image/')); if (imageType) { const blob = await item.getType(imageType); const file = new File([blob], `paste-${Date.now()}.png`, { type: imageType }); await handleUploadImage(file); return; } } toast("Clipboard không có ảnh", "error"); } catch { toast("Không thể đọc clipboard. Hãy dùng Ctrl+V.", "error"); } }} className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer" title="Paste ảnh từ clipboard">
-                      <FontAwesomeIcon icon={faPaste} className="h-4 w-4" />
-                    </button>
-                    <label>
-                      <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file || !user) return;
-                        await handleUploadImage(file);
-                        e.target.value = "";
-                      }} />
-                      <span className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
-                        {uploading ? <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin" /> : <FontAwesomeIcon icon={faUpload} className="h-4 w-4" />}
-                      </span>
-                    </label>
-                  </div>
-                  {form.chartImageUrl && (
-                    <div className="mt-2 relative inline-block">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={getImageSrc(form.chartImageUrl)} alt="Chart" className="rounded-lg border max-h-48 w-full object-contain bg-muted cursor-pointer" onClick={() => setLightboxSrc(getImageSrc(form.chartImageUrl))} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                      <button type="button" onClick={() => handleRemoveImage()} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-600 text-white flex items-center justify-center hover:bg-red-700 transition-colors" title="Xoá ảnh">
-                        <FontAwesomeIcon icon={faXmark} className="h-3 w-3" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                )}
+                {!isCloseMode && renderImageUpload()}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium">Tâm lý *</Label>
