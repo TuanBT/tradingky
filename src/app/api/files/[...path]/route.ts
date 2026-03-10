@@ -45,8 +45,8 @@ export async function DELETE(
     );
   }
 
-  // Only allow exactly 2 segments: uid/filename
-  if (path.length !== 2) {
+  // Allow 2 segments (uid/filename) or 3 segments (uid/tradeId/filename)
+  if (path.length < 2 || path.length > 3) {
     return NextResponse.json({ error: "Invalid path." }, { status: 400 });
   }
 

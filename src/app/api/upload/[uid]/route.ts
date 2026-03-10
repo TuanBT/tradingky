@@ -17,7 +17,14 @@ export async function POST(
 
   try {
     const formData = await request.formData();
-    const res = await fetch(`${uploadUrl}/upload/${encodeURIComponent(uid)}`, {
+    // Pass tradeId query param to VPS for folder organization
+    const tradeId = request.nextUrl.searchParams.get("tradeId") || "";
+    const vpsUrl = new URL(`/upload/${encodeURIComponent(uid)}`, uploadUrl);
+    if (tradeId) {
+      vpsUrl.searchParams.set("tradeId", tradeId);
+    }
+
+    const res = await fetch(vpsUrl.toString(), {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}` },
       body: formData,
@@ -28,13 +35,13 @@ export async function POST(
       return NextResponse.json(data, { status: res.status });
     }
     // Convert VPS URL to proxy URL (HTTPS-safe)
-    // VPS returns: http://ip:port/files/uid/filename.png
-    // Proxy URL:   /api/files/uid/filename.png
-    const vpsUrl: string = data.url || "";
-    const filesIdx = vpsUrl.indexOf("/files/");
+    // VPS returns: http://ip:port/files/uid/tradeId/filename.png
+    // Proxy URL:   /api/files/uid/tradeId/filename.png
+    const vpsFileUrl: string = data.url || "";
+    const filesIdx = vpsFileUrl.indexOf("/files/");
     const proxyUrl = filesIdx >= 0
-      ? `/api${vpsUrl.slice(filesIdx)}`
-      : vpsUrl;
+      ? `/api${vpsFileUrl.slice(filesIdx)}`
+      : vpsFileUrl;
     return NextResponse.json({ url: proxyUrl });
   } catch {
     return NextResponse.json(
