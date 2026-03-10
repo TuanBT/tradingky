@@ -215,28 +215,6 @@ export default function TradeDetailPage() {
         </Card>
       </div>
 
-      {/* Chart Image */}
-      {trade.chartImageUrl && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              <FontAwesomeIcon icon={faImage} className="mr-2 h-4 w-4" />
-              Ảnh chart
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <button type="button" onClick={() => setLightboxSrc(getImageSrc(trade.chartImageUrl!))}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={getImageSrc(trade.chartImageUrl)}
-                alt="Chart"
-                className="rounded-lg border w-full object-contain max-h-[500px] bg-muted cursor-pointer hover:opacity-90 transition-opacity"
-              />
-            </button>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Note */}
       {trade.note && (
         <Card>
@@ -280,6 +258,28 @@ export default function TradeDetailPage() {
                 <p className="text-sm whitespace-pre-wrap leading-relaxed">{trade.lessonsLearned}</p>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Chart Image */}
+      {trade.chartImageUrl && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              <FontAwesomeIcon icon={faImage} className="mr-2 h-4 w-4" />
+              Ảnh chart
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <button type="button" onClick={() => setLightboxSrc(getImageSrc(trade.chartImageUrl!))}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={getImageSrc(trade.chartImageUrl)}
+                alt="Chart"
+                className="rounded-lg border w-full object-contain max-h-[500px] bg-muted cursor-pointer hover:opacity-90 transition-opacity"
+              />
+            </button>
           </CardContent>
         </Card>
       )}
