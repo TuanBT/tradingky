@@ -259,16 +259,20 @@ export async function getRegisteredUsers(): Promise<UserInfo[]> {
     // Parallel fetch instead of sequential N+1
     const promises = usersSnapshot.docs.map(async (userDoc) => {
       const uid = userDoc.id;
-      const tradesSnapshot = await getDocs(
-        query(collection(db, "users", uid, "trades"), orderBy("date", "desc"))
-      );
-      const trades = tradesSnapshot.docs.map((d) => d.data() as Omit<Trade, "id">);
-      const tradeCount = trades.length;
-      const totalPnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-      const wins = trades.filter((t) => t.result === "WIN").length;
-      const winRate = tradeCount > 0 ? (wins / tradeCount) * 100 : 0;
-      const lastTradeDate = trades.length > 0 ? trades[0].date : null;
-      return { uid, tradeCount, totalPnl, winRate, lastTradeDate } as UserInfo;
+      try {
+        const tradesSnapshot = await getDocs(
+          query(collection(db, "users", uid, "trades"), orderBy("date", "desc"))
+        );
+        const trades = tradesSnapshot.docs.map((d) => d.data() as Omit<Trade, "id">);
+        const tradeCount = trades.length;
+        const totalPnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+        const wins = trades.filter((t) => t.result === "WIN").length;
+        const winRate = tradeCount > 0 ? (wins / tradeCount) * 100 : 0;
+        const lastTradeDate = trades.length > 0 ? trades[0].date : null;
+        return { uid, tradeCount, totalPnl, winRate, lastTradeDate } as UserInfo;
+      } catch {
+        return { uid, tradeCount: 0, totalPnl: 0, winRate: 0, lastTradeDate: null } as UserInfo;
+      }
     });
 
     return Promise.all(promises);

@@ -7,6 +7,7 @@ service cloud.firestore {
 
       match /trades/{tradeId} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
+        allow read: if request.auth != null && request.auth.uid in ['KffhYOBycQggcxA6ROXbed43Nav1'];
       }
 
       match /dailyJournal/{journalId} {
