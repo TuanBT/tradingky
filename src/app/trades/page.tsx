@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Trade, DropdownLibrary, DEFAULT_LIBRARY } from "@/lib/types";
 import { getTrades, deleteTrade, getLibrary } from "@/lib/services";
+import { getImageSrc, getImageLink } from "@/lib/gdrive";
 import { useAuth } from "@/components/AuthProvider";
 import { useTradeFilters } from "@/components/TradeFilterContext";
 import { TradeFilterBar } from "@/components/TradeFilterBar";
@@ -59,7 +60,7 @@ import { filterTrades } from "@/lib/filters";
 type ViewMode = "list" | "detail";
 
 export default function TradesPage() {
-  const { user } = useAuth();
+  const { user, getGoogleAccessToken } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { filters } = useTradeFilters();
@@ -179,7 +180,8 @@ export default function TradesPage() {
   const handleDelete = async (id: string) => {
     if (!user) return;
     try {
-      await deleteTrade(user.uid, id);
+      const accessToken = await getGoogleAccessToken();
+      await deleteTrade(user.uid, id, accessToken);
       toast("Đã xoá lệnh", "success");
       await loadData();
     } catch (error) {
@@ -334,10 +336,10 @@ export default function TradesPage() {
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             {trade.chartImageUrl && (
-                              <a href={trade.chartImageUrl} target="_blank" rel="noopener noreferrer" className="block">
+                              <a href={getImageLink(trade.chartImageUrl)} target="_blank" rel="noopener noreferrer" className="block">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                  src={trade.chartImageUrl}
+                                  src={getImageSrc(trade.chartImageUrl)}
                                   alt="Chart"
                                   className="h-10 w-16 object-cover rounded border bg-muted hover:opacity-80 transition-opacity"
                                 />
@@ -765,10 +767,10 @@ function TradeDetail({ trade }: { trade: Trade }) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <a href={trade.chartImageUrl} target="_blank" rel="noopener noreferrer">
+            <a href={getImageLink(trade.chartImageUrl)} target="_blank" rel="noopener noreferrer">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={trade.chartImageUrl}
+                src={getImageSrc(trade.chartImageUrl)}
                 alt="Chart"
                 className="rounded-lg border w-full object-contain max-h-[500px] bg-muted cursor-pointer hover:opacity-90 transition-opacity"
               />

@@ -16,3 +16,6 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Request Google Drive file-level access (only files created by this app)
+googleProvider.addScope("https://www.googleapis.com/auth/drive.file");

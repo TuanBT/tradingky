@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Trade, DropdownLibrary, DEFAULT_LIBRARY } from "@/lib/types";
 import { addTrade, updateTrade, getLibrary, getTrades, uploadChartImage, deleteChartImage, updateLibrary } from "@/lib/services";
+import { getImageSrc, getImageLink } from "@/lib/gdrive";
 import { useAuth } from "@/components/AuthProvider";
 import { format } from "date-fns";
 import { useToast } from "@/components/ToastProvider";
@@ -89,7 +90,7 @@ interface TradeEditModalProps {
 }
 
 export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" }: TradeEditModalProps) {
-  const { user } = useAuth();
+  const { user, getGoogleAccessToken } = useAuth();
   const { toast } = useToast();
   const [form, setForm] = useState<TradeForm | null>(null);
   const [library, setLibrary] = useState<DropdownLibrary>(DEFAULT_LIBRARY);
@@ -205,11 +206,12 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
     if (!user) return;
     setUploading(true);
     try {
-      // Delete old image from server before uploading new one
+      const accessToken = await getGoogleAccessToken();
+      // Delete old image from Drive/VPS before uploading new one
       if (form?.chartImageUrl) {
-        await deleteChartImage(form.chartImageUrl);
+        await deleteChartImage(accessToken, form.chartImageUrl);
       }
-      const url = await uploadChartImage(user.uid, file);
+      const url = await uploadChartImage(accessToken, file);
       updateForm({ chartImageUrl: url });
       toast("Đã upload ảnh", "success");
     } catch (err) {
@@ -218,10 +220,15 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
     setUploading(false);
   };
 
-  // Delete image from server and clear form
+  // Delete image from Drive/VPS and clear form
   const handleRemoveImage = async () => {
     if (form?.chartImageUrl) {
-      await deleteChartImage(form.chartImageUrl);
+      try {
+        const accessToken = await getGoogleAccessToken();
+        await deleteChartImage(accessToken, form.chartImageUrl);
+      } catch {
+        // Non-critical — still clear the URL
+      }
     }
     updateForm({ chartImageUrl: "" });
   };
@@ -453,7 +460,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                   {form.chartImageUrl && (
                     <div className="mt-2 relative inline-block">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={form.chartImageUrl} alt="Chart" className="rounded-lg border max-h-48 w-full object-contain bg-muted" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      <img src={getImageSrc(form.chartImageUrl)} alt="Chart" className="rounded-lg border max-h-48 w-full object-contain bg-muted" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       <button type="button" onClick={() => handleRemoveImage()} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-600 text-white flex items-center justify-center hover:bg-red-700 transition-colors" title="Xoá ảnh">
                         <FontAwesomeIcon icon={faXmark} className="h-3 w-3" />
                       </button>

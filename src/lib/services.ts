@@ -14,6 +14,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { Trade, DailyJournal, DropdownLibrary, DEFAULT_LIBRARY } from "./types";
+import { uploadToDrive, deleteFromDrive, isGDriveUrl, extractFileId } from "./gdrive";
 
 // Strip undefined values — Firestore rejects undefined fields
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -114,7 +115,7 @@ export async function updateTrade(uid: string, id: string, trade: Partial<Trade>
   }
 }
 
-export async function deleteTrade(uid: string, id: string): Promise<void> {
+export async function deleteTrade(uid: string, id: string, googleAccessToken: string): Promise<void> {
   try {
     const docRef = doc(db, "users", uid, "trades", id);
     // Read trade data to get image URLs before deleting
@@ -122,7 +123,7 @@ export async function deleteTrade(uid: string, id: string): Promise<void> {
     if (tradeSnap.exists()) {
       const data = tradeSnap.data();
       const imageUrls = [data.chartImageUrl, data.exitChartImageUrl].filter(Boolean);
-      await Promise.all(imageUrls.map((url: string) => deleteChartImage(url)));
+      await Promise.all(imageUrls.map((url: string) => deleteChartImage(googleAccessToken, url)));
     }
     await deleteDoc(docRef);
   } catch (error) {
@@ -205,7 +206,7 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif"];
 
-export async function uploadChartImage(uid: string, file: File): Promise<string> {
+export async function uploadChartImage(accessToken: string, file: File): Promise<string> {
   if (file.size > MAX_IMAGE_SIZE) {
     throw new Error("File quá lớn (tối đa 5MB).");
   }
@@ -218,35 +219,30 @@ export async function uploadChartImage(uid: string, file: File): Promise<string>
   }
 
   try {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch(`/api/upload/${encodeURIComponent(uid)}`, {
-      method: "POST",
-      body: formData,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: "Upload thất bại" }));
-      throw new Error(err.error || "Upload thất bại");
-    }
-    const data = await res.json();
-    return data.url;
+    const result = await uploadToDrive(accessToken, file);
+    return result.url; // "gdrive:{fileId}"
   } catch (error) {
     console.error("Lỗi upload ảnh:", error);
     throw new Error((error as Error).message || "Không thể upload ảnh. Vui lòng thử lại.");
   }
 }
 
-export async function deleteChartImage(imageUrl: string): Promise<void> {
-  // Only delete images hosted on our proxy (starts with /api/files/)
-  if (!imageUrl || !imageUrl.startsWith("/api/files/")) return;
+export async function deleteChartImage(accessToken: string, imageUrl: string): Promise<void> {
+  if (!imageUrl) return;
+
   try {
-    const res = await fetch(imageUrl, { method: "DELETE" });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      console.warn("Xoá ảnh thất bại:", imageUrl, res.status, data);
+    if (isGDriveUrl(imageUrl)) {
+      // Google Drive file — delete via Drive API
+      const fileId = extractFileId(imageUrl);
+      await deleteFromDrive(accessToken, fileId);
+    } else if (imageUrl.startsWith("/api/files/")) {
+      // Legacy VPS file — delete via proxy (backward compat)
+      const res = await fetch(imageUrl, { method: "DELETE" });
+      if (!res.ok) {
+        console.warn("Xoá ảnh VPS thất bại:", imageUrl, res.status);
+      }
     }
   } catch (err) {
-    // Non-critical — don't block the user
     console.error("Lỗi xoá ảnh:", imageUrl, err);
   }
 }
