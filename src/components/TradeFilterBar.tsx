@@ -12,7 +12,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFilter, faRotateLeft, faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
+import { faFilter, faRotateLeft, faChevronDown, faChevronUp, faPlay, faFlagCheckered } from "@fortawesome/free-solid-svg-icons";
 
 const resultLabels: Record<string, string> = {
   all: "Tất cả",
@@ -21,10 +21,10 @@ const resultLabels: Record<string, string> = {
   BREAKEVEN: "Hoà",
 };
 
-const statusLabels: Record<string, string> = {
+const statusLabels: Record<string, React.ReactNode> = {
   all: "Tất cả",
-  OPEN: "🔵 Đang chạy",
-  CLOSED: "✅ Đã đóng",
+  OPEN: <><FontAwesomeIcon icon={faPlay} className="mr-1 h-3 w-3 text-blue-500" />Đang chạy</>,
+  CLOSED: <><FontAwesomeIcon icon={faFlagCheckered} className="mr-1 h-3 w-3 text-green-500" />Đã đóng</>,
 };
 
 const dateRangeLabels: Record<string, string> = {
@@ -68,8 +68,8 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất cả</SelectItem>
-            <SelectItem value="OPEN">🔵 Đang chạy</SelectItem>
-            <SelectItem value="CLOSED">✅ Đã đóng</SelectItem>
+            <SelectItem value="OPEN"><FontAwesomeIcon icon={faPlay} className="mr-1 h-3 w-3 text-blue-500" />Đang chạy</SelectItem>
+            <SelectItem value="CLOSED"><FontAwesomeIcon icon={faFlagCheckered} className="mr-1 h-3 w-3 text-green-500" />Đã đóng</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filters.result} onValueChange={(v) => v && setFilter("result", v)}>
@@ -190,8 +190,8 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả</SelectItem>
-                <SelectItem value="OPEN">🔵 Đang chạy</SelectItem>
-                <SelectItem value="CLOSED">✅ Đã đóng</SelectItem>
+                <SelectItem value="OPEN"><FontAwesomeIcon icon={faPlay} className="mr-1 h-3 w-3 text-blue-500" />Đang chạy</SelectItem>
+                <SelectItem value="CLOSED"><FontAwesomeIcon icon={faFlagCheckered} className="mr-1 h-3 w-3 text-green-500" />Đã đóng</SelectItem>
               </SelectContent>
             </Select>
           </div>

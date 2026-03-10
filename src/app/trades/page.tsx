@@ -313,9 +313,9 @@ export default function TradesPage() {
                           </TableCell>
                           <TableCell>
                             {isOpen ? (
-                              <Badge className="bg-blue-500/15 text-blue-500 border-blue-500/30">🔵 Đang chạy</Badge>
+                              <Badge className="bg-blue-500/15 text-blue-500 border-blue-500/30"><FontAwesomeIcon icon={faPlay} className="mr-1 h-3 w-3" />Đang chạy</Badge>
                             ) : (
-                              <Badge className="bg-green-500/15 text-green-500 border-green-500/30">✅ Đã đóng</Badge>
+                              <Badge className="bg-green-500/15 text-green-500 border-green-500/30"><FontAwesomeIcon icon={faFlagCheckered} className="mr-1 h-3 w-3" />Đã đóng</Badge>
                             )}
                           </TableCell>
                           <TableCell>
@@ -456,7 +456,7 @@ export default function TradesPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className={`text-xs ${s === "OPEN" ? "text-blue-500" : "text-green-500"}`}>
-                            {s === "OPEN" ? "🔵" : "✅"}
+                            <FontAwesomeIcon icon={s === "OPEN" ? faPlay : faFlagCheckered} className="h-3 w-3" />
                           </span>
                           <span className="font-semibold text-sm">{t.pair}</span>
                           <Badge variant="outline" className="text-xs px-1.5 py-0">
@@ -517,7 +517,7 @@ export default function TradesPage() {
                               >
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-1.5">
-                                    <span className="text-xs">{s === "OPEN" ? "🔵" : "✅"}</span>
+                                    <span className="text-xs">{s === "OPEN" ? <FontAwesomeIcon icon={faPlay} className="h-3 w-3 text-blue-500" /> : <FontAwesomeIcon icon={faFlagCheckered} className="h-3 w-3 text-green-500" />}</span>
                                     <span className="font-medium">{t.pair}</span>
                                     <span className="text-xs text-muted-foreground">{t.type}</span>
                                   </div>
