@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Trade } from "@/lib/types";
-import { getTrades } from "@/lib/services";
+import { getTrades, updateTrade } from "@/lib/services";
 import { getImageSrc } from "@/lib/gdrive";
 import { useAuth } from "@/components/AuthProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +30,9 @@ import {
   faFlagCheckered,
   faGraduationCap,
   faArrowRightFromBracket,
+  faStar,
 } from "@fortawesome/free-solid-svg-icons";
+import { faStar as faStarOutline } from "@fortawesome/free-regular-svg-icons";
 import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
 import Link from "next/link";
@@ -48,6 +50,17 @@ export default function TradeDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editMode, setEditMode] = useState<"edit" | "close">("edit");
   const [lightboxSrc, setLightboxSrc] = useState<string>("");
+
+  const toggleStar = async () => {
+    if (!user || !trade) return;
+    const newStarred = !trade.starred;
+    setTrade((prev) => prev ? { ...prev, starred: newStarred } : prev);
+    try {
+      await updateTrade(user.uid, trade.id, { starred: newStarred });
+    } catch {
+      setTrade((prev) => prev ? { ...prev, starred: !newStarred } : prev);
+    }
+  };
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -97,6 +110,9 @@ export default function TradeDetailPage() {
           </Button>
           <div>
             <div className="flex items-center gap-3">
+              <button onClick={toggleStar} className="cursor-pointer">
+                <FontAwesomeIcon icon={trade.starred ? faStar : faStarOutline} className={`h-5 w-5 ${trade.starred ? "text-yellow-500" : "text-muted-foreground/40 hover:text-yellow-400"}`} />
+              </button>
               <h1 className="text-2xl font-bold">{trade.pair}</h1>
               <Badge
                 className={trade.type === "BUY" ? "bg-emerald-600 text-white" : "bg-orange-600 text-white"}

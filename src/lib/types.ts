@@ -22,6 +22,7 @@ export interface Trade {
   exitReason?: string; // Lý do thoát lệnh
   lessonsLearned?: string; // Bài học rút ra
   exitChartImageUrl?: string; // Ảnh chart lúc đóng lệnh
+  starred?: boolean; // Đánh dấu quan trọng
   createdAt: number;
 }
 

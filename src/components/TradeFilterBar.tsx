@@ -12,7 +12,8 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFilter, faRotateLeft, faPlay, faFlagCheckered } from "@fortawesome/free-solid-svg-icons";
+import { faFilter, faRotateLeft, faPlay, faFlagCheckered, faStar } from "@fortawesome/free-solid-svg-icons";
+import { faStar as faStarOutline } from "@fortawesome/free-regular-svg-icons";
 
 const statusLabels: Record<string, React.ReactNode> = {
   all: "Tất cả",
@@ -38,7 +39,7 @@ interface TradeFilterBarProps {
 export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFilterBarProps) {
   const { filters, setFilter, resetFilters } = useTradeFilters();
 
-  const hasActiveFilters = filters.search !== "" || filters.emotion !== "all" || filters.status !== "all" || filters.dateRange !== "all";
+  const hasActiveFilters = filters.search !== "" || filters.emotion !== "all" || filters.status !== "all" || filters.dateRange !== "all" || filters.starred !== "all";
 
   // Build year options from trades data
   const yearOptions = useMemo(() => {
@@ -101,6 +102,13 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
           <span className="text-xs text-muted-foreground ml-auto">
             {totalCount} lệnh
           </span>
+          <button
+            onClick={() => setFilter("starred", filters.starred === "starred" ? "all" : "starred")}
+            className={`ml-1 p-1 rounded transition-colors cursor-pointer ${filters.starred === "starred" ? "text-yellow-500" : "text-muted-foreground/40 hover:text-yellow-400"}`}
+            title={filters.starred === "starred" ? "Hiện tất cả" : "Chỉ hiện đã đánh dấu"}
+          >
+            <FontAwesomeIcon icon={filters.starred === "starred" ? faStar : faStarOutline} className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Filters - single row on desktop, 2 rows on mobile */}

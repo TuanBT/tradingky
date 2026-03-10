@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Trade, DropdownLibrary, DEFAULT_LIBRARY } from "@/lib/types";
-import { getTrades, deleteTrade, getLibrary } from "@/lib/services";
+import { getTrades, deleteTrade, updateTrade, getLibrary } from "@/lib/services";
 import { getImageSrc } from "@/lib/gdrive";
 import { useAuth } from "@/components/AuthProvider";
 import { useTradeFilters } from "@/components/TradeFilterContext";
@@ -47,7 +47,9 @@ import {
   faList,
   faChevronDown,
   faChevronUp,
+  faStar,
 } from "@fortawesome/free-solid-svg-icons";
+import { faStar as faStarOutline } from "@fortawesome/free-regular-svg-icons";
 import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
 import { TradeEditModal } from "@/components/TradeEditModal";
@@ -212,6 +214,19 @@ export default function TradesPage() {
     setTradeModalId(null);
   };
 
+  const toggleStar = async (tradeId: string) => {
+    if (!user) return;
+    const trade = trades.find((t) => t.id === tradeId);
+    if (!trade) return;
+    const newStarred = !trade.starred;
+    setTrades((prev) => prev.map((t) => t.id === tradeId ? { ...t, starred: newStarred } : t));
+    try {
+      await updateTrade(user.uid, tradeId, { starred: newStarred });
+    } catch {
+      setTrades((prev) => prev.map((t) => t.id === tradeId ? { ...t, starred: !newStarred } : t));
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -305,6 +320,13 @@ export default function TradesPage() {
                             {format(parseISO(trade.date), "dd/MM/yyyy")}
                           </TableCell>
                           <TableCell className="font-semibold">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); toggleStar(trade.id); }}
+                              className="mr-1.5 hover:scale-125 transition-transform"
+                            >
+                              <FontAwesomeIcon icon={trade.starred ? faStar : faStarOutline} className={`h-3.5 w-3.5 ${trade.starred ? "text-yellow-500" : "text-muted-foreground/40"}`} />
+                            </button>
                             <span className="mr-1.5">{trade.pair}</span>
                             <Badge className={trade.type === "BUY" ? "bg-emerald-600 text-white text-[10px] px-1.5 py-0" : "bg-orange-600 text-white text-[10px] px-1.5 py-0"}>
                               {trade.type}
@@ -446,8 +468,7 @@ export default function TradesPage() {
                       className={`w-full text-left p-3 rounded-lg border transition-colors ${i === currentIndex ? "bg-accent border-primary" : "hover:bg-accent/50"}`}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs ${s === "OPEN" ? "text-blue-500" : "text-green-500"}`}>
+                        <div className="flex items-center gap-2">                          <FontAwesomeIcon icon={t.starred ? faStar : faStarOutline} className={`h-3 w-3 ${t.starred ? "text-yellow-500" : "text-muted-foreground/30"}`} onClick={(e) => { e.stopPropagation(); toggleStar(t.id); }} />                          <span className={`text-xs ${s === "OPEN" ? "text-blue-500" : "text-green-500"}`}>
                             <FontAwesomeIcon icon={s === "OPEN" ? faPlay : faFlagCheckered} className="h-3 w-3" />
                           </span>
                           <span className="font-semibold text-sm">{t.pair}</span>
@@ -509,6 +530,7 @@ export default function TradesPage() {
                               >
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-1.5">
+                                    <FontAwesomeIcon icon={t.starred ? faStar : faStarOutline} className={`h-3 w-3 ${t.starred ? "text-yellow-500" : "text-muted-foreground/30"}`} onClick={(e) => { e.stopPropagation(); toggleStar(t.id); }} />
                                     <span className="text-xs">{s === "OPEN" ? <FontAwesomeIcon icon={faPlay} className="h-3 w-3 text-blue-500" /> : <FontAwesomeIcon icon={faFlagCheckered} className="h-3 w-3 text-green-500" />}</span>
                                     <span className="font-medium">{t.pair}</span>
                                     <span className="text-xs text-muted-foreground">{t.type}</span>
@@ -627,7 +649,7 @@ export default function TradesPage() {
                 {/* Trade detail */}
                 {currentTrade ? (
                   <div className="pb-16 sm:pb-0">
-                    <TradeDetail trade={currentTrade} onImageClick={(src) => setLightboxSrc(src)} />
+                    <TradeDetail trade={currentTrade} onImageClick={(src) => setLightboxSrc(src)} onToggleStar={toggleStar} />
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
@@ -706,7 +728,7 @@ export default function TradesPage() {
 
 /* ===== DETAIL VIEW COMPONENTS ===== */
 
-function TradeDetail({ trade, onImageClick }: { trade: Trade; onImageClick: (src: string) => void }) {
+function TradeDetail({ trade, onImageClick, onToggleStar }: { trade: Trade; onImageClick: (src: string) => void; onToggleStar: (id: string) => void }) {
   const tradeStatus = trade.status || "CLOSED";
   const isOpen = tradeStatus === "OPEN";
   const resultLabel = trade.result === "WIN" ? "Thắng" : trade.result === "LOSS" ? "Thua" : "Hoà";
@@ -718,6 +740,9 @@ function TradeDetail({ trade, onImageClick }: { trade: Trade; onImageClick: (src
       {/* Header */}
       <div>
         <div className="flex items-center gap-3 flex-wrap">
+          <button type="button" onClick={() => onToggleStar(trade.id)} className="hover:scale-125 transition-transform">
+            <FontAwesomeIcon icon={trade.starred ? faStar : faStarOutline} className={`h-5 w-5 ${trade.starred ? "text-yellow-500" : "text-muted-foreground/40"}`} />
+          </button>
           <h2 className="text-2xl font-bold">{trade.pair}</h2>
           <Badge className={trade.type === "BUY" ? "bg-emerald-600 text-white" : "bg-orange-600 text-white"}>
             {trade.type}

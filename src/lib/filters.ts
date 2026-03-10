@@ -8,6 +8,7 @@ export function filterTrades(trades: Trade[], filters: TradeFilters): Trade[] {
     if (filters.result !== "all" && t.result !== filters.result) return false;
     if (filters.pair !== "all" && t.pair !== filters.pair) return false;
     if (filters.emotion !== "all" && t.emotion !== filters.emotion) return false;
+    if (filters.starred === "starred" && !t.starred) return false;
     const status = t.status || "CLOSED";
     if (filters.status !== "all" && status !== filters.status) return false;
     if (filters.dateRange !== "all") {
