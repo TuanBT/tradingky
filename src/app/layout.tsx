@@ -18,6 +18,10 @@ export const metadata: Metadata = {
   title: "Trading Ký - Nhật ký giao dịch",
   description: "Ghi lại nhật ký trading, theo dõi lợi nhuận và tâm lý giao dịch",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/icon.svg",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
