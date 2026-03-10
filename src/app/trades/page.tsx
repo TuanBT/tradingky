@@ -745,7 +745,7 @@ function TradeDetail({ trade, onImageClick }: { trade: Trade; onImageClick: (src
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
               <span className={`text-2xl font-bold ${resultColor}`}>{resultLabel}</span>
-              {trade.platform && <Badge variant="outline">{trade.platform}</Badge>}
+              {trade.emotion && <Badge variant="secondary">{trade.emotion}</Badge>}
             </div>
             {trade.pnl !== undefined && (
               <div className="text-right">
@@ -763,8 +763,8 @@ function TradeDetail({ trade, onImageClick }: { trade: Trade; onImageClick: (src
         <div className="rounded-lg border p-4 bg-blue-500/10 border-blue-500/20">
           <div className="flex items-center gap-3">
             <FontAwesomeIcon icon={faPlay} className="h-5 w-5 text-blue-500 animate-pulse" />
-            <span className="text-lg font-semibold text-blue-500">Lệnh đang chạy - chưa có kết quả</span>
-            {trade.platform && <Badge variant="outline">{trade.platform}</Badge>}
+            <span className="text-lg font-semibold text-blue-500">Đang chạy</span>
+            {trade.emotion && <Badge variant="secondary">{trade.emotion}</Badge>}
           </div>
         </div>
       )}
