@@ -117,8 +117,13 @@ export async function updateTrade(uid: string, id: string, trade: Partial<Trade>
 export async function deleteTrade(uid: string, id: string): Promise<void> {
   try {
     const docRef = doc(db, "users", uid, "trades", id);
-    // Delete the entire trade image folder on VPS (uid/tradeId/)
-    await deleteTradeImageFolder(uid, id);
+    // Read trade data to get image URLs before deleting
+    const tradeSnap = await getDoc(docRef);
+    if (tradeSnap.exists()) {
+      const data = tradeSnap.data();
+      const imageUrls = [data.chartImageUrl, data.exitChartImageUrl].filter(Boolean);
+      await Promise.all(imageUrls.map((url: string) => deleteChartImage(url)));
+    }
     await deleteDoc(docRef);
   } catch (error) {
     console.error("Lỗi xoá lệnh:", error);
@@ -200,7 +205,7 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif"];
 
-export async function uploadChartImage(uid: string, file: File, tradeId?: string): Promise<string> {
+export async function uploadChartImage(uid: string, file: File): Promise<string> {
   if (file.size > MAX_IMAGE_SIZE) {
     throw new Error("File quá lớn (tối đa 5MB).");
   }
@@ -215,11 +220,7 @@ export async function uploadChartImage(uid: string, file: File, tradeId?: string
   try {
     const formData = new FormData();
     formData.append("file", file);
-    const url = new URL(`/api/upload/${encodeURIComponent(uid)}`, window.location.origin);
-    if (tradeId) {
-      url.searchParams.set("tradeId", tradeId);
-    }
-    const res = await fetch(url.toString(), {
+    const res = await fetch(`/api/upload/${encodeURIComponent(uid)}`, {
       method: "POST",
       body: formData,
     });
@@ -250,21 +251,7 @@ export async function deleteChartImage(imageUrl: string): Promise<void> {
   }
 }
 
-// Delete entire trade image folder on VPS: /api/files/uid/tradeId (directory)
-export async function deleteTradeImageFolder(uid: string, tradeId: string): Promise<void> {
-  if (!uid || !tradeId) return;
-  try {
-    const res = await fetch(`/api/files/${encodeURIComponent(uid)}/${encodeURIComponent(tradeId)}`, {
-      method: "DELETE",
-    });
-    if (!res.ok && res.status !== 404) {
-      const data = await res.json().catch(() => ({}));
-      console.warn("Xoá folder ảnh thất bại:", uid, tradeId, res.status, data);
-    }
-  } catch (err) {
-    console.error("Lỗi xoá folder ảnh:", uid, tradeId, err);
-  }
-}
+
 
 // ==================== ADMIN ====================
 

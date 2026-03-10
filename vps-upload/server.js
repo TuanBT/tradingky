@@ -62,14 +62,9 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Store in uploads/{uid}/{tradeId}/ if tradeId provided, else uploads/{uid}/
-    const uid = req.params.uid || "anonymous";
-    const tradeId = req.query.tradeId;
-    const destDir = tradeId
-      ? path.join(UPLOAD_DIR, uid, String(tradeId))
-      : path.join(UPLOAD_DIR, uid);
-    fs.mkdirSync(destDir, { recursive: true });
-    cb(null, destDir);
+    const userDir = path.join(UPLOAD_DIR, req.params.uid || "anonymous");
+    fs.mkdirSync(userDir, { recursive: true });
+    cb(null, userDir);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase() || ".png";
@@ -89,7 +84,7 @@ const upload = multer({
   },
 });
 
-// Upload endpoint — ?tradeId=xxx to organize by trade
+// Upload endpoint
 app.post("/upload/:uid", authMiddleware, (req, res) => {
   upload.single("file")(req, res, (err) => {
     if (err) {
@@ -101,62 +96,33 @@ app.post("/upload/:uid", authMiddleware, (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "Không có file." });
     }
-    // Build URL path based on where the file was stored
-    const relativePath = path.relative(UPLOAD_DIR, req.file.path).split(path.sep).join("/");
-    const url = `${req.protocol}://${req.get("host")}/files/${relativePath}`;
+    const url = `${req.protocol}://${req.get("host")}/files/${req.params.uid}/${req.file.filename}`;
     res.json({ url });
   });
 });
 
 // Delete a single file: DELETE /files/:uid/:filename
-// or with trade folder: DELETE /files/:uid/:tradeId/:filename
-app.delete("/files/:uid/*", authMiddleware, (req, res) => {
+app.delete("/files/:uid/:filename", authMiddleware, (req, res) => {
   const uid = req.params.uid;
-  const restPath = req.params[0]; // everything after :uid/
+  const filename = req.params.filename;
   // Validate: no path traversal
-  if (!uid || !restPath || uid.includes("..") || restPath.includes("..")) {
+  if (!uid || !filename || uid.includes("..") || filename.includes("..") || filename.includes("/")) {
     return res.status(400).json({ error: "Invalid path." });
   }
-  const filePath = path.resolve(path.join(UPLOAD_DIR, uid, restPath));
+  const filePath = path.resolve(path.join(UPLOAD_DIR, uid, filename));
   // Ensure resolved path is within UPLOAD_DIR
   if (!filePath.startsWith(path.resolve(UPLOAD_DIR))) {
     return res.status(400).json({ error: "Invalid path." });
   }
   if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: "File not found." });
+    // Already gone — treat as success
+    return res.json({ ok: true });
   }
   try {
-    const stat = fs.statSync(filePath);
-    if (stat.isDirectory()) {
-      fs.rmSync(filePath, { recursive: true, force: true });
-    } else {
-      fs.unlinkSync(filePath);
-    }
+    fs.unlinkSync(filePath);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: "Could not delete file." });
-  }
-});
-
-// Delete all images for a trade: DELETE /trade-files/:uid/:tradeId
-app.delete("/trade-files/:uid/:tradeId", authMiddleware, (req, res) => {
-  const { uid, tradeId } = req.params;
-  if (!uid || !tradeId || uid.includes("..") || tradeId.includes("..")) {
-    return res.status(400).json({ error: "Invalid path." });
-  }
-  const tradeDir = path.resolve(path.join(UPLOAD_DIR, uid, tradeId));
-  if (!tradeDir.startsWith(path.resolve(UPLOAD_DIR))) {
-    return res.status(400).json({ error: "Invalid path." });
-  }
-  if (!fs.existsSync(tradeDir)) {
-    return res.json({ ok: true, deleted: 0 });
-  }
-  try {
-    const files = fs.readdirSync(tradeDir);
-    fs.rmSync(tradeDir, { recursive: true, force: true });
-    res.json({ ok: true, deleted: files.length });
-  } catch (err) {
-    res.status(500).json({ error: "Could not delete trade files." });
   }
 });
 

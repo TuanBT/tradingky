@@ -209,10 +209,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
       if (form?.chartImageUrl) {
         await deleteChartImage(form.chartImageUrl);
       }
-      // Pass tradeId to organize images into trade-specific folders
-      // For new trades (add mode), use "draft" folder
-      const currentTradeId = tradeRef.current?.id || "draft";
-      const url = await uploadChartImage(user.uid, file, currentTradeId);
+      const url = await uploadChartImage(user.uid, file);
       updateForm({ chartImageUrl: url });
       toast("Đã upload ảnh", "success");
     } catch (err) {
