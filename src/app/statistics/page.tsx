@@ -21,6 +21,20 @@ import {
   faSkullCrossbones,
   faChartPie,
   faBrain,
+  faListOl,
+  faPercent,
+  faDollarSign,
+  faScaleBalanced,
+  faArrowUp,
+  faArrowDown,
+  faFire,
+  faSnowflake,
+  faExchange,
+  faCoins,
+  faClock,
+  faChartBar,
+  faCalendarAlt,
+  faBuildingColumns,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   format,
@@ -395,20 +409,20 @@ export default function StatisticsPage() {
         <>
           {/* Overview Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <StatCard label="Tổng lệnh" value={stats.total.toString()} />
-            <StatCard label="Win Rate" value={`${stats.winRate.toFixed(1)}%`} color={stats.winRate >= 50 ? "green" : "red"} />
-            <StatCard label="Tổng P&L" value={`$${stats.totalPnl.toFixed(2)}`} color={stats.totalPnl >= 0 ? "green" : "red"} />
-            <StatCard label="Profit Factor" value={stats.profitFactor === Infinity ? "∞" : stats.profitFactor.toFixed(2)} color={stats.profitFactor >= 1 ? "green" : "red"} />
-            <StatCard label="Avg Win" value={`$${stats.avgWin.toFixed(2)}`} color="green" />
-            <StatCard label="Max Drawdown" value={`-$${stats.maxDrawdown.toFixed(2)}`} color="red" />
+            <StatCard label="Tổng lệnh" value={stats.total.toString()} icon={faListOl} />
+            <StatCard label="Win Rate" value={`${stats.winRate.toFixed(1)}%`} color={stats.winRate >= 50 ? "green" : "red"} icon={faPercent} />
+            <StatCard label="Tổng P&L" value={`$${stats.totalPnl.toFixed(2)}`} color={stats.totalPnl >= 0 ? "green" : "red"} icon={faDollarSign} />
+            <StatCard label="Profit Factor" value={stats.profitFactor === Infinity ? "∞" : stats.profitFactor.toFixed(2)} color={stats.profitFactor >= 1 ? "green" : "red"} icon={faScaleBalanced} />
+            <StatCard label="Avg Win" value={`$${stats.avgWin.toFixed(2)}`} color="green" icon={faArrowUp} />
+            <StatCard label="Max Drawdown" value={`-$${stats.maxDrawdown.toFixed(2)}`} color="red" icon={faArrowDown} />
           </div>
 
           {/* Streak + R:R Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label="🔥 Win Streak (max)" value={streakStats.maxWinStreak.toString()} color="green" />
-            <StatCard label="❄️ Loss Streak (max)" value={streakStats.maxLossStreak.toString()} color="red" />
-            <StatCard label="Avg R:R" value={stats.avgRR.toFixed(2)} color={stats.avgRR >= 1 ? "green" : "red"} />
-            <StatCard label="Avg Loss" value={`$${stats.avgLoss.toFixed(2)}`} color="red" />
+            <StatCard label="Win Streak (max)" value={streakStats.maxWinStreak.toString()} color="green" icon={faFire} />
+            <StatCard label="Loss Streak (max)" value={streakStats.maxLossStreak.toString()} color="red" icon={faSnowflake} />
+            <StatCard label="Avg R:R" value={stats.avgRR.toFixed(2)} color={stats.avgRR >= 1 ? "green" : "red"} icon={faExchange} />
+            <StatCard label="Avg Loss" value={`$${stats.avgLoss.toFixed(2)}`} color="red" icon={faCoins} />
           </div>
 
           {/* Charts Row 1 */}
@@ -446,7 +460,9 @@ export default function StatisticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">P&L theo tuần</CardTitle>
+                <CardTitle className="text-base">
+                  <FontAwesomeIcon icon={faChartBar} className="mr-2 text-muted-foreground" />
+                  P&L theo tuần</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={250}>
@@ -480,7 +496,9 @@ export default function StatisticsPage() {
           {/* Drawdown Chart */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Equity & Drawdown</CardTitle>
+              <CardTitle className="text-base">
+                <FontAwesomeIcon icon={faChartBar} className="mr-2 text-muted-foreground" />
+                Equity & Drawdown</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -517,7 +535,9 @@ export default function StatisticsPage() {
           {monthlyComparison.length > 1 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">So sánh Performance theo tháng</CardTitle>
+                <CardTitle className="text-base">
+                  <FontAwesomeIcon icon={faCalendarAlt} className="mr-2 text-muted-foreground" />
+                  So sánh Performance theo tháng</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -568,7 +588,9 @@ export default function StatisticsPage() {
             {/* P&L by Pair */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">P&L theo cặp tiền</CardTitle>
+                <CardTitle className="text-base">
+                  <FontAwesomeIcon icon={faCoins} className="mr-2 text-muted-foreground" />
+                  P&L theo cặp tiền</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-[400px] overflow-y-auto">
@@ -650,7 +672,9 @@ export default function StatisticsPage() {
             {platformStats.map((p) => (
               <Card key={p.platform}>
                 <CardHeader>
-                  <CardTitle className="text-base">{p.platform}</CardTitle>
+                  <CardTitle className="text-base">
+                  <FontAwesomeIcon icon={faBuildingColumns} className="mr-2 text-muted-foreground" />
+                  {p.platform}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2 text-sm">
@@ -738,7 +762,10 @@ export default function StatisticsPage() {
           <div>
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">⏱️ Theo Timeframe</CardTitle>
+                <CardTitle className="text-base">
+                  <FontAwesomeIcon icon={faClock} className="mr-2 text-muted-foreground" />
+                  Theo Timeframe
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -787,14 +814,17 @@ function StatCard({
   label,
   value,
   color,
+  icon,
 }: {
   label: string;
   value: string;
   color?: "green" | "red";
+  icon?: typeof faTrophy;
 }) {
   return (
     <Card>
       <CardContent className="p-4 text-center">
+        {icon && <FontAwesomeIcon icon={icon} className={`h-4 w-4 mb-1.5 ${color === "green" ? "text-green-500/60" : color === "red" ? "text-red-500/60" : "text-muted-foreground/50"}`} />}
         <p className="text-xs text-muted-foreground">{label}</p>
         <p
           className={`text-lg font-bold mt-1 ${
