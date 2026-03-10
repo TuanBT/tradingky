@@ -16,13 +16,13 @@ import { faFilter, faRotateLeft, faPlay, faFlagCheckered, faStar } from "@fortaw
 import { faStar as faStarOutline } from "@fortawesome/free-regular-svg-icons";
 
 const statusLabels: Record<string, React.ReactNode> = {
-  all: "Tất cả",
+  all: "Trạng thái",
   OPEN: <><FontAwesomeIcon icon={faPlay} className="mr-1 h-3 w-3 text-blue-500" />Đang chạy</>,
   CLOSED: <><FontAwesomeIcon icon={faFlagCheckered} className="mr-1 h-3 w-3 text-green-500" />Đã đóng</>,
 };
 
 const dateRangeLabels: Record<string, string> = {
-  all: "Tất cả",
+  all: "Thời gian",
   today: "Hôm nay",
   "this-week": "Tuần này",
   "this-month": "Tháng này",
@@ -114,7 +114,7 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
         {/* Filters - single row on desktop, 2 rows on mobile */}
         <div className="flex flex-col sm:flex-row gap-2">
           <Input
-            placeholder="Tìm cặp tiền, ghi chú..."
+            placeholder="Tìm cặp tiền, ghi chú, tâm lý..."
             value={filters.search}
             onChange={(e) => setFilter("search", e.target.value)}
             className="h-9 sm:flex-1"

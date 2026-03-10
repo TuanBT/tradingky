@@ -19,6 +19,7 @@ interface EditableSelectProps {
   items: string[];
   onItemsChange: (items: string[]) => void;
   placeholder?: string;
+  emojis?: string[];
 }
 
 export default function EditableSelect({
@@ -27,11 +28,14 @@ export default function EditableSelect({
   items,
   onItemsChange,
   placeholder = "Chọn...",
+  emojis,
 }: EditableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [newItem, setNewItem] = useState("");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [selectedEmoji, setSelectedEmoji] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -76,11 +80,15 @@ export default function EditableSelect({
 
   const handleAdd = () => {
     const trimmed = newItem.trim();
-    if (!trimmed || items.includes(trimmed)) return;
-    const updated = [...items, trimmed];
+    if (!trimmed) return;
+    const finalValue = selectedEmoji ? `${selectedEmoji} ${trimmed}` : trimmed;
+    if (items.includes(finalValue)) return;
+    const updated = [...items, finalValue];
     onItemsChange(updated);
-    onValueChange(trimmed);
+    onValueChange(finalValue);
     setNewItem("");
+    setSelectedEmoji("");
+    setShowEmojiPicker(false);
     setIsOpen(false);
   };
 
@@ -117,17 +125,34 @@ export default function EditableSelect({
       className="rounded-md border bg-popover shadow-lg max-h-64 overflow-auto"
     >
       {/* Add new */}
-      <div className="flex gap-1 p-2 border-b sticky top-0 bg-popover">
-        <Input
-          value={newItem}
-          onChange={(e) => setNewItem(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); } }}
-          placeholder="Thêm mới..."
-          className="h-8 text-sm"
-        />
-        <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={handleAdd} disabled={!newItem.trim()}>
-          <FontAwesomeIcon icon={faPlus} className="h-3.5 w-3.5" />
-        </Button>
+      <div className="p-2 border-b sticky top-0 bg-popover space-y-1.5">
+        <div className="flex gap-1">
+          {selectedEmoji && (
+            <span className="flex items-center text-base px-1.5 border rounded bg-muted">{selectedEmoji}</span>
+          )}
+          <Input
+            value={newItem}
+            onChange={(e) => setNewItem(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); } }}
+            placeholder="Thêm mới..."
+            className="h-8 text-sm"
+          />
+          {emojis && (
+            <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+              😀
+            </Button>
+          )}
+          <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={handleAdd} disabled={!newItem.trim()}>
+            <FontAwesomeIcon icon={faPlus} className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        {emojis && showEmojiPicker && (
+          <div className="flex flex-wrap gap-1 p-1.5 rounded border bg-muted/50">
+            {emojis.map((e) => (
+              <button key={e} type="button" className={`text-base p-0.5 rounded hover:bg-accent transition-colors ${selectedEmoji === e ? "bg-primary/20 ring-1 ring-primary" : ""}`} onClick={() => setSelectedEmoji(selectedEmoji === e ? "" : e)}>{e}</button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Items */}

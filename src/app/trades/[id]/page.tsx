@@ -188,9 +188,9 @@ export default function TradeDetailPage() {
             <CardTitle className="text-base">Thông tin lệnh</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <InfoRow icon={faCalendarDays} label="Ngày vào" value={format(parseISO(trade.date), "dd/MM/yyyy")} />
+            <InfoRow icon={faCalendarDays} label="Ngày vào" value={`${format(parseISO(trade.date), "dd/MM/yyyy")}${trade.entryTime ? " lúc " + trade.entryTime : ""}`} />
             {trade.closeDate && (
-              <InfoRow icon={faCalendarDays} label="Ngày đóng" value={format(parseISO(trade.closeDate), "dd/MM/yyyy")} />
+              <InfoRow icon={faCalendarDays} label="Ngày đóng" value={`${format(parseISO(trade.closeDate), "dd/MM/yyyy")}${trade.closeTime ? " lúc " + trade.closeTime : ""}`} />
             )}
             {trade.platform && <InfoRow icon={faBuildingColumns} label="Sàn" value={trade.platform} />}
             <InfoRow icon={faFaceSmile} label="Tâm lý" value={trade.emotion} />
@@ -207,9 +207,6 @@ export default function TradeDetailPage() {
             {trade.entryPrice !== undefined && (
               <InfoRow icon={faArrowTrendUp} label="Giá vào" value={trade.entryPrice.toString()} mono />
             )}
-            {trade.exitPrice !== undefined && (
-              <InfoRow icon={faArrowTrendDown} label="Giá ra" value={trade.exitPrice.toString()} mono />
-            )}
             {trade.stopLoss && <InfoRow icon={faShieldHalved} label="Stop Loss" value={trade.stopLoss} />}
             {trade.takeProfit && <InfoRow icon={faBullseye} label="Take Profit" value={trade.takeProfit} />}
             {trade.lotSize !== undefined && (
@@ -224,7 +221,7 @@ export default function TradeDetailPage() {
                 valueColor={trade.pnl >= 0 ? "text-green-500" : "text-red-500"}
               />
             )}
-            {!trade.entryPrice && !trade.exitPrice && !trade.stopLoss && !trade.takeProfit && !trade.lotSize && trade.pnl === undefined && (
+            {!trade.entryPrice && !trade.stopLoss && !trade.takeProfit && !trade.lotSize && trade.pnl === undefined && (
               <p className="text-sm text-muted-foreground">Chưa có thông tin giá.</p>
             )}
           </CardContent>

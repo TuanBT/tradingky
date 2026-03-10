@@ -317,39 +317,96 @@ export async function resetUserAll(uid: string): Promise<{ trades: number; journ
 
 export async function createSmokeTestTrades(uid: string): Promise<number> {
   const now = Date.now();
-  const today = new Date();
-  const testTrades: Omit<Trade, "id">[] = [];
+  const chartImage = "https://s3.tradingview.com/z/ZGl2xWym_mid.webp?v=1770419069";
 
-  const pairs = ["XAUUSD", "BTCUSDT", "EURUSD"];
-  const platforms = ["Exness", "Binance"];
-  const emotions = ["😎 Tự tin", "🧘 Bình tĩnh", "😱 FOMO"];
-  const results: ("WIN" | "LOSS" | "BREAKEVEN")[] = ["WIN", "LOSS", "BREAKEVEN"];
-  const types: ("BUY" | "SELL")[] = ["BUY", "SELL"];
-
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split("T")[0];
-    const result = results[i % 3];
-    const pnl = result === "WIN" ? Math.round(Math.random() * 200 + 10) : result === "LOSS" ? -Math.round(Math.random() * 100 + 5) : 0;
-
-    testTrades.push({
-      date: dateStr,
-      pair: pairs[i % pairs.length],
-      platform: platforms[i % platforms.length],
-      type: types[i % types.length],
-      emotion: emotions[i % emotions.length],
-      result,
-      pnl,
-      status: "CLOSED" as const,
-      note: `[Smoke Test] Lệnh test #${i + 1} - tạo tự động`,
-      createdAt: now - i * 60000,
-    });
-  }
+  const testTrades: Omit<Trade, "id">[] = [
+    // 1. Full info, CLOSED WIN, starred, with time
+    {
+      date: "2026-03-10", pair: "XAUUSD", platform: "Exness", type: "BUY",
+      emotion: "😎 Tự tin", result: "WIN", status: "CLOSED", pnl: 125.50,
+      stopLoss: "20 pips", takeProfit: "60 pips", chartImageUrl: chartImage,
+      note: "[Smoke Test] Breakout mạnh qua resistance 2045, volume tăng đột biến.",
+      entryPrice: 2045.30, lotSize: 0.5, timeframe: "H1",
+      closeDate: "2026-03-10", entryTime: "09:30", closeTime: "14:15",
+      exitReason: "Chạm TP đặt trước, đạt 3R target",
+      lessonsLearned: "Breakout + volume = xác suất cao.",
+      starred: true, createdAt: now - 3600000,
+    },
+    // 2. CLOSED LOSS, full info
+    {
+      date: "2026-03-09", pair: "BTCUSDT", platform: "Binance", type: "SELL",
+      emotion: "😱 FOMO", result: "LOSS", status: "CLOSED", pnl: -87.25,
+      stopLoss: "500 points", takeProfit: "1500 points", chartImageUrl: chartImage,
+      note: "[Smoke Test] Short theo divergence nhưng trend vẫn mạnh.",
+      entryPrice: 68500, lotSize: 0.01, timeframe: "H4",
+      closeDate: "2026-03-09", entryTime: "22:10", closeTime: "08:45",
+      exitReason: "SL hit - không chờ confirmation",
+      lessonsLearned: "Không nên FOMO vào khi giá đã chạy xa.",
+      starred: false, createdAt: now - 86400000,
+    },
+    // 3. OPEN trade, minimal info
+    {
+      date: "2026-03-10", pair: "EURUSD", type: "BUY",
+      emotion: "🧘 Bình tĩnh", result: "WIN", status: "OPEN",
+      note: "[Smoke Test] Mua theo trend D1, chờ pullback xong.",
+      entryTime: "10:00", starred: false, createdAt: now - 1800000,
+    },
+    // 4. CLOSED BREAKEVEN, starred
+    {
+      date: "2026-03-08", pair: "GBPUSD", platform: "Exness", type: "SELL",
+      emotion: "🤔 Không chắc chắn", result: "BREAKEVEN", status: "CLOSED", pnl: 0,
+      stopLoss: "30 pips", takeProfit: "90 pips", chartImageUrl: chartImage,
+      entryPrice: 1.2650, lotSize: 0.3, timeframe: "M15",
+      closeDate: "2026-03-08", entryTime: "15:30", closeTime: "16:45",
+      exitReason: "Dời SL về break even, bị hit",
+      note: "[Smoke Test] BE - không lời không lỗ.",
+      starred: true, createdAt: now - 172800000,
+    },
+    // 5. OPEN trade with advanced info, starred
+    {
+      date: "2026-03-10", pair: "SOLUSDT", platform: "Binance", type: "BUY",
+      emotion: "🤑 Tham lam", result: "WIN", status: "OPEN",
+      stopLoss: "5%", takeProfit: "15%", entryPrice: 142.50, lotSize: 10,
+      timeframe: "D1", note: "[Smoke Test] Swing trade, SOL momentum mạnh.",
+      entryTime: "08:00", starred: true, createdAt: now - 900000,
+    },
+    // 6. CLOSED WIN, no image, minimal
+    {
+      date: "2026-03-07", pair: "USDJPY", type: "BUY",
+      emotion: "😤 Nóng vội", result: "WIN", status: "CLOSED", pnl: 45.00,
+      timeframe: "M5", closeDate: "2026-03-07", entryTime: "07:15", closeTime: "07:45",
+      note: "[Smoke Test] Scalp nhanh.",
+      lessonsLearned: "Scalp nhanh căng thẳng, không nên lặp lại.",
+      starred: false, createdAt: now - 259200000,
+    },
+    // 7. CLOSED LOSS, revenge trade
+    {
+      date: "2026-03-09", pair: "XAUUSD", platform: "Exness", type: "SELL",
+      emotion: "😡 Revenge trade", result: "LOSS", status: "CLOSED", pnl: -200.00,
+      stopLoss: "50 pips", chartImageUrl: chartImage,
+      note: "[Smoke Test] Revenge trade, vào lệnh không có setup.",
+      entryPrice: 2055.00, lotSize: 1.0, timeframe: "M15",
+      closeDate: "2026-03-09", entryTime: "16:00", closeTime: "16:30",
+      exitReason: "SL hit ngay lập tức",
+      lessonsLearned: "Revenge trade = tự huỷ tài khoản.",
+      starred: false, createdAt: now - 80000000,
+    },
+    // 8. CLOSED WIN, multi-day swing
+    {
+      date: "2026-03-06", pair: "ETHUSDT", type: "BUY",
+      emotion: "😎 Tự tin", result: "WIN", status: "CLOSED", pnl: 310.75,
+      takeProfit: "10%", entryPrice: 3200, lotSize: 0.5, timeframe: "H4",
+      closeDate: "2026-03-08", entryTime: "20:00", closeTime: "10:30",
+      note: "[Smoke Test] Swing trade 2 ngày, ETH breakout channel.",
+      exitReason: "Đạt target 10%",
+      lessonsLearned: "Swing trade cần kiên nhẫn, RR rất tốt.",
+      starred: false, createdAt: now - 345600000,
+    },
+  ];
 
   try {
     for (const trade of testTrades) {
-      await addDoc(collection(db, "users", uid, "trades"), trade);
+      await addDoc(collection(db, "users", uid, "trades"), stripUndefined(trade));
     }
     return testTrades.length;
   } catch (error) {

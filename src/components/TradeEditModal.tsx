@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Trade, DropdownLibrary, DEFAULT_LIBRARY } from "@/lib/types";
+import { Trade, DropdownLibrary, DEFAULT_LIBRARY, EMOTION_EMOJIS } from "@/lib/types";
 import { addTrade, updateTrade, getLibrary, getTrades, uploadChartImage, deleteChartImage, updateLibrary } from "@/lib/services";
 import { getImageSrc } from "@/lib/gdrive";
 import { useAuth } from "@/components/AuthProvider";
@@ -55,6 +55,8 @@ interface TradeForm {
   lotSize: number | undefined;
   timeframe: string;
   closeDate: string;
+  entryTime: string;
+  closeTime: string;
   exitReason: string;
   lessonsLearned: string;
 }
@@ -79,6 +81,8 @@ const emptyForm: TradeForm = {
   lotSize: undefined,
   timeframe: "",
   closeDate: "",
+  entryTime: "",
+  closeTime: "",
   exitReason: "",
   lessonsLearned: "",
 };
@@ -163,6 +167,8 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
             lotSize: trade.lotSize,
             timeframe: trade.timeframe || "",
             closeDate: isClosing && !trade.closeDate ? new Date().toISOString().split("T")[0] : (trade.closeDate || ""),
+            entryTime: trade.entryTime || "",
+            closeTime: isClosing && !trade.closeTime ? format(new Date(), "HH:mm") : (trade.closeTime || ""),
             exitReason: trade.exitReason || "",
             lessonsLearned: trade.lessonsLearned || "",
           });
@@ -282,6 +288,8 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
       lotSize: form.lotSize,
       timeframe: form.timeframe || undefined,
       closeDate: form.closeDate || undefined,
+      entryTime: form.entryTime || undefined,
+      closeTime: form.closeTime || undefined,
       exitReason: form.exitReason || undefined,
       lessonsLearned: form.lessonsLearned || undefined,
       createdAt: isAddMode ? Date.now() : (tradeRef.current?.createdAt || Date.now()),
@@ -437,7 +445,10 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                     </div>
                     <div>
                       <Label className="text-sm text-muted-foreground">Ngày đóng lệnh</Label>
-                      <Input type="date" value={form.closeDate} onChange={(e) => updateForm({ closeDate: e.target.value })} className="mt-1" />
+                      <div className="mt-1 flex gap-2">
+                        <Input type="date" value={form.closeDate} onChange={(e) => updateForm({ closeDate: e.target.value })} className="flex-1" />
+                        <Input type="time" value={form.closeTime} onChange={(e) => updateForm({ closeTime: e.target.value })} className="w-24" />
+                      </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -474,7 +485,10 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Ngày vào lệnh *</Label>
-                    <Input type="date" value={form.date} onChange={(e) => updateForm({ date: e.target.value })} className="mt-1" />
+                    <div className="mt-1 flex gap-2">
+                      <Input type="date" value={form.date} onChange={(e) => updateForm({ date: e.target.value })} className="flex-1" />
+                      <Input type="time" value={form.entryTime} onChange={(e) => updateForm({ entryTime: e.target.value })} className="w-24" placeholder="Giờ" />
+                    </div>
                   </div>
                 </div>
                 {/* Image upload - right after core info (hidden in close mode, shown in close section instead) */}
@@ -482,7 +496,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium">Tâm lý *</Label>
-                    <EditableSelect value={form.emotion} onValueChange={(v) => updateForm({ emotion: v })} items={library.emotions} onItemsChange={(items) => handleLibraryUpdate("emotions", items)} placeholder="Tâm lý lúc vào lệnh" />
+                    <EditableSelect value={form.emotion} onValueChange={(v) => updateForm({ emotion: v })} items={library.emotions} onItemsChange={(items) => handleLibraryUpdate("emotions", items)} placeholder="Tâm lý lúc vào lệnh" emojis={EMOTION_EMOJIS} />
                   </div>
                   <div>
                     <Label className="text-sm text-muted-foreground">Ghi chú lúc vào lệnh</Label>
@@ -519,7 +533,10 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                     </div>
                     <div>
                       <Label className="text-sm text-muted-foreground">Ngày đóng lệnh</Label>
-                      <Input type="date" value={form.closeDate} onChange={(e) => updateForm({ closeDate: e.target.value })} className="mt-1" />
+                      <div className="mt-1 flex gap-2">
+                        <Input type="date" value={form.closeDate} onChange={(e) => updateForm({ closeDate: e.target.value })} className="flex-1" />
+                        <Input type="time" value={form.closeTime} onChange={(e) => updateForm({ closeTime: e.target.value })} className="w-24" />
+                      </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -547,9 +564,19 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
+                      <Label className="text-sm text-muted-foreground">Timeframe</Label>
+                      <EditableSelect value={form.timeframe} onValueChange={(v) => updateForm({ timeframe: v })} items={library.timeframes} onItemsChange={(items) => handleLibraryUpdate("timeframes", items)} placeholder="Chọn TF" />
+                    </div>
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Lot / Quantity</Label>
+                      <Input type="number" step="any" value={form.lotSize ?? ""} onChange={(e) => updateForm({ lotSize: e.target.value ? parseFloat(e.target.value) : undefined })} className="mt-1" />
+                    </div>
+                    <div>
                       <Label className="text-sm text-muted-foreground">Sàn</Label>
                       <EditableSelect value={form.platform} onValueChange={(v) => updateForm({ platform: v })} items={library.platforms} onItemsChange={(items) => handleLibraryUpdate("platforms", items)} placeholder="Chọn sàn" />
                     </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <Label className="text-sm text-muted-foreground">Stop Loss</Label>
                       <Input placeholder="VD: 20 pips..." value={form.stopLoss} onChange={(e) => updateForm({ stopLoss: e.target.value })} className="mt-1" />
@@ -558,25 +585,9 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                       <Label className="text-sm text-muted-foreground">Take Profit</Label>
                       <Input placeholder="VD: 40 pips..." value={form.takeProfit} onChange={(e) => updateForm({ takeProfit: e.target.value })} className="mt-1" />
                     </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <Label className="text-sm text-muted-foreground">Giá vào</Label>
                       <Input type="number" step="any" value={form.entryPrice ?? ""} onChange={(e) => updateForm({ entryPrice: e.target.value ? parseFloat(e.target.value) : undefined })} className="mt-1" />
-                    </div>
-                    <div>
-                      <Label className="text-sm text-muted-foreground">Giá ra</Label>
-                      <Input type="number" step="any" value={form.exitPrice ?? ""} onChange={(e) => updateForm({ exitPrice: e.target.value ? parseFloat(e.target.value) : undefined })} className="mt-1" />
-                    </div>
-                    <div>
-                      <Label className="text-sm text-muted-foreground">Lot / Quantity</Label>
-                      <Input type="number" step="any" value={form.lotSize ?? ""} onChange={(e) => updateForm({ lotSize: e.target.value ? parseFloat(e.target.value) : undefined })} className="mt-1" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <Label className="text-sm text-muted-foreground">Timeframe</Label>
-                      <EditableSelect value={form.timeframe} onValueChange={(v) => updateForm({ timeframe: v })} items={library.timeframes} onItemsChange={(items) => handleLibraryUpdate("timeframes", items)} placeholder="Chọn TF" />
                     </div>
                   </div>
                 </CardContent>

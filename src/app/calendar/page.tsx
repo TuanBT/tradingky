@@ -56,13 +56,19 @@ export default function CalendarPage() {
 
   // Group trades by date with P&L
   const dailyData = useMemo(() => {
-    const map = new Map<string, { pnl: number; trades: Trade[]; wins: number; losses: number }>();
+    const map = new Map<string, { pnl: number; trades: Trade[]; wins: number; losses: number; open: number }>();
     for (const t of trades) {
-      const curr = map.get(t.date) || { pnl: 0, trades: [], wins: 0, losses: 0 };
-      curr.pnl += t.pnl || 0;
+      const curr = map.get(t.date) || { pnl: 0, trades: [], wins: 0, losses: 0, open: 0 };
+      const isClosed = (t.status || "CLOSED") === "CLOSED";
+      if (isClosed) curr.pnl += t.pnl || 0;
       curr.trades.push(t);
-      if (t.result === "WIN") curr.wins++;
-      if (t.result === "LOSS") curr.losses++;
+      if (!isClosed) {
+        curr.open++;
+      } else if (t.result === "WIN") {
+        curr.wins++;
+      } else if (t.result === "LOSS") {
+        curr.losses++;
+      }
       map.set(t.date, curr);
     }
     return map;
@@ -228,10 +234,10 @@ export default function CalendarPage() {
                           data.pnl === 0 && "text-yellow-500"
                         )}
                       >
-                        {data.pnl >= 0 ? "+" : ""}${data.pnl.toFixed(0)}
+                        {data.pnl >= 0 ? "+" : ""}${data.pnl.toFixed(2)}
                       </span>
                       <span className="text-[10px] text-muted-foreground">
-                        {data.trades.length} lệnh • {data.wins}W/{data.losses}L
+                        {data.trades.length} lệnh{data.wins + data.losses > 0 ? ` • ${data.wins}W/${data.losses}L` : ""}{data.open > 0 ? ` • ${data.open} mở` : ""}
                       </span>
                     </div>
                   )}
@@ -274,22 +280,26 @@ export default function CalendarPage() {
                     </div>
                     <div className="flex items-center gap-4">
                       <Badge variant="secondary">{trade.emotion}</Badge>
-                      <span
-                        className={`font-semibold ${
-                          trade.result === "WIN"
-                            ? "text-green-500"
+                      {(trade.status || "CLOSED") === "OPEN" ? (
+                        <span className="font-semibold text-blue-500">Đang chạy</span>
+                      ) : (
+                        <span
+                          className={`font-semibold ${
+                            trade.result === "WIN"
+                              ? "text-green-500"
+                              : trade.result === "LOSS"
+                              ? "text-red-500"
+                              : "text-yellow-500"
+                          }`}
+                        >
+                          {trade.result === "WIN"
+                            ? "Thắng"
                             : trade.result === "LOSS"
-                            ? "text-red-500"
-                            : "text-yellow-500"
-                        }`}
-                      >
-                        {trade.result === "WIN"
-                          ? "Thắng"
-                          : trade.result === "LOSS"
-                          ? "Thua"
-                          : "Hoà"}
-                      </span>
-                      {trade.pnl !== undefined && (
+                            ? "Thua"
+                            : "Hoà"}
+                        </span>
+                      )}
+                      {trade.pnl !== undefined && (trade.status || "CLOSED") === "CLOSED" && (
                         <span
                           className={`font-mono ${
                             trade.pnl >= 0 ? "text-green-500" : "text-red-500"

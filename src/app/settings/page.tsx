@@ -273,15 +273,17 @@ export default function SettingsPage() {
                       }}
                       className="flex-1"
                     />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setShowEmojis({ ...showEmojis, [section.key]: !showEmojis[section.key] })}
-                      title="Chọn icon"
-                      className="shrink-0"
-                    >
-                      😀
-                    </Button>
+                    {section.key === "emotions" && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setShowEmojis({ ...showEmojis, [section.key]: !showEmojis[section.key] })}
+                        title="Chọn icon"
+                        className="shrink-0"
+                      >
+                        😀
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="icon"
@@ -291,7 +293,7 @@ export default function SettingsPage() {
                       <FontAwesomeIcon icon={faPlus} className="h-4 w-4" />
                     </Button>
                   </div>
-                  {showEmojis[section.key] && (
+                  {section.key === "emotions" && showEmojis[section.key] && (
                     <div className="flex flex-wrap gap-1 p-2 rounded-lg border bg-muted/50">
                       {section.emojis.map((emoji) => (
                         <button

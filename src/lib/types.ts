@@ -18,11 +18,13 @@ export interface Trade {
   lotSize?: number;
   timeframe?: string;
   closeDate?: string;
+  entryTime?: string; // HH:mm
+  closeTime?: string; // HH:mm
   // Phase 2 (đóng lệnh)
-  exitReason?: string; // Lý do thoát lệnh
-  lessonsLearned?: string; // Bài học rút ra
-  exitChartImageUrl?: string; // Ảnh chart lúc đóng lệnh
-  starred?: boolean; // Đánh dấu quan trọng
+  exitReason?: string;
+  lessonsLearned?: string;
+  exitChartImageUrl?: string;
+  starred?: boolean;
   createdAt: number;
 }
 
@@ -49,3 +51,5 @@ export const DEFAULT_LIBRARY: DropdownLibrary = {
   platforms: ["Exness", "Binance"],
   timeframes: ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1"],
 };
+
+export const EMOTION_EMOJIS = ["😎", "😌", "😤", "😰", "🤑", "💪", "🔥", "❄️", "😡", "🤔", "😱", "🧘", "🎯", "😨", "🥶", "😵‍💫"];
