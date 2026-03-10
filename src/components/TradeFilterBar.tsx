@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { DropdownLibrary, Trade } from "@/lib/types";
 import { useTradeFilters } from "./TradeFilterContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,14 +12,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFilter, faRotateLeft, faChevronDown, faChevronUp, faPlay, faFlagCheckered } from "@fortawesome/free-solid-svg-icons";
-
-const resultLabels: Record<string, string> = {
-  all: "Tất cả",
-  WIN: "Thắng",
-  LOSS: "Thua",
-  BREAKEVEN: "Hoà",
-};
+import { faFilter, faRotateLeft, faPlay, faFlagCheckered } from "@fortawesome/free-solid-svg-icons";
 
 const statusLabels: Record<string, React.ReactNode> = {
   all: "Tất cả",
@@ -87,62 +80,41 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
     );
   }
 
-  // Collapsible on mobile (default collapsed)
-  const [collapsed, setCollapsed] = useState(true);
-
-  const activeFilterCount = [
-    filters.search !== "",
-    filters.emotion !== "all",
-    filters.status !== "all",
-    filters.dateRange !== "all",
-  ].filter(Boolean).length;
+  // Collapsible no longer needed with only 4 filters
 
   return (
     <Card>
-      <CardContent className="p-4">
-        <button
-          type="button"
-          onClick={() => setCollapsed((c) => !c)}
-          className="flex items-center gap-2 w-full sm:cursor-default"
-        >
-          <FontAwesomeIcon icon={faFilter} className="text-muted-foreground h-4 w-4" />
+      <CardContent className="p-3 sm:p-4">
+        {/* Header row */}
+        <div className="flex items-center gap-2 mb-3">
+          <FontAwesomeIcon icon={faFilter} className="text-muted-foreground h-3.5 w-3.5" />
           <span className="text-sm font-medium">Bộ lọc</span>
-          {activeFilterCount > 0 && (
-            <span className="text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 sm:hidden">
-              {activeFilterCount}
-            </span>
-          )}
           {hasActiveFilters && (
             <button
-              onClick={(e) => { e.stopPropagation(); resetFilters(); }}
+              onClick={resetFilters}
               className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
             >
               <FontAwesomeIcon icon={faRotateLeft} className="h-3 w-3" />
-              Xoá bộ lọc
+              Xoá
             </button>
           )}
           <span className="text-xs text-muted-foreground ml-auto">
             {totalCount} lệnh
           </span>
-          <FontAwesomeIcon
-            icon={collapsed ? faChevronDown : faChevronUp}
-            className="h-3 w-3 text-muted-foreground sm:hidden"
+        </div>
+
+        {/* Filters - single row on desktop, 2 rows on mobile */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Input
+            placeholder="Tìm cặp tiền, ghi chú..."
+            value={filters.search}
+            onChange={(e) => setFilter("search", e.target.value)}
+            className="h-9 sm:flex-1"
           />
-        </button>
-        <div className={`${collapsed ? "hidden sm:grid" : "grid"} grid-cols-2 sm:grid-cols-4 gap-3 mt-3`}>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Tìm kiếm</label>
-            <Input
-              placeholder="Tìm..."
-              value={filters.search}
-              onChange={(e) => setFilter("search", e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Tâm lý</label>
+          <div className="flex gap-2">
             <Select value={filters.emotion} onValueChange={(v) => v && setFilter("emotion", v)}>
-              <SelectTrigger>
-                <span>{filters.emotion === "all" ? "Tất cả" : filters.emotion}</span>
+              <SelectTrigger className="h-9 w-full sm:w-[130px]">
+                <span className="truncate">{filters.emotion === "all" ? "Tâm lý" : filters.emotion}</span>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả</SelectItem>
@@ -151,12 +123,9 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Trạng thái</label>
             <Select value={filters.status} onValueChange={(v) => v && setFilter("status", v)}>
-              <SelectTrigger>
-                <span>{statusLabels[filters.status] || filters.status}</span>
+              <SelectTrigger className="h-9 w-full sm:w-[140px]">
+                <span className="truncate">{statusLabels[filters.status] || filters.status}</span>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả</SelectItem>
@@ -164,12 +133,9 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
                 <SelectItem value="CLOSED"><FontAwesomeIcon icon={faFlagCheckered} className="mr-1 h-3 w-3 text-green-500" />Đã đóng</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Thời gian</label>
             <Select value={filters.dateRange} onValueChange={(v) => v && setFilter("dateRange", v)}>
-              <SelectTrigger>
-                <span>{dateRangeLabels[filters.dateRange] || (filters.dateRange.startsWith("year-") ? `Năm ${filters.dateRange.slice(5)}` : filters.dateRange)}</span>
+              <SelectTrigger className="h-9 w-full sm:w-[130px]">
+                <span className="truncate">{dateRangeLabels[filters.dateRange] || (filters.dateRange.startsWith("year-") ? `Năm ${filters.dateRange.slice(5)}` : filters.dateRange)}</span>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả</SelectItem>
