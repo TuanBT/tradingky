@@ -156,8 +156,8 @@ export default function CalendarPage() {
           <span className="text-muted-foreground">
             {monthSummary.totalTrades} lệnh
           </span>
-          <span className="text-green-500">{monthSummary.greenDays} ngày xanh</span>
-          <span className="text-red-500">{monthSummary.redDays} ngày đỏ</span>
+          <span className="text-green-500 hidden sm:inline">{monthSummary.greenDays} ngày xanh</span>
+          <span className="text-red-500 hidden sm:inline">{monthSummary.redDays} ngày đỏ</span>
           <span
             className={`font-mono font-semibold ${
               monthSummary.totalPnl >= 0 ? "text-green-500" : "text-red-500"
