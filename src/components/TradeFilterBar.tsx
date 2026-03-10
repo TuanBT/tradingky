@@ -45,7 +45,7 @@ interface TradeFilterBarProps {
 export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFilterBarProps) {
   const { filters, setFilter, resetFilters } = useTradeFilters();
 
-  const hasActiveFilters = filters.search !== "" || filters.pair !== "all" || filters.emotion !== "all" || filters.status !== "all" || filters.dateRange !== "all";
+  const hasActiveFilters = filters.search !== "" || filters.emotion !== "all" || filters.status !== "all" || filters.dateRange !== "all";
 
   // Build year options from trades data
   const yearOptions = useMemo(() => {
@@ -92,7 +92,6 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
 
   const activeFilterCount = [
     filters.search !== "",
-    filters.pair !== "all",
     filters.emotion !== "all",
     filters.status !== "all",
     filters.dateRange !== "all",
@@ -130,7 +129,7 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
             className="h-3 w-3 text-muted-foreground sm:hidden"
           />
         </button>
-        <div className={`${collapsed ? "hidden sm:grid" : "grid"} grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-3`}>
+        <div className={`${collapsed ? "hidden sm:grid" : "grid"} grid-cols-2 sm:grid-cols-4 gap-3 mt-3`}>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Tìm kiếm</label>
             <Input
@@ -138,20 +137,6 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
               value={filters.search}
               onChange={(e) => setFilter("search", e.target.value)}
             />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Cặp tiền</label>
-            <Select value={filters.pair} onValueChange={(v) => v && setFilter("pair", v)}>
-              <SelectTrigger>
-                <span>{filters.pair === "all" ? "Tất cả" : filters.pair}</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả</SelectItem>
-                {library.pairs.map((p) => (
-                  <SelectItem key={p} value={p}>{p}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Tâm lý</label>
