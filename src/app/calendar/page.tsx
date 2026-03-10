@@ -7,6 +7,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronLeft,
@@ -186,7 +187,7 @@ export default function CalendarPage() {
           <div className="grid grid-cols-7 gap-1">
             {/* Padding for days before month start */}
             {Array.from({ length: calendarDays.startPad }).map((_, i) => (
-              <div key={`pad-${i}`} className="h-24" />
+              <div key={`pad-${i}`} className="h-24 lg:h-28 xl:h-32" />
             ))}
 
             {calendarDays.days.map((day) => {
@@ -200,7 +201,7 @@ export default function CalendarPage() {
                   key={dateStr}
                   onClick={() => setSelectedDate(isSelected ? null : dateStr)}
                   className={cn(
-                    "h-24 p-2 rounded-lg border text-left transition-colors flex flex-col",
+                    "h-24 lg:h-28 xl:h-32 p-2 rounded-lg border text-left transition-colors flex flex-col",
                     isToday(day) && "ring-2 ring-primary",
                     isSelected && "border-primary bg-primary/5",
                     !isSelected && "border-border hover:border-muted-foreground/50",
@@ -253,10 +254,10 @@ export default function CalendarPage() {
             {selectedTrades.length > 0 ? (
               <div className="space-y-3">
                 {selectedTrades.map((trade) => (
-                  <div
-                    key={trade.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                  >
+                  <Link key={trade.id} href={`/trades/${trade.id}`}>
+                    <div
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
+                    >
                     <div className="flex items-center gap-3">
                       <Badge
                         variant={trade.type === "BUY" ? "default" : "destructive"}
@@ -299,6 +300,7 @@ export default function CalendarPage() {
                       )}
                     </div>
                   </div>
+                  </Link>
                 ))}
               </div>
             ) : (

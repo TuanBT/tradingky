@@ -150,6 +150,15 @@ export default function ChecklistPage() {
       {items.map((item) => (
         <div
           key={item.id}
+          role="checkbox"
+          aria-checked={item.checked}
+          tabIndex={editMode ? -1 : 0}
+          onKeyDown={(e) => {
+            if (!editMode && (e.key === "Enter" || e.key === " ")) {
+              e.preventDefault();
+              toggleItem(type, item.id);
+            }
+          }}
           className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
             item.checked
               ? "bg-green-500/10 border-green-500/30"

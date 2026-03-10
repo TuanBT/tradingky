@@ -383,8 +383,12 @@ export default function StatisticsPage() {
 
       {filteredTrades.length === 0 ? (
         <Card>
-          <CardContent className="py-16 text-center text-muted-foreground">
-            Chưa có dữ liệu để thống kê
+          <CardContent className="py-16 text-center">
+            <FontAwesomeIcon icon={faChartPie} className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+            <p className="text-muted-foreground">Chưa có dữ liệu để thống kê</p>
+            <p className="text-sm text-muted-foreground/70 mt-1">
+              Thử chọn khoảng thời gian khác hoặc thêm lệnh mới
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -567,7 +571,7 @@ export default function StatisticsPage() {
                 <CardTitle className="text-base">P&L theo cặp tiền</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
                   {pnlByPair.map((item) => (
                     <div
                       key={item.pair}
@@ -601,7 +605,7 @@ export default function StatisticsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
                   {emotionStats.map((item) => (
                     <div
                       key={item.emotion}

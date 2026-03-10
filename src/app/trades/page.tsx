@@ -24,7 +24,6 @@ import {
   faPlus,
   faPenToSquare,
   faTrash,
-  faEye,
   faChevronLeft,
   faChevronRight,
   faTableList,
@@ -51,7 +50,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
-import Link from "next/link";
 import { TradeEditModal } from "@/components/TradeEditModal";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -269,8 +267,8 @@ export default function TradesPage() {
       {viewMode === "list" && (
         <>
           <Card>
-            <CardContent className="p-0">
-              <Table>
+            <CardContent className="p-0 overflow-x-auto">
+              <Table className="min-w-[900px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Ngày</TableHead>
@@ -343,18 +341,13 @@ export default function TradesPage() {
                                 <img
                                   src={getImageSrc(trade.chartImageUrl)}
                                   alt="Chart"
-                                  className="h-10 w-16 object-cover rounded border bg-muted hover:opacity-80 transition-opacity cursor-pointer"
+                                  className="h-12 w-20 lg:h-14 lg:w-24 object-cover rounded border bg-muted hover:opacity-80 transition-opacity cursor-pointer"
                                 />
                               </button>
                             )}
                           </TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-end gap-1">
-                              <Link href={`/trades/${trade.id}`}>
-                                <Button variant="ghost" size="sm" className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0" title="Xem nhật ký">
-                                  <FontAwesomeIcon icon={faEye} className="h-4 w-4" />
-                                </Button>
-                              </Link>
                               <Button
                                 variant="ghost"
                                 size="sm"

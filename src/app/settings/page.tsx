@@ -202,7 +202,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-3 -mx-1 px-1 border-b border-border">
         <div>
           <h1 className="text-2xl font-bold">Cài đặt</h1>
           <p className="text-muted-foreground text-sm">
