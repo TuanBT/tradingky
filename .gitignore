@@ -46,8 +46,3 @@ tests/
 tests/.chrome-profile/
 tests/.pytest_cache/
 __pycache__/
-
-# VPS upload server
-vps-upload/node_modules/
-vps-upload/uploads/
-vps-upload/.env

@@ -207,7 +207,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
     setUploading(true);
     try {
       const accessToken = await getGoogleAccessToken();
-      // Delete old image from Drive/VPS before uploading new one
+      // Delete old image before uploading new one
       if (form?.chartImageUrl) {
         await deleteChartImage(accessToken, form.chartImageUrl);
       }
@@ -220,7 +220,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
     setUploading(false);
   };
 
-  // Delete image from Drive/VPS and clear form
+  // Delete image and clear form
   const handleRemoveImage = async () => {
     if (form?.chartImageUrl) {
       try {

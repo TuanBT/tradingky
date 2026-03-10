@@ -17,7 +17,14 @@ export async function getOrCreateAppFolder(accessToken: string): Promise<string>
   );
 
   if (!searchRes.ok) {
-    throw new Error("Không thể tìm folder trên Google Drive.");
+    const errData = await searchRes.json().catch(() => ({}));
+    console.error("Google Drive search failed:", searchRes.status, errData);
+    if (searchRes.status === 403 || searchRes.status === 401) {
+      throw new Error(
+        "Google Drive API chưa được bật. Vào Google Cloud Console → APIs & Services → Library → Enable 'Google Drive API'."
+      );
+    }
+    throw new Error(errData.error?.message || "Không thể tìm folder trên Google Drive.");
   }
 
   const searchData = await searchRes.json();
@@ -39,7 +46,9 @@ export async function getOrCreateAppFolder(accessToken: string): Promise<string>
   });
 
   if (!createRes.ok) {
-    throw new Error("Không thể tạo folder trên Google Drive.");
+    const errData = await createRes.json().catch(() => ({}));
+    console.error("Google Drive folder creation failed:", createRes.status, errData);
+    throw new Error(errData.error?.message || "Không thể tạo folder trên Google Drive.");
   }
 
   const folder = await createRes.json();
@@ -141,7 +150,6 @@ export function extractFileId(url: string): string {
 /**
  * Convert a stored image URL to a displayable src for <img> tags.
  * - gdrive:{fileId} → Google Drive thumbnail URL
- * - /api/files/... → VPS proxy URL (backward compat)
  * - Other URLs → pass through as-is
  */
 export function getImageSrc(storedUrl: string): string {

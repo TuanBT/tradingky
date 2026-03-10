@@ -1,6 +1,6 @@
 # Google Drive Storage — Hướng dẫn cài đặt
 
-Branch `feature/google-drive-storage` thay thế VPS upload bằng Google Drive cá nhân.
+
 Ảnh chart được lưu trực tiếp vào Google Drive của user đã đăng nhập.
 
 ## Cách hoạt động
@@ -61,12 +61,6 @@ Không cần tạo thêm client ID mới. Chỉ cần đảm bảo:
 4. Kiểm tra Google Drive → folder "TradingKy" xuất hiện
 5. Xoá ảnh trong app → file trong Drive cũng bị xoá
 
-## Backward Compatibility
-
-- Các trade cũ có ảnh VPS (`/api/files/...`) vẫn hiển thị được qua proxy
-- Xoá trade cũ sẽ xoá ảnh VPS qua proxy như trước
-- Upload mới sẽ dùng Google Drive (URL dạng `gdrive:{fileId}`)
-
 ## Cấu trúc file đã thay đổi
 
 | File | Thay đổi |
@@ -74,7 +68,7 @@ Không cần tạo thêm client ID mới. Chỉ cần đảm bảo:
 | `src/lib/firebase.ts` | Thêm `drive.file` scope cho Google provider |
 | `src/components/AuthProvider.tsx` | Lưu + cung cấp Google access token |
 | `src/lib/gdrive.ts` | **MỚI** — Google Drive API (upload, delete, URL helpers) |
-| `src/lib/services.ts` | Upload/delete dùng Drive API thay VPS |
+| `src/lib/services.ts` | Upload/delete dùng Drive API |
 | `src/components/TradeEditModal.tsx` | Dùng access token + `getImageSrc()` |
 | `src/app/trades/page.tsx` | Dùng `getImageSrc()`, `getImageLink()`, pass token cho delete |
 | `src/app/trades/[id]/page.tsx` | Dùng `getImageSrc()`, `getImageLink()` |
@@ -83,4 +77,3 @@ Không cần tạo thêm client ID mới. Chỉ cần đảm bảo:
 
 - Token Google OAuth hết hạn sau ~1 giờ → app tự re-authenticate khi cần
 - `drive.file` scope chỉ truy cập được file do app tạo → an toàn
-- Không cần VPS server nữa cho upload ảnh mới (VPS chỉ cần cho ảnh cũ)

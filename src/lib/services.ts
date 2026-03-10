@@ -232,15 +232,8 @@ export async function deleteChartImage(accessToken: string, imageUrl: string): P
 
   try {
     if (isGDriveUrl(imageUrl)) {
-      // Google Drive file — delete via Drive API
       const fileId = extractFileId(imageUrl);
       await deleteFromDrive(accessToken, fileId);
-    } else if (imageUrl.startsWith("/api/files/")) {
-      // Legacy VPS file — delete via proxy (backward compat)
-      const res = await fetch(imageUrl, { method: "DELETE" });
-      if (!res.ok) {
-        console.warn("Xoá ảnh VPS thất bại:", imageUrl, res.status);
-      }
     }
   } catch (err) {
     console.error("Lỗi xoá ảnh:", imageUrl, err);
