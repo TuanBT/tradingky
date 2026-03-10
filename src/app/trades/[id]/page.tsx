@@ -46,6 +46,7 @@ export default function TradeDetailPage() {
   const [trade, setTrade] = useState<Trade | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [editMode, setEditMode] = useState<"edit" | "close">("edit");
   const [lightboxSrc, setLightboxSrc] = useState<string>("");
 
   const loadData = useCallback(async () => {
@@ -119,17 +120,18 @@ export default function TradeDetailPage() {
             </p>
           </div>
         </div>
-        {isOpen ? (
-          <Button variant="outline" className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-700" onClick={() => setEditOpen(true)}>
-            <FontAwesomeIcon icon={faFlagCheckered} className="mr-2 h-4 w-4" />
-            Đóng lệnh
-          </Button>
-        ) : (
-          <Button variant="outline" onClick={() => setEditOpen(true)}>
+        <div className="flex items-center gap-2">
+          {isOpen && (
+            <Button variant="outline" className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-700" onClick={() => { setEditMode("close"); setEditOpen(true); }}>
+              <FontAwesomeIcon icon={faFlagCheckered} className="mr-2 h-4 w-4" />
+              Đóng lệnh
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => { setEditMode("edit"); setEditOpen(true); }}>
             <FontAwesomeIcon icon={faPenToSquare} className="mr-2 h-4 w-4" />
             Sửa lệnh
           </Button>
-        )}
+        </div>
       </div>
 
       {/* Result Banner - only for CLOSED trades */}
@@ -287,7 +289,7 @@ export default function TradeDetailPage() {
         open={editOpen}
         onClose={() => setEditOpen(false)}
         onSaved={loadData}
-        mode={isOpen ? "close" : "edit"}
+        mode={editMode}
       />
 
       <ImageLightbox

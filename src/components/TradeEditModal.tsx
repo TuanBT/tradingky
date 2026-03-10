@@ -378,6 +378,38 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                       <Textarea placeholder="Điều gì làm tốt? Cần cải thiện?" value={form.lessonsLearned} onChange={(e) => updateForm({ lessonsLearned: e.target.value })} rows={3} className="mt-1" />
                     </div>
                   </div>
+                  {/* Image upload in close section */}
+                  <div>
+                    <Label className="text-sm text-muted-foreground">
+                      <FontAwesomeIcon icon={faImage} className="mr-1" /> Ảnh chart {!form.chartImageUrl && <span className="text-xs">(Ctrl+V paste ảnh vào bất kỳ đâu)</span>}
+                    </Label>
+                    <div className="mt-1 flex gap-2">
+                      <Input placeholder="Paste ảnh từ clipboard hoặc link..." value={form.chartImageUrl} onChange={(e) => updateForm({ chartImageUrl: e.target.value })} className="flex-1" />
+                      <button type="button" onClick={async () => { try { const items = await navigator.clipboard.read(); for (const item of items) { const imageType = item.types.find(t => t.startsWith('image/')); if (imageType) { const blob = await item.getType(imageType); const file = new File([blob], `paste-${Date.now()}.png`, { type: imageType }); await handleUploadImage(file); return; } } toast("Clipboard không có ảnh", "error"); } catch { toast("Không thể đọc clipboard. Hãy dùng Ctrl+V.", "error"); } }} className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer" title="Paste ảnh từ clipboard">
+                        <FontAwesomeIcon icon={faPaste} className="h-4 w-4" />
+                      </button>
+                      <label>
+                        <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file || !user) return;
+                          await handleUploadImage(file);
+                          e.target.value = "";
+                        }} />
+                        <span className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer">
+                          {uploading ? <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin" /> : <FontAwesomeIcon icon={faUpload} className="h-4 w-4" />}
+                        </span>
+                      </label>
+                    </div>
+                    {form.chartImageUrl && (
+                      <div className="mt-2 relative inline-block">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={getImageSrc(form.chartImageUrl)} alt="Chart" className="rounded-lg border max-h-48 w-full object-contain bg-muted cursor-pointer" onClick={() => setLightboxSrc(getImageSrc(form.chartImageUrl))} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        <button type="button" onClick={() => handleRemoveImage()} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-600 text-white flex items-center justify-center hover:bg-red-700 transition-colors" title="Xoá ảnh">
+                          <FontAwesomeIcon icon={faXmark} className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -403,7 +435,8 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                     <Input type="date" value={form.date} onChange={(e) => updateForm({ date: e.target.value })} className="mt-1" />
                   </div>
                 </div>
-                {/* Image upload - right after core info */}
+                {/* Image upload - right after core info (hidden in close mode, shown in close section instead) */}
+                {!isCloseMode && (
                 <div>
                   <Label className="text-sm text-muted-foreground">
                     <FontAwesomeIcon icon={faImage} className="mr-1" /> Ảnh chart {!form.chartImageUrl && <span className="text-xs">(Ctrl+V paste ảnh vào bất kỳ đâu)</span>}
@@ -435,6 +468,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                     </div>
                   )}
                 </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium">Tâm lý *</Label>
