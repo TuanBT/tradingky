@@ -290,6 +290,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
     try {
       if (isAddMode) {
         await addTrade(user.uid, tradeData as Omit<Trade, "id">);
+        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
         localStorage.removeItem(AUTOSAVE_KEY);
       } else {
         await updateTrade(user.uid, tradeRef.current!.id, tradeData);
