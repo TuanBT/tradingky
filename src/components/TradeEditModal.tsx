@@ -336,38 +336,14 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : (
-          <div className="space-y-6 pt-2">
+          <div className="space-y-6 pt-2" onPaste={handlePasteImage}>
 
-            {/* Add mode: Toggle between open/closed trade */}
-            {isAddMode && (
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={form.status === "OPEN" ? "default" : "outline"}
-                  className={`min-h-[44px] sm:min-h-0 ${form.status === "OPEN" ? "bg-blue-600 hover:bg-blue-700 text-white" : ""}`}
-                  onClick={() => updateForm({ status: "OPEN", pnl: undefined, result: "WIN", closeDate: "", exitReason: "", lessonsLearned: "" })}
-                >
-                  <FontAwesomeIcon icon={faPlay} className="mr-1.5 h-3 w-3" />
-                  Ghi lệnh đang mở
-                </Button>
-                <Button
-                  type="button"
-                  variant={form.status === "CLOSED" ? "default" : "outline"}
-                  className={`min-h-[44px] sm:min-h-0 ${form.status === "CLOSED" ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
-                  onClick={() => updateForm({ status: "CLOSED" })}
-                >
-                  <FontAwesomeIcon icon={faFlagCheckered} className="mr-1.5 h-3 w-3" />
-                  Ghi lệnh đã đóng
-                </Button>
-              </div>
-            )}
-
-            {/* Close Trade Section - shown for any CLOSED status */}
-            {form.status === "CLOSED" && (
-              <Card className={isCloseMode ? "border-2 border-amber-500/50 bg-amber-500/5" : "border-green-500/30"}>
+            {/* Close Trade Section - shown FIRST for close mode, AFTER basic for add/edit */}
+            {isCloseMode && form.status === "CLOSED" && (
+              <Card className="border-2 border-amber-500/50 bg-amber-500/5">
                 <CardHeader>
-                  <CardTitle className={`text-base flex items-center gap-2 ${isCloseMode ? "text-amber-600 dark:text-amber-400" : ""}`}>
-                    <FontAwesomeIcon icon={faFlagCheckered} className={`h-4 w-4 ${isCloseMode ? "" : "text-green-500"}`} />
+                  <CardTitle className="text-base flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                    <FontAwesomeIcon icon={faFlagCheckered} className="h-4 w-4" />
                     Tổng kết sau đóng lệnh
                   </CardTitle>
                 </CardHeader>
@@ -405,15 +381,12 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                 </CardContent>
               </Card>
             )}
+
             {/* Basic Info */}
             <Card className={isCloseMode ? "opacity-60" : ""}>
               <CardHeader><CardTitle className="text-base">{isCloseMode ? "Thông tin vào lệnh (đã nhập)" : "Thông tin cơ bản"}</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">Ngày vào lệnh *</Label>
-                    <Input type="date" value={form.date} onChange={(e) => updateForm({ date: e.target.value })} className="mt-1" />
-                  </div>
                   <div>
                     <Label className="text-sm font-medium">Cặp tiền *</Label>
                     <EditableSelect value={form.pair} onValueChange={(v) => updateForm({ pair: v })} items={library.pairs} onItemsChange={(items) => handleLibraryUpdate("pairs", items)} placeholder="Chọn cặp tiền" />
@@ -425,22 +398,17 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                       <Button type="button" variant={form.type === "SELL" ? "default" : "outline"} className={`flex-1 min-h-[44px] sm:min-h-0 ${form.type === "SELL" ? "bg-orange-600 hover:bg-orange-700 text-white" : ""}`} onClick={() => updateForm({ type: "SELL" })}>SELL</Button>
                     </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium">Tâm lý *</Label>
-                    <EditableSelect value={form.emotion} onValueChange={(v) => updateForm({ emotion: v })} items={library.emotions} onItemsChange={(items) => handleLibraryUpdate("emotions", items)} placeholder="Tâm lý lúc vào lệnh" />
-                  </div>
-                  <div>
-                    <Label className="text-sm text-muted-foreground">Ghi chú lúc vào lệnh</Label>
-                    <Textarea placeholder="Phân tích, nhận định..." value={form.note} onChange={(e) => updateForm({ note: e.target.value })} rows={2} className="mt-1" />
+                    <Label className="text-sm font-medium">Ngày vào lệnh *</Label>
+                    <Input type="date" value={form.date} onChange={(e) => updateForm({ date: e.target.value })} className="mt-1" />
                   </div>
                 </div>
+                {/* Image upload - right after core info */}
                 <div>
                   <Label className="text-sm text-muted-foreground">
-                    <FontAwesomeIcon icon={faImage} className="mr-1" /> Ảnh chart
+                    <FontAwesomeIcon icon={faImage} className="mr-1" /> Ảnh chart {!form.chartImageUrl && <span className="text-xs">(Ctrl+V paste ảnh vào bất kỳ đâu)</span>}
                   </Label>
-                  <div className="mt-1 flex gap-2" onPaste={handlePasteImage}>
+                  <div className="mt-1 flex gap-2">
                     <Input placeholder="Paste ảnh từ clipboard hoặc link..." value={form.chartImageUrl} onChange={(e) => updateForm({ chartImageUrl: e.target.value })} className="flex-1" />
                     <button type="button" onClick={async () => { try { const items = await navigator.clipboard.read(); for (const item of items) { const imageType = item.types.find(t => t.startsWith('image/')); if (imageType) { const blob = await item.getType(imageType); const file = new File([blob], `paste-${Date.now()}.png`, { type: imageType }); await handleUploadImage(file); return; } } toast("Clipboard không có ảnh", "error"); } catch { toast("Không thể đọc clipboard. Hãy dùng Ctrl+V.", "error"); } }} className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer" title="Paste ảnh từ clipboard">
                       <FontAwesomeIcon icon={faPaste} className="h-4 w-4" />
@@ -467,8 +435,63 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                     </div>
                   )}
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Tâm lý *</Label>
+                    <EditableSelect value={form.emotion} onValueChange={(v) => updateForm({ emotion: v })} items={library.emotions} onItemsChange={(items) => handleLibraryUpdate("emotions", items)} placeholder="Tâm lý lúc vào lệnh" />
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Ghi chú lúc vào lệnh</Label>
+                    <Textarea placeholder="Phân tích, nhận định..." value={form.note} onChange={(e) => updateForm({ note: e.target.value })} rows={2} className="mt-1" />
+                  </div>
+                </div>
               </CardContent>
             </Card>
+
+            {/* Close Trade Section - shown AFTER basic info for add/edit modes */}
+            {!isCloseMode && form.status === "CLOSED" && (
+              <Card className="border-green-500/30">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FontAwesomeIcon icon={faFlagCheckered} className="h-4 w-4 text-green-500" />
+                    Tổng kết sau đóng lệnh
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">Kết quả *</Label>
+                      <div className="mt-1 flex gap-2">
+                        {(["WIN", "LOSS", "BREAKEVEN"] as const).map((r) => (
+                          <Button key={r} type="button" variant={form.result === r ? "default" : "outline"} className={`flex-1 min-h-[44px] sm:min-h-0 ${form.result === r ? r === "WIN" ? "bg-green-600 hover:bg-green-700 text-white" : r === "LOSS" ? "bg-red-600 hover:bg-red-700 text-white" : "bg-yellow-600 hover:bg-yellow-700 text-white" : ""}`} onClick={() => updateForm({ result: r })}>
+                            {r === "WIN" ? "Thắng" : r === "LOSS" ? "Thua" : "Hoà"}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Lợi nhuận ($) *</Label>
+                      <Input type="number" step="0.01" placeholder="VD: 50.00" value={form.pnl ?? ""} onChange={(e) => updateForm({ pnl: e.target.value ? parseFloat(e.target.value) : undefined })} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Ngày đóng lệnh</Label>
+                      <Input type="date" value={form.closeDate} onChange={(e) => updateForm({ closeDate: e.target.value })} className="mt-1" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Lý do thoát lệnh</Label>
+                      <Textarea placeholder="Đạt TP, chạm SL..." value={form.exitReason} onChange={(e) => updateForm({ exitReason: e.target.value })} rows={3} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Bài học / Kinh nghiệm</Label>
+                      <Textarea placeholder="Điều gì làm tốt? Cần cải thiện?" value={form.lessonsLearned} onChange={(e) => updateForm({ lessonsLearned: e.target.value })} rows={3} className="mt-1" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="bg-muted/30 ring-foreground/5">
               <CardHeader>
                 <button className="flex items-center justify-between w-full text-left" onClick={() => setShowAdvanced(!showAdvanced)}>

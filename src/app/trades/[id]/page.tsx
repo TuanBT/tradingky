@@ -119,10 +119,17 @@ export default function TradeDetailPage() {
             </p>
           </div>
         </div>
-        <Button variant="outline" onClick={() => setEditOpen(true)}>
+        {isOpen ? (
+          <Button variant="outline" className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-700" onClick={() => setEditOpen(true)}>
+            <FontAwesomeIcon icon={faFlagCheckered} className="mr-2 h-4 w-4" />
+            Đóng lệnh
+          </Button>
+        ) : (
+          <Button variant="outline" onClick={() => setEditOpen(true)}>
             <FontAwesomeIcon icon={faPenToSquare} className="mr-2 h-4 w-4" />
-            {isOpen ? "Đóng lệnh & Tổng kết" : "Sửa lệnh"}
-        </Button>
+            Sửa lệnh
+          </Button>
+        )}
       </div>
 
       {/* Result Banner - only for CLOSED trades */}

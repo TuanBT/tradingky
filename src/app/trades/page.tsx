@@ -114,7 +114,13 @@ export default function TradesPage() {
   }, [loadData]);
 
   const filteredTrades = useMemo(() => {
-    return filterTrades(trades, filters);
+    const filtered = filterTrades(trades, filters);
+    // Pin OPEN trades at the top
+    return filtered.sort((a, b) => {
+      const aOpen = (a.status || "CLOSED") === "OPEN" ? 0 : 1;
+      const bOpen = (b.status || "CLOSED") === "OPEN" ? 0 : 1;
+      return aOpen - bOpen;
+    });
   }, [trades, filters]);
 
   // List pagination
@@ -348,15 +354,27 @@ export default function TradesPage() {
                           </TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
-                                title={isOpen ? "Đóng lệnh" : "Sửa"}
-                                onClick={() => openEdit(trade.id, isOpen ? "close" : "edit")}
-                              >
-                                <FontAwesomeIcon icon={faPenToSquare} className="h-4 w-4" />
-                              </Button>
+                              {isOpen ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="min-h-[44px] sm:min-h-0 text-amber-600 border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-700"
+                                  onClick={() => openEdit(trade.id, "close")}
+                                >
+                                  <FontAwesomeIcon icon={faFlagCheckered} className="mr-1.5 h-3.5 w-3.5" />
+                                  <span className="hidden sm:inline">Đóng lệnh</span>
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
+                                  title="Sửa"
+                                  onClick={() => openEdit(trade.id, "edit")}
+                                >
+                                  <FontAwesomeIcon icon={faPenToSquare} className="h-4 w-4" />
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -583,16 +601,30 @@ export default function TradesPage() {
                   </div>
 
                   {/* Desktop action buttons */}
-                  {currentTrade && (
+                  {currentTrade && (() => {
+                    const isOpenTrade = (currentTrade.status || "CLOSED") === "OPEN";
+                    return (
                     <div className="hidden sm:flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEdit(currentTrade.id, (currentTrade.status || "CLOSED") === "OPEN" ? "close" : "edit")}
-                      >
-                        <FontAwesomeIcon icon={faPenToSquare} className="mr-2 h-3.5 w-3.5" />
-                        {(currentTrade.status || "CLOSED") === "OPEN" ? "Đóng lệnh" : "Sửa"}
-                      </Button>
+                      {isOpenTrade ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-700"
+                          onClick={() => openEdit(currentTrade.id, "close")}
+                        >
+                          <FontAwesomeIcon icon={faFlagCheckered} className="mr-2 h-3.5 w-3.5" />
+                          Đóng lệnh
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEdit(currentTrade.id, "edit")}
+                        >
+                          <FontAwesomeIcon icon={faPenToSquare} className="mr-2 h-3.5 w-3.5" />
+                          Sửa
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -603,7 +635,8 @@ export default function TradesPage() {
                         Xoá
                       </Button>
                     </div>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 {/* Trade detail */}
@@ -619,16 +652,29 @@ export default function TradesPage() {
                 )}
 
                 {/* Mobile sticky bottom action bar */}
-                {currentTrade && (
+                {currentTrade && (() => {
+                  const isOpenTrade = (currentTrade.status || "CLOSED") === "OPEN";
+                  return (
                   <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border p-3 flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="flex-1 min-h-[44px]"
-                      onClick={() => openEdit(currentTrade.id, (currentTrade.status || "CLOSED") === "OPEN" ? "close" : "edit")}
-                    >
-                      <FontAwesomeIcon icon={faPenToSquare} className="mr-2 h-4 w-4" />
-                      {(currentTrade.status || "CLOSED") === "OPEN" ? "Đóng lệnh" : "Sửa"}
-                    </Button>
+                    {isOpenTrade ? (
+                      <Button
+                        variant="outline"
+                        className="flex-1 min-h-[44px] text-amber-600 border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-700"
+                        onClick={() => openEdit(currentTrade.id, "close")}
+                      >
+                        <FontAwesomeIcon icon={faFlagCheckered} className="mr-2 h-4 w-4" />
+                        Đóng lệnh
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="flex-1 min-h-[44px]"
+                        onClick={() => openEdit(currentTrade.id, "edit")}
+                      >
+                        <FontAwesomeIcon icon={faPenToSquare} className="mr-2 h-4 w-4" />
+                        Sửa
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       className="min-h-[44px] text-destructive hover:text-destructive"
@@ -638,7 +684,8 @@ export default function TradesPage() {
                       Xoá
                     </Button>
                   </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           )}
