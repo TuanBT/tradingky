@@ -274,14 +274,12 @@ export default function TradesPage() {
         <>
           <Card>
             <CardContent className="p-0 overflow-x-auto">
-              <Table className="min-w-[900px]">
+              <Table className="min-w-[750px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Ngày</TableHead>
                     <TableHead>Cặp tiền</TableHead>
                     <TableHead>Trạng thái</TableHead>
-                    <TableHead>Sàn</TableHead>
-                    <TableHead>Loại</TableHead>
                     <TableHead>Tâm lý</TableHead>
                     <TableHead>Kết quả</TableHead>
                     <TableHead className="text-right">P&L</TableHead>
@@ -292,7 +290,7 @@ export default function TradesPage() {
                 <TableBody>
                   {filteredTrades.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         {trades.length === 0
                           ? "Chưa có lệnh nào. Bấm \"Thêm lệnh\" để bắt đầu!"
                           : "Không tìm thấy lệnh phù hợp"}
@@ -307,21 +305,18 @@ export default function TradesPage() {
                           <TableCell className="font-medium">
                             {format(parseISO(trade.date), "dd/MM/yyyy")}
                           </TableCell>
-                          <TableCell className="font-semibold">{trade.pair}</TableCell>
+                          <TableCell className="font-semibold">
+                            <span className="mr-1.5">{trade.pair}</span>
+                            <Badge className={trade.type === "BUY" ? "bg-emerald-600 text-white text-[10px] px-1.5 py-0" : "bg-orange-600 text-white text-[10px] px-1.5 py-0"}>
+                              {trade.type}
+                            </Badge>
+                          </TableCell>
                           <TableCell>
                             {isOpen ? (
                               <Badge className="bg-blue-500/15 text-blue-500 border-blue-500/30">🔵 Đang chạy</Badge>
                             ) : (
                               <Badge className="bg-green-500/15 text-green-500 border-green-500/30">✅ Đã đóng</Badge>
                             )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{trade.platform || "—"}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={trade.type === "BUY" ? "default" : "destructive"}>
-                              {trade.type}
-                            </Badge>
                           </TableCell>
                           <TableCell>
                             <Badge variant="secondary">{trade.emotion}</Badge>
