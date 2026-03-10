@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
-import { User, onAuthStateChanged, signInWithPopup, signOut, GoogleAuthProvider } from "firebase/auth";
+import { User, onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, GoogleAuthProvider } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
 import { ensureUserDoc } from "@/lib/services";
 
@@ -45,16 +45,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTokenExpiry(0);
       }
     });
+    // Check for redirect result (from signInWithRedirect fallback)
+    getRedirectResult(auth).then((result) => {
+      if (result) {
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (credential?.accessToken) {
+          setGoogleAccessToken(credential.accessToken);
+          setTokenExpiry(Date.now() + 50 * 60 * 1000);
+        }
+      }
+    }).catch(() => {
+      // Redirect result not available, this is normal
+    });
     return unsubscribe;
   }, []);
 
   const signInWithGoogle = async () => {
-    const result = await signInWithPopup(auth, googleProvider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (credential?.accessToken) {
-      setGoogleAccessToken(credential.accessToken);
-      // Google tokens expire in ~3600s; set expiry at 50 minutes to be safe
-      setTokenExpiry(Date.now() + 50 * 60 * 1000);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setGoogleAccessToken(credential.accessToken);
+        setTokenExpiry(Date.now() + 50 * 60 * 1000);
+      }
+    } catch (error: unknown) {
+      const code = (error as { code?: string })?.code;
+      if (code === "auth/popup-blocked") {
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        throw error;
+      }
     }
   };
 
@@ -64,22 +84,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return googleAccessToken;
     }
     // Re-authenticate to get a fresh token
-    const result = await signInWithPopup(auth, googleProvider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (!credential?.accessToken) {
-      throw new Error("Không thể lấy Google access token. Vui lòng đăng nhập lại.");
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (!credential?.accessToken) {
+        throw new Error("Không thể lấy Google access token. Vui lòng đăng nhập lại.");
+      }
+      setGoogleAccessToken(credential.accessToken);
+      setTokenExpiry(Date.now() + 50 * 60 * 1000);
+      return credential.accessToken;
+    } catch (error: unknown) {
+      const code = (error as { code?: string })?.code;
+      if (code === "auth/popup-blocked") {
+        await signInWithRedirect(auth, googleProvider);
+        throw new Error("Đang chuyển hướng để xác thực...");
+      }
+      throw error;
     }
-    setGoogleAccessToken(credential.accessToken);
-    setTokenExpiry(Date.now() + 50 * 60 * 1000);
-    return credential.accessToken;
   }, [googleAccessToken, tokenExpiry]);
 
   const connectGoogleDrive = useCallback(async () => {
-    const result = await signInWithPopup(auth, googleProvider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (credential?.accessToken) {
-      setGoogleAccessToken(credential.accessToken);
-      setTokenExpiry(Date.now() + 50 * 60 * 1000);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setGoogleAccessToken(credential.accessToken);
+        setTokenExpiry(Date.now() + 50 * 60 * 1000);
+      }
+    } catch (error: unknown) {
+      const code = (error as { code?: string })?.code;
+      if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user") {
+        // Fallback to redirect on mobile when popup is blocked
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        throw error;
+      }
     }
   }, []);
 
