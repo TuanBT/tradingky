@@ -343,9 +343,8 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
               <div className="flex gap-2">
                 <Button
                   type="button"
-                  size="sm"
                   variant={form.status === "OPEN" ? "default" : "outline"}
-                  className={form.status === "OPEN" ? "bg-blue-600 hover:bg-blue-700 text-white" : ""}
+                  className={`min-h-[44px] sm:min-h-0 ${form.status === "OPEN" ? "bg-blue-600 hover:bg-blue-700 text-white" : ""}`}
                   onClick={() => updateForm({ status: "OPEN", pnl: undefined, result: "WIN", closeDate: "", exitReason: "", lessonsLearned: "" })}
                 >
                   <FontAwesomeIcon icon={faPlay} className="mr-1.5 h-3 w-3" />
@@ -353,9 +352,8 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                 </Button>
                 <Button
                   type="button"
-                  size="sm"
                   variant={form.status === "CLOSED" ? "default" : "outline"}
-                  className={form.status === "CLOSED" ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+                  className={`min-h-[44px] sm:min-h-0 ${form.status === "CLOSED" ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
                   onClick={() => updateForm({ status: "CLOSED" })}
                 >
                   <FontAwesomeIcon icon={faFlagCheckered} className="mr-1.5 h-3 w-3" />
@@ -379,7 +377,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                       <Label className="text-sm font-medium">Kết quả *</Label>
                       <div className="mt-1 flex gap-2">
                         {(["WIN", "LOSS", "BREAKEVEN"] as const).map((r) => (
-                          <Button key={r} type="button" variant={form.result === r ? "default" : "outline"} className={`flex-1 ${form.result === r ? r === "WIN" ? "bg-green-600 hover:bg-green-700 text-white" : r === "LOSS" ? "bg-red-600 hover:bg-red-700 text-white" : "bg-yellow-600 hover:bg-yellow-700 text-white" : ""}`} onClick={() => updateForm({ result: r })}>
+                          <Button key={r} type="button" variant={form.result === r ? "default" : "outline"} className={`flex-1 min-h-[44px] sm:min-h-0 ${form.result === r ? r === "WIN" ? "bg-green-600 hover:bg-green-700 text-white" : r === "LOSS" ? "bg-red-600 hover:bg-red-700 text-white" : "bg-yellow-600 hover:bg-yellow-700 text-white" : ""}`} onClick={() => updateForm({ result: r })}>
                             {r === "WIN" ? "Thắng" : r === "LOSS" ? "Thua" : "Hoà"}
                           </Button>
                         ))}
@@ -423,8 +421,8 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                   <div>
                     <Label className="text-sm font-medium">Loại lệnh *</Label>
                     <div className="mt-1 flex gap-2">
-                      <Button type="button" variant={form.type === "BUY" ? "default" : "outline"} className={`flex-1 ${form.type === "BUY" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}`} onClick={() => updateForm({ type: "BUY" })}>BUY</Button>
-                      <Button type="button" variant={form.type === "SELL" ? "default" : "outline"} className={`flex-1 ${form.type === "SELL" ? "bg-orange-600 hover:bg-orange-700 text-white" : ""}`} onClick={() => updateForm({ type: "SELL" })}>SELL</Button>
+                      <Button type="button" variant={form.type === "BUY" ? "default" : "outline"} className={`flex-1 min-h-[44px] sm:min-h-0 ${form.type === "BUY" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}`} onClick={() => updateForm({ type: "BUY" })}>BUY</Button>
+                      <Button type="button" variant={form.type === "SELL" ? "default" : "outline"} className={`flex-1 min-h-[44px] sm:min-h-0 ${form.type === "SELL" ? "bg-orange-600 hover:bg-orange-700 text-white" : ""}`} onClick={() => updateForm({ type: "SELL" })}>SELL</Button>
                     </div>
                   </div>
                 </div>

@@ -24,7 +24,6 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: faChartLine },
   { href: "/trades", label: "Quản lý lệnh", icon: faListCheck },
   { href: "/statistics", label: "Thống kê", icon: faChartPie },
   { href: "/checklist", label: "Checklist", icon: faClipboardCheck },

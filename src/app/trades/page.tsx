@@ -351,13 +351,14 @@ export default function TradesPage() {
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-end gap-1">
                               <Link href={`/trades/${trade.id}`}>
-                                <Button variant="ghost" size="sm" title="Xem nhật ký">
+                                <Button variant="ghost" size="sm" className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0" title="Xem nhật ký">
                                   <FontAwesomeIcon icon={faEye} className="h-4 w-4" />
                                 </Button>
                               </Link>
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                                 title={isOpen ? "Đóng lệnh" : "Sửa"}
                                 onClick={() => openEdit(trade.id, isOpen ? "close" : "edit")}
                               >
@@ -366,7 +367,7 @@ export default function TradesPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-destructive hover:text-destructive"
+                                className="text-destructive hover:text-destructive min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                                 onClick={() => setDeleteTradeId(trade.id)}
                                 title="Xoá"
                               >
@@ -573,23 +574,24 @@ export default function TradesPage() {
                 <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
                   <div className="flex items-center gap-2">
                     {/* Mobile list toggle */}
-                    <Button variant="outline" size="sm" className="lg:hidden" onClick={() => setShowMobileList(true)}>
+                    <Button variant="outline" size="sm" className="lg:hidden min-h-[44px] sm:min-h-0" onClick={() => setShowMobileList(true)}>
                       <FontAwesomeIcon icon={faList} className="mr-2 h-3.5 w-3.5" />
                       Danh sách
                     </Button>
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={goPrev} disabled={currentIndex === 0}>
+                    <Button variant="outline" size="icon" className="h-10 w-10 sm:h-8 sm:w-8" onClick={goPrev} disabled={currentIndex === 0}>
                       <FontAwesomeIcon icon={faChevronLeft} className="h-3.5 w-3.5" />
                     </Button>
                     <span className="text-sm text-muted-foreground tabular-nums min-w-[4rem] text-center">
                       {total > 0 ? `${currentIndex + 1} / ${total}` : "0 / 0"}
                     </span>
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={goNext} disabled={currentIndex >= total - 1}>
+                    <Button variant="outline" size="icon" className="h-10 w-10 sm:h-8 sm:w-8" onClick={goNext} disabled={currentIndex >= total - 1}>
                       <FontAwesomeIcon icon={faChevronRight} className="h-3.5 w-3.5" />
                     </Button>
                   </div>
 
+                  {/* Desktop action buttons */}
                   {currentTrade && (
-                    <div className="flex items-center gap-2">
+                    <div className="hidden sm:flex items-center gap-2">
                       <Button
                         variant="outline"
                         size="sm"
@@ -613,11 +615,35 @@ export default function TradesPage() {
 
                 {/* Trade detail */}
                 {currentTrade ? (
-                  <TradeDetail trade={currentTrade} onImageClick={(src) => setLightboxSrc(src)} />
+                  <div className="pb-16 sm:pb-0">
+                    <TradeDetail trade={currentTrade} onImageClick={(src) => setLightboxSrc(src)} />
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
                     <p className="text-muted-foreground">Không có lệnh nào để xem lại.</p>
                     <Button onClick={openAdd}>Thêm lệnh mới</Button>
+                  </div>
+                )}
+
+                {/* Mobile sticky bottom action bar */}
+                {currentTrade && (
+                  <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border p-3 flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1 min-h-[44px]"
+                      onClick={() => openEdit(currentTrade.id, (currentTrade.status || "CLOSED") === "OPEN" ? "close" : "edit")}
+                    >
+                      <FontAwesomeIcon icon={faPenToSquare} className="mr-2 h-4 w-4" />
+                      {(currentTrade.status || "CLOSED") === "OPEN" ? "Đóng lệnh" : "Sửa"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="min-h-[44px] text-destructive hover:text-destructive"
+                      onClick={() => setDeleteTradeId(currentTrade.id)}
+                    >
+                      <FontAwesomeIcon icon={faTrash} className="mr-2 h-4 w-4" />
+                      Xoá
+                    </Button>
                   </div>
                 )}
               </div>
