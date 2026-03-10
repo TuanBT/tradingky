@@ -274,16 +274,16 @@ export default function TradesPage() {
         <>
           <Card>
             <CardContent className="p-0 overflow-x-auto">
-              <Table className="min-w-[750px]">
+              <Table className="min-w-[480px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Ngày</TableHead>
                     <TableHead>Cặp tiền</TableHead>
-                    <TableHead>Trạng thái</TableHead>
-                    <TableHead>Tâm lý</TableHead>
-                    <TableHead>Kết quả</TableHead>
+                    <TableHead className="hidden sm:table-cell">Trạng thái</TableHead>
+                    <TableHead className="hidden lg:table-cell">Tâm lý</TableHead>
+                    <TableHead className="hidden md:table-cell">Kết quả</TableHead>
                     <TableHead className="text-right">P&L</TableHead>
-                    <TableHead>Ảnh</TableHead>
+                    <TableHead className="hidden sm:table-cell">Ảnh</TableHead>
                     <TableHead className="text-right">Thao tác</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -311,17 +311,17 @@ export default function TradesPage() {
                               {trade.type}
                             </Badge>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden sm:table-cell">
                             {isOpen ? (
                               <Badge className="bg-blue-500/15 text-blue-500 border-blue-500/30"><FontAwesomeIcon icon={faPlay} className="mr-1 h-3 w-3" />Đang chạy</Badge>
                             ) : (
                               <Badge className="bg-green-500/15 text-green-500 border-green-500/30"><FontAwesomeIcon icon={faFlagCheckered} className="mr-1 h-3 w-3" />Đã đóng</Badge>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden lg:table-cell">
                             <Badge variant="secondary">{trade.emotion}</Badge>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden md:table-cell">
                             <span className={`font-semibold ${
                               trade.result === "WIN" ? "text-green-500" : trade.result === "LOSS" ? "text-red-500" : "text-yellow-500"
                             }`}>
@@ -335,7 +335,7 @@ export default function TradesPage() {
                               </span>
                             ) : "-"}
                           </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
+                          <TableCell className="hidden sm:table-cell" onClick={(e) => e.stopPropagation()}>
                             {trade.chartImageUrl && (
                               <button type="button" onClick={() => setLightboxSrc(getImageSrc(trade.chartImageUrl!))} className="block">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
