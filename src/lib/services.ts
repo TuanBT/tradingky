@@ -12,8 +12,13 @@ import {
   where,
   setDoc,
   writeBatch,
+  limit,
+  startAfter,
+  increment,
+  DocumentSnapshot,
+  runTransaction,
 } from "firebase/firestore";
-import { Trade, DailyJournal, DropdownLibrary, DEFAULT_LIBRARY, SharedTrade, SharedTradePrivacy } from "./types";
+import { Trade, DailyJournal, DropdownLibrary, DEFAULT_LIBRARY, SharedTrade, SharedTradePrivacy, TradeComment, UserRole, UserProfile } from "./types";
 import { uploadToDrive, deleteFromDrive, isGDriveUrl, extractFileId } from "./gdrive";
 
 // Strip undefined values — Firestore rejects undefined fields
@@ -24,7 +29,7 @@ function stripUndefined<T extends Record<string, any>>(obj: T): T {
   ) as T;
 }
 
-// Admin UID list
+// Admin UID list (hardcoded super-admin fallback)
 export const ADMIN_UIDS = ["KffhYOBycQggcxA6ROXbed43Nav1"];
 
 export function isAdmin(uid: string): boolean {
@@ -44,17 +49,72 @@ function userLibraryDocRef(uid: string) {
   return doc(db, "users", uid, "settings", "dropdownLibrary");
 }
 
-// Ensure user document exists for admin listing
-export async function ensureUserDoc(uid: string): Promise<void> {
+// Ensure user document exists with profile info
+export async function ensureUserDoc(uid: string, profile?: { displayName?: string; email?: string; photoURL?: string }): Promise<void> {
   try {
     const userDocRef = doc(db, "users", uid);
     const snapshot = await getDoc(userDocRef);
     if (!snapshot.exists()) {
-      await setDoc(userDocRef, { createdAt: Date.now() });
+      await setDoc(userDocRef, {
+        role: "user" as UserRole,
+        banned: false,
+        createdAt: Date.now(),
+        ...stripUndefined(profile || {}),
+      });
+    } else {
+      // Update profile info if provided
+      if (profile) {
+        await updateDoc(userDocRef, stripUndefined(profile));
+      }
     }
   } catch {
     // Non-critical — don't block the app
   }
+}
+
+// ==================== USER ROLES ====================
+
+export async function getUserRole(uid: string): Promise<UserRole> {
+  // Hardcoded admin always gets admin role
+  if (ADMIN_UIDS.includes(uid)) return "admin";
+  try {
+    const snapshot = await getDoc(doc(db, "users", uid));
+    if (snapshot.exists()) {
+      return (snapshot.data().role as UserRole) || "user";
+    }
+  } catch {
+    // fall through
+  }
+  return "user";
+}
+
+export async function setUserRole(uid: string, role: UserRole): Promise<void> {
+  await updateDoc(doc(db, "users", uid), { role });
+}
+
+export async function setUserBanned(uid: string, banned: boolean): Promise<void> {
+  await updateDoc(doc(db, "users", uid), { banned });
+}
+
+export async function getUserProfile(uid: string): Promise<UserProfile | null> {
+  try {
+    const snapshot = await getDoc(doc(db, "users", uid));
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      return {
+        uid,
+        displayName: data.displayName,
+        email: data.email,
+        photoURL: data.photoURL,
+        role: data.role || "user",
+        banned: data.banned || false,
+        createdAt: data.createdAt || 0,
+      };
+    }
+  } catch {
+    // fall through
+  }
+  return null;
 }
 
 // ==================== TRADES ====================
@@ -246,6 +306,11 @@ export async function deleteChartImage(accessToken: string, imageUrl: string): P
 
 export interface UserInfo {
   uid: string;
+  displayName?: string;
+  email?: string;
+  photoURL?: string;
+  role: UserRole;
+  banned: boolean;
   tradeCount: number;
   totalPnl: number;
   winRate: number;
@@ -259,6 +324,12 @@ export async function getRegisteredUsers(): Promise<UserInfo[]> {
     // Parallel fetch instead of sequential N+1
     const promises = usersSnapshot.docs.map(async (userDoc) => {
       const uid = userDoc.id;
+      const userData = userDoc.data();
+      const role: UserRole = ADMIN_UIDS.includes(uid) ? "admin" : (userData.role || "user");
+      const banned = userData.banned || false;
+      const displayName = userData.displayName;
+      const email = userData.email;
+      const photoURL = userData.photoURL;
       try {
         const tradesSnapshot = await getDocs(
           query(collection(db, "users", uid, "trades"), orderBy("date", "desc"))
@@ -269,9 +340,9 @@ export async function getRegisteredUsers(): Promise<UserInfo[]> {
         const wins = trades.filter((t) => t.result === "WIN").length;
         const winRate = tradeCount > 0 ? (wins / tradeCount) * 100 : 0;
         const lastTradeDate = trades.length > 0 ? trades[0].date : null;
-        return { uid, tradeCount, totalPnl, winRate, lastTradeDate } as UserInfo;
+        return { uid, displayName, email, photoURL, role, banned, tradeCount, totalPnl, winRate, lastTradeDate } as UserInfo;
       } catch {
-        return { uid, tradeCount: 0, totalPnl: 0, winRate: 0, lastTradeDate: null } as UserInfo;
+        return { uid, displayName, email, photoURL, role, banned, tradeCount: 0, totalPnl: 0, winRate: 0, lastTradeDate: null } as UserInfo;
       }
     });
 
@@ -433,7 +504,8 @@ export async function shareTrade(
   ownerUid: string,
   ownerDisplayName: string,
   ownerPhotoURL: string | undefined,
-  privacy: SharedTradePrivacy
+  privacy: SharedTradePrivacy,
+  isPublic: boolean = false
 ): Promise<string> {
   const token = generateShareToken();
   const { id, ...tradeData } = trade;
@@ -444,6 +516,9 @@ export async function shareTrade(
     ownerPhotoURL,
     privacy,
     createdAt: Date.now(),
+    public: isPublic,
+    likes: 0,
+    commentCount: 0,
   };
   await setDoc(doc(db, "shared_trades", token), stripUndefined(sharedTrade));
   return token;
@@ -453,4 +528,115 @@ export async function getSharedTrade(token: string): Promise<SharedTrade | null>
   const snapshot = await getDoc(doc(db, "shared_trades", token));
   if (!snapshot.exists()) return null;
   return snapshot.data() as SharedTrade;
+}
+
+// ==================== COMMUNITY ====================
+
+export interface CommunityPost {
+  id: string; // document ID (token)
+  data: SharedTrade;
+}
+
+export interface CommunityFeedResult {
+  posts: CommunityPost[];
+  lastDoc: DocumentSnapshot | null;
+  hasMore: boolean;
+}
+
+export async function getCommunityFeed(
+  pageSize: number = 20,
+  lastDocument?: DocumentSnapshot | null
+): Promise<CommunityFeedResult> {
+  let q = query(
+    collection(db, "shared_trades"),
+    where("public", "==", true),
+    orderBy("createdAt", "desc"),
+    limit(pageSize + 1)
+  );
+  if (lastDocument) {
+    q = query(
+      collection(db, "shared_trades"),
+      where("public", "==", true),
+      orderBy("createdAt", "desc"),
+      startAfter(lastDocument),
+      limit(pageSize + 1)
+    );
+  }
+  const snapshot = await getDocs(q);
+  const hasMore = snapshot.docs.length > pageSize;
+  const docs = hasMore ? snapshot.docs.slice(0, pageSize) : snapshot.docs;
+  return {
+    posts: docs.map((d) => ({ id: d.id, data: d.data() as SharedTrade })),
+    lastDoc: docs.length > 0 ? docs[docs.length - 1] : null,
+    hasMore,
+  };
+}
+
+export async function getUserPublicTrades(ownerUid: string): Promise<CommunityPost[]> {
+  const q = query(
+    collection(db, "shared_trades"),
+    where("public", "==", true),
+    where("ownerUid", "==", ownerUid),
+    orderBy("createdAt", "desc")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => ({ id: d.id, data: d.data() as SharedTrade }));
+}
+
+export async function toggleLike(token: string, userId: string): Promise<boolean> {
+  const likeRef = doc(db, "shared_trades", token, "likes", userId);
+  const tradeRef = doc(db, "shared_trades", token);
+
+  return runTransaction(db, async (transaction) => {
+    const likeSnap = await transaction.get(likeRef);
+    if (likeSnap.exists()) {
+      transaction.delete(likeRef);
+      transaction.update(tradeRef, { likes: increment(-1) });
+      return false; // unliked
+    } else {
+      transaction.set(likeRef, { createdAt: Date.now() });
+      transaction.update(tradeRef, { likes: increment(1) });
+      return true; // liked
+    }
+  });
+}
+
+export async function hasUserLiked(token: string, userId: string): Promise<boolean> {
+  const likeRef = doc(db, "shared_trades", token, "likes", userId);
+  const snap = await getDoc(likeRef);
+  return snap.exists();
+}
+
+export async function getComments(token: string): Promise<TradeComment[]> {
+  const q = query(
+    collection(db, "shared_trades", token, "comments"),
+    orderBy("createdAt", "asc")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as TradeComment));
+}
+
+export async function addComment(
+  token: string,
+  userId: string,
+  displayName: string,
+  photoURL: string | undefined,
+  text: string
+): Promise<TradeComment> {
+  const commentData = stripUndefined({
+    userId,
+    displayName,
+    photoURL,
+    text,
+    createdAt: Date.now(),
+  });
+  const docRef = await addDoc(collection(db, "shared_trades", token, "comments"), commentData);
+  // Increment comment count
+  await updateDoc(doc(db, "shared_trades", token), { commentCount: increment(1) });
+  return { id: docRef.id, ...commentData } as TradeComment;
+}
+
+export async function deleteComment(token: string, commentId: string): Promise<void> {
+  await deleteDoc(doc(db, "shared_trades", token, "comments", commentId));
+  await updateDoc(doc(db, "shared_trades", token), { commentCount: increment(-1) });
 }

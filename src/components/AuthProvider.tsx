@@ -61,7 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(user);
       setLoading(false);
       if (user) {
-        ensureUserDoc(user.uid);
+        ensureUserDoc(user.uid, {
+          displayName: user.displayName || undefined,
+          email: user.email || undefined,
+          photoURL: user.photoURL || undefined,
+        });
       } else {
         clearToken();
       }

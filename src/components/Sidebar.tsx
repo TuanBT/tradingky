@@ -16,6 +16,7 @@ import {
   faRightFromBracket,
   faShieldHalved,
   faClipboardCheck,
+  faUsers,
 } from "@fortawesome/free-solid-svg-icons";
 import { useTheme } from "./ThemeProvider";
 import { useAuth } from "./AuthProvider";
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/statistics", label: "Thống kê", icon: faChartPie },
   { href: "/checklist", label: "Checklist", icon: faClipboardCheck },
   { href: "/calendar", label: "Lịch", icon: faCalendarDays },
+  { href: "/community", label: "Cộng đồng", icon: faUsers },
   { href: "/settings", label: "Cài đặt", icon: faGear },
 ];
 

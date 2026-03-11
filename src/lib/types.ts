@@ -54,6 +54,20 @@ export const DEFAULT_LIBRARY: DropdownLibrary = {
 
 export const EMOTION_EMOJIS = ["😎", "😌", "😤", "😰", "🤑", "💪", "🔥", "❄️", "😡", "🤔", "😱", "🧘", "🎯", "😨", "🥶", "😵‍💫"];
 
+// ==================== USER ROLES ====================
+
+export type UserRole = "admin" | "mod" | "user";
+
+export interface UserProfile {
+  uid: string;
+  displayName?: string;
+  email?: string;
+  photoURL?: string;
+  role: UserRole;
+  banned: boolean;
+  createdAt: number;
+}
+
 // ==================== SHARED TRADES ====================
 
 export interface SharedTradePrivacy {
@@ -68,5 +82,18 @@ export interface SharedTrade {
   ownerDisplayName: string;
   ownerPhotoURL?: string;
   privacy: SharedTradePrivacy;
+  createdAt: number;
+  // Community fields (optional, added when publishing to community)
+  public?: boolean;
+  likes?: number;
+  commentCount?: number;
+}
+
+export interface TradeComment {
+  id: string;
+  userId: string;
+  displayName: string;
+  photoURL?: string;
+  text: string;
   createdAt: number;
 }
