@@ -648,8 +648,23 @@ export default function TradesPage() {
 
                 {/* Trade detail */}
                 {currentTrade ? (
-                  <div className="pb-16 sm:pb-0">
+                  <div className="pb-28 sm:pb-0">
                     <TradeDetail trade={currentTrade} onImageClick={(src) => setLightboxSrc(src)} onToggleStar={toggleStar} />
+
+                    {/* Desktop bottom navigation */}
+                    <div className="hidden sm:flex items-center justify-between mt-8 pt-4 border-t border-border">
+                      <Button variant="outline" size="sm" onClick={goPrev} disabled={currentIndex === 0}>
+                        <FontAwesomeIcon icon={faChevronLeft} className="mr-2 h-3.5 w-3.5" />
+                        Lệnh trước
+                      </Button>
+                      <span className="text-sm text-muted-foreground tabular-nums">
+                        {currentIndex + 1} / {total}
+                      </span>
+                      <Button variant="outline" size="sm" onClick={goNext} disabled={currentIndex >= total - 1}>
+                        Lệnh sau
+                        <FontAwesomeIcon icon={faChevronRight} className="ml-2 h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
@@ -658,37 +673,52 @@ export default function TradesPage() {
                   </div>
                 )}
 
-                {/* Mobile sticky bottom action bar */}
+                {/* Mobile sticky bottom bar: navigation + actions */}
                 {currentTrade && (() => {
                   const isOpenTrade = (currentTrade.status || "CLOSED") === "OPEN";
                   return (
-                  <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border p-3 flex gap-2">
-                    {isOpenTrade && (
+                  <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border">
+                    {/* Navigation row */}
+                    <div className="flex items-center justify-between px-3 pt-2 pb-1">
+                      <Button variant="ghost" size="sm" className="min-h-[40px] min-w-[40px]" onClick={goPrev} disabled={currentIndex === 0}>
+                        <FontAwesomeIcon icon={faChevronLeft} className="h-4 w-4" />
+                      </Button>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {currentIndex + 1} / {total}
+                      </span>
+                      <Button variant="ghost" size="sm" className="min-h-[40px] min-w-[40px]" onClick={goNext} disabled={currentIndex >= total - 1}>
+                        <FontAwesomeIcon icon={faChevronRight} className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {/* Action row */}
+                    <div className="flex gap-2 px-3 pb-3">
+                      {isOpenTrade && (
+                        <Button
+                          variant="outline"
+                          className="flex-1 min-h-[44px] text-amber-600 border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-700"
+                          onClick={() => openEdit(currentTrade.id, "close")}
+                        >
+                          <FontAwesomeIcon icon={faFlagCheckered} className="mr-2 h-4 w-4" />
+                          Đóng lệnh
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
-                        className="flex-1 min-h-[44px] text-amber-600 border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-700"
-                        onClick={() => openEdit(currentTrade.id, "close")}
+                        className="flex-1 min-h-[44px]"
+                        onClick={() => openEdit(currentTrade.id, "edit")}
                       >
-                        <FontAwesomeIcon icon={faFlagCheckered} className="mr-2 h-4 w-4" />
-                        Đóng lệnh
+                        <FontAwesomeIcon icon={faPenToSquare} className="mr-2 h-4 w-4" />
+                        Sửa
                       </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      className="flex-1 min-h-[44px]"
-                      onClick={() => openEdit(currentTrade.id, "edit")}
-                    >
-                      <FontAwesomeIcon icon={faPenToSquare} className="mr-2 h-4 w-4" />
-                      Sửa
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="min-h-[44px] text-destructive hover:text-destructive"
-                      onClick={() => setDeleteTradeId(currentTrade.id)}
-                    >
-                      <FontAwesomeIcon icon={faTrash} className="mr-2 h-4 w-4" />
-                      Xoá
-                    </Button>
+                      <Button
+                        variant="outline"
+                        className="min-h-[44px] text-destructive hover:text-destructive"
+                        onClick={() => setDeleteTradeId(currentTrade.id)}
+                      >
+                        <FontAwesomeIcon icon={faTrash} className="mr-2 h-4 w-4" />
+                        Xoá
+                      </Button>
+                    </div>
                   </div>
                   );
                 })()}

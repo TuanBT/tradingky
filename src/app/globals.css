@@ -127,37 +127,3 @@
     @apply font-sans;
   }
 }
-
-/* Landscape overlay for mobile devices */
-#landscape-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: #09090b;
-  color: #fff;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  font-size: 1.1rem;
-  text-align: center;
-  padding: 2rem;
-}
-
-#landscape-overlay svg {
-  width: 48px;
-  height: 48px;
-  animation: rotate-phone 1.5s ease-in-out infinite;
-}
-
-@keyframes rotate-phone {
-  0%, 100% { transform: rotate(90deg); }
-  50% { transform: rotate(0deg); }
-}
-
-@media (orientation: landscape) and (max-height: 500px) {
-  #landscape-overlay {
-    display: flex;
-  }
-}
