@@ -48,6 +48,7 @@ import {
   faChevronDown,
   faChevronUp,
   faStar,
+  faShareNodes,
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as faStarOutline } from "@fortawesome/free-regular-svg-icons";
 import { format, parseISO } from "date-fns";
@@ -55,6 +56,7 @@ import { vi } from "date-fns/locale";
 import { TradeEditModal } from "@/components/TradeEditModal";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { ShareTradeDialog } from "@/components/ShareTradeDialog";
 import { useToast } from "@/components/ToastProvider";
 import { filterTrades } from "@/lib/filters";
 
@@ -73,6 +75,7 @@ export default function TradesPage() {
   const [tradeModalId, setTradeModalId] = useState<string | null>(null);
   const [tradeModalMode, setTradeModalMode] = useState<"add" | "edit" | "close">("edit");
   const [deleteTradeId, setDeleteTradeId] = useState<string | null>(null);
+  const [shareTradeData, setShareTradeData] = useState<Trade | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string>("");
   const { toast } = useToast();
 
@@ -613,6 +616,14 @@ export default function TradesPage() {
                     const isOpenTrade = (currentTrade.status || "CLOSED") === "OPEN";
                     return (
                     <div className="hidden sm:flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShareTradeData(currentTrade)}
+                      >
+                        <FontAwesomeIcon icon={faShareNodes} className="mr-2 h-3.5 w-3.5" />
+                        Chia sẻ
+                      </Button>
                       {isOpenTrade && (
                         <Button
                           variant="outline"
@@ -692,6 +703,13 @@ export default function TradesPage() {
                     </div>
                     {/* Action row */}
                     <div className="flex gap-2 px-3 pb-3">
+                      <Button
+                        variant="outline"
+                        className="min-h-[44px]"
+                        onClick={() => setShareTradeData(currentTrade)}
+                      >
+                        <FontAwesomeIcon icon={faShareNodes} className="h-4 w-4" />
+                      </Button>
                       {isOpenTrade && (
                         <Button
                           variant="outline"
@@ -715,8 +733,7 @@ export default function TradesPage() {
                         className="min-h-[44px] text-destructive hover:text-destructive"
                         onClick={() => setDeleteTradeId(currentTrade.id)}
                       >
-                        <FontAwesomeIcon icon={faTrash} className="mr-2 h-4 w-4" />
-                        Xoá
+                        <FontAwesomeIcon icon={faTrash} className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -744,6 +761,12 @@ export default function TradesPage() {
         message="Bạn có chắc muốn xoá lệnh này? Hành động không thể hoàn tác."
         confirmText="Xoá"
         variant="danger"
+      />
+
+      <ShareTradeDialog
+        trade={shareTradeData}
+        open={!!shareTradeData}
+        onClose={() => setShareTradeData(null)}
       />
 
       <ImageLightbox

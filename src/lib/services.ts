@@ -13,7 +13,7 @@ import {
   setDoc,
   writeBatch,
 } from "firebase/firestore";
-import { Trade, DailyJournal, DropdownLibrary, DEFAULT_LIBRARY } from "./types";
+import { Trade, DailyJournal, DropdownLibrary, DEFAULT_LIBRARY, SharedTrade, SharedTradePrivacy } from "./types";
 import { uploadToDrive, deleteFromDrive, isGDriveUrl, extractFileId } from "./gdrive";
 
 // Strip undefined values — Firestore rejects undefined fields
@@ -413,4 +413,44 @@ export async function createSmokeTestTrades(uid: string): Promise<number> {
     console.error("Lỗi tạo smoke test trades:", error);
     throw new Error("Không thể tạo test trades.");
   }
+}
+
+// ==================== SHARED TRADES ====================
+
+function generateShareToken(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  const array = new Uint8Array(12);
+  crypto.getRandomValues(array);
+  for (const byte of array) {
+    result += chars[byte % chars.length];
+  }
+  return result;
+}
+
+export async function shareTrade(
+  trade: Trade,
+  ownerUid: string,
+  ownerDisplayName: string,
+  ownerPhotoURL: string | undefined,
+  privacy: SharedTradePrivacy
+): Promise<string> {
+  const token = generateShareToken();
+  const { id, ...tradeData } = trade;
+  const sharedTrade: SharedTrade = {
+    trade: stripUndefined(tradeData),
+    ownerUid,
+    ownerDisplayName,
+    ownerPhotoURL,
+    privacy,
+    createdAt: Date.now(),
+  };
+  await setDoc(doc(db, "shared_trades", token), stripUndefined(sharedTrade));
+  return token;
+}
+
+export async function getSharedTrade(token: string): Promise<SharedTrade | null> {
+  const snapshot = await getDoc(doc(db, "shared_trades", token));
+  if (!snapshot.exists()) return null;
+  return snapshot.data() as SharedTrade;
 }

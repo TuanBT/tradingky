@@ -31,6 +31,7 @@ import {
   faGraduationCap,
   faArrowRightFromBracket,
   faStar,
+  faShareNodes,
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as faStarOutline } from "@fortawesome/free-regular-svg-icons";
 import { format, parseISO } from "date-fns";
@@ -38,6 +39,7 @@ import { vi } from "date-fns/locale";
 import Link from "next/link";
 import { TradeEditModal } from "@/components/TradeEditModal";
 import { ImageLightbox } from "@/components/ImageLightbox";
+import { ShareTradeDialog } from "@/components/ShareTradeDialog";
 
 export default function TradeDetailPage() {
   const { user } = useAuth();
@@ -50,6 +52,7 @@ export default function TradeDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editMode, setEditMode] = useState<"edit" | "close">("edit");
   const [lightboxSrc, setLightboxSrc] = useState<string>("");
+  const [shareOpen, setShareOpen] = useState(false);
 
   const toggleStar = async () => {
     if (!user || !trade) return;
@@ -137,6 +140,10 @@ export default function TradeDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setShareOpen(true)}>
+            <FontAwesomeIcon icon={faShareNodes} className="mr-2 h-4 w-4" />
+            Chia sẻ
+          </Button>
           {isOpen && (
             <Button variant="outline" className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-700" onClick={() => { setEditMode("close"); setEditOpen(true); }}>
               <FontAwesomeIcon icon={faFlagCheckered} className="mr-2 h-4 w-4" />
@@ -310,6 +317,12 @@ export default function TradeDetailPage() {
         alt="Chart"
         open={!!lightboxSrc}
         onClose={() => setLightboxSrc("")}
+      />
+
+      <ShareTradeDialog
+        trade={trade}
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
       />
     </div>
   );

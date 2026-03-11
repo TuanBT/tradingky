@@ -53,3 +53,20 @@ export const DEFAULT_LIBRARY: DropdownLibrary = {
 };
 
 export const EMOTION_EMOJIS = ["😎", "😌", "😤", "😰", "🤑", "💪", "🔥", "❄️", "😡", "🤔", "😱", "🧘", "🎯", "😨", "🥶", "😵‍💫"];
+
+// ==================== SHARED TRADES ====================
+
+export interface SharedTradePrivacy {
+  hidePnl: boolean;
+  hideLotSize: boolean;
+  hideEntryExitPrice: boolean;
+}
+
+export interface SharedTrade {
+  trade: Omit<Trade, "id">;
+  ownerUid: string;
+  ownerDisplayName: string;
+  ownerPhotoURL?: string;
+  privacy: SharedTradePrivacy;
+  createdAt: number;
+}

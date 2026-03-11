@@ -46,3 +46,4 @@ tests/
 tests/.chrome-profile/
 tests/.pytest_cache/
 __pycache__/
+firebase-debug.log
