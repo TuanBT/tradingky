@@ -136,6 +136,7 @@ export default function EditableSelect({
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); } }}
             placeholder="Thêm mới..."
             className="h-8 text-sm"
+            maxLength={50}
           />
           {emojis && (
             <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
@@ -169,6 +170,7 @@ export default function EditableSelect({
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleEditSave(i); } if (e.key === "Escape") setEditingIndex(null); }}
                   className="h-7 text-sm flex-1"
                   autoFocus
+                  maxLength={50}
                 />
                 <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleEditSave(i)}>
                   <FontAwesomeIcon icon={faCheck} className="h-3 w-3 text-green-500" />

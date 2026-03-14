@@ -415,6 +415,7 @@ function CommunityCard({
                       onChange={(e) => setCommentText(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmitComment(); } }}
                       className="flex-1"
+                      maxLength={500}
                     />
                     <Button
                       size="icon"

@@ -272,6 +272,7 @@ export default function SettingsPage() {
                         }
                       }}
                       className="flex-1"
+                      maxLength={50}
                     />
                     {section.key === "emotions" && (
                       <Button

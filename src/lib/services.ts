@@ -624,6 +624,7 @@ export async function addComment(
   photoURL: string | undefined,
   text: string
 ): Promise<TradeComment> {
+  if (!text.trim() || text.length > 500) throw new Error("Bình luận không hợp lệ");
   const commentData = stripUndefined({
     userId,
     displayName,

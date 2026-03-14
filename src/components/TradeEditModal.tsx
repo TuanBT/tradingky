@@ -454,11 +454,11 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm text-muted-foreground">Lý do thoát lệnh</Label>
-                      <Textarea placeholder="Đạt TP, chạm SL..." value={form.exitReason} onChange={(e) => updateForm({ exitReason: e.target.value })} rows={3} className="mt-1" />
+                      <Textarea placeholder="Đạt TP, chạm SL..." value={form.exitReason} onChange={(e) => updateForm({ exitReason: e.target.value })} rows={3} className="mt-1" maxLength={500} />
                     </div>
                     <div>
                       <Label className="text-sm text-muted-foreground">Bài học / Kinh nghiệm</Label>
-                      <Textarea placeholder="Điều gì làm tốt? Cần cải thiện?" value={form.lessonsLearned} onChange={(e) => updateForm({ lessonsLearned: e.target.value })} rows={3} className="mt-1" />
+                      <Textarea placeholder="Điều gì làm tốt? Cần cải thiện?" value={form.lessonsLearned} onChange={(e) => updateForm({ lessonsLearned: e.target.value })} rows={3} className="mt-1" maxLength={1000} />
                     </div>
                   </div>
                   {/* Image upload in close section */}
@@ -500,7 +500,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                   </div>
                   <div>
                     <Label className="text-sm text-muted-foreground">Ghi chú lúc vào lệnh</Label>
-                    <Textarea placeholder="Phân tích, nhận định..." value={form.note} onChange={(e) => updateForm({ note: e.target.value })} rows={2} className="mt-1" />
+                    <Textarea placeholder="Phân tích, nhận định..." value={form.note} onChange={(e) => updateForm({ note: e.target.value })} rows={2} className="mt-1" maxLength={2000} />
                   </div>
                 </div>
               </CardContent>
@@ -542,11 +542,11 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm text-muted-foreground">Lý do thoát lệnh</Label>
-                      <Textarea placeholder="Đạt TP, chạm SL..." value={form.exitReason} onChange={(e) => updateForm({ exitReason: e.target.value })} rows={3} className="mt-1" />
+                      <Textarea placeholder="Đạt TP, chạm SL..." value={form.exitReason} onChange={(e) => updateForm({ exitReason: e.target.value })} rows={3} className="mt-1" maxLength={500} />
                     </div>
                     <div>
                       <Label className="text-sm text-muted-foreground">Bài học / Kinh nghiệm</Label>
-                      <Textarea placeholder="Điều gì làm tốt? Cần cải thiện?" value={form.lessonsLearned} onChange={(e) => updateForm({ lessonsLearned: e.target.value })} rows={3} className="mt-1" />
+                      <Textarea placeholder="Điều gì làm tốt? Cần cải thiện?" value={form.lessonsLearned} onChange={(e) => updateForm({ lessonsLearned: e.target.value })} rows={3} className="mt-1" maxLength={1000} />
                     </div>
                   </div>
                 </CardContent>
@@ -579,11 +579,11 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <Label className="text-sm text-muted-foreground">Stop Loss</Label>
-                      <Input placeholder="VD: 20 pips..." value={form.stopLoss} onChange={(e) => updateForm({ stopLoss: e.target.value })} className="mt-1" />
+                      <Input placeholder="VD: 20 pips..." value={form.stopLoss} onChange={(e) => updateForm({ stopLoss: e.target.value })} className="mt-1" maxLength={50} />
                     </div>
                     <div>
                       <Label className="text-sm text-muted-foreground">Take Profit</Label>
-                      <Input placeholder="VD: 40 pips..." value={form.takeProfit} onChange={(e) => updateForm({ takeProfit: e.target.value })} className="mt-1" />
+                      <Input placeholder="VD: 40 pips..." value={form.takeProfit} onChange={(e) => updateForm({ takeProfit: e.target.value })} className="mt-1" maxLength={50} />
                     </div>
                     <div>
                       <Label className="text-sm text-muted-foreground">Giá vào</Label>
