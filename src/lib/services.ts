@@ -19,7 +19,7 @@ import {
   runTransaction,
   QueryConstraint,
 } from "firebase/firestore";
-import { Trade, DailyJournal, DropdownLibrary, DEFAULT_LIBRARY, SharedTrade, SharedTradePrivacy, TradeComment, UserRole, UserProfile } from "./types";
+import { Trade, DailyJournal, DropdownLibrary, DEFAULT_LIBRARY, SharedTrade, SharedTradePrivacy, TradeComment, UserRole, UserProfile, RATE_LIMITS, TradeReport } from "./types";
 import { uploadToDrive, deleteFromDrive, isGDriveUrl, extractFileId } from "./gdrive";
 
 // Strip undefined values — Firestore rejects undefined fields
@@ -28,6 +28,23 @@ function stripUndefined<T extends Record<string, any>>(obj: T): T {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined)
   ) as T;
+}
+
+// ==================== RATE LIMITING ====================
+
+const rateLimitBuckets: Record<string, number[]> = {};
+
+function checkRateLimit(action: keyof typeof RATE_LIMITS, userId: string): void {
+  const key = `${action}:${userId}`;
+  const config = RATE_LIMITS[action];
+  const now = Date.now();
+  if (!rateLimitBuckets[key]) rateLimitBuckets[key] = [];
+  // Clean old entries
+  rateLimitBuckets[key] = rateLimitBuckets[key].filter((t) => now - t < config.windowMs);
+  if (rateLimitBuckets[key].length >= config.max) {
+    throw new Error("Bạn thao tác quá nhanh. Vui lòng chờ một chút.");
+  }
+  rateLimitBuckets[key].push(now);
 }
 
 // Admin UID list (hardcoded super-admin fallback)
@@ -509,9 +526,15 @@ export async function shareTrade(
   privacy: SharedTradePrivacy,
   isPublic: boolean = false
 ): Promise<string> {
+  checkRateLimit("share", ownerUid);
   const token = generateShareToken();
   const { id, ...tradeData } = trade;
-  const ownerRole = await getUserRole(ownerUid);
+  let ownerRole: UserRole = "user";
+  try {
+    ownerRole = await getUserRole(ownerUid);
+  } catch (e) {
+    console.warn("shareTrade: getUserRole failed, using 'user'", e);
+  }
   const sharedTrade: SharedTrade = {
     trade: stripUndefined(tradeData),
     ownerUid,
@@ -524,7 +547,8 @@ export async function shareTrade(
     commentCount: 0,
     ownerRole,
   };
-  await setDoc(doc(db, "shared_trades", token), stripUndefined(sharedTrade));
+  const dataToWrite = stripUndefined(sharedTrade);
+  await setDoc(doc(db, "shared_trades", token), dataToWrite);
   return token;
 }
 
@@ -532,6 +556,56 @@ export async function getSharedTrade(token: string): Promise<SharedTrade | null>
   const snapshot = await getDoc(doc(db, "shared_trades", token));
   if (!snapshot.exists()) return null;
   return snapshot.data() as SharedTrade;
+}
+
+export interface CommunityStats {
+  likes: number;
+  commentCount: number;
+}
+
+export async function getCommunityStatsForTrades(tokens: string[]): Promise<Record<string, CommunityStats>> {
+  if (tokens.length === 0) return {};
+  const result: Record<string, CommunityStats> = {};
+  // Firestore getDoc in parallel (max 10 at a time to avoid throttling)
+  const chunks: string[][] = [];
+  for (let i = 0; i < tokens.length; i += 10) {
+    chunks.push(tokens.slice(i, i + 10));
+  }
+  for (const chunk of chunks) {
+    const snapshots = await Promise.all(
+      chunk.map((token) => getDoc(doc(db, "shared_trades", token)))
+    );
+    snapshots.forEach((snap, i) => {
+      if (snap.exists()) {
+        const data = snap.data() as SharedTrade;
+        result[chunk[i]] = { likes: data.likes || 0, commentCount: data.commentCount || 0 };
+      }
+    });
+  }
+  return result;
+}
+
+// Get all shared trades for a user and return mapping: tradeCreatedAt -> { token, likes, commentCount }
+export async function getUserSharedTradesMap(uid: string): Promise<Record<number, CommunityStats & { token: string }>> {
+  const q = query(
+    collection(db, "shared_trades"),
+    where("ownerUid", "==", uid),
+    where("public", "==", true)
+  );
+  const snapshot = await getDocs(q);
+  const result: Record<number, CommunityStats & { token: string }> = {};
+  snapshot.forEach((docSnap) => {
+    const data = docSnap.data() as SharedTrade;
+    const tradeCreatedAt = data.trade.createdAt;
+    if (tradeCreatedAt) {
+      result[tradeCreatedAt] = {
+        token: docSnap.id,
+        likes: data.likes || 0,
+        commentCount: data.commentCount || 0,
+      };
+    }
+  });
+  return result;
 }
 
 // ==================== COMMUNITY ====================
@@ -586,6 +660,7 @@ export async function getUserPublicTrades(ownerUid: string): Promise<CommunityPo
 }
 
 export async function toggleLike(token: string, userId: string): Promise<boolean> {
+  checkRateLimit("like", userId);
   const likeRef = doc(db, "shared_trades", token, "likes", userId);
   const tradeRef = doc(db, "shared_trades", token);
 
@@ -625,6 +700,7 @@ export async function addComment(
   photoURL: string | undefined,
   text: string
 ): Promise<TradeComment> {
+  checkRateLimit("comment", userId);
   if (!text.trim() || text.length > 500) throw new Error("Bình luận không hợp lệ");
   const commentData = stripUndefined({
     userId,
@@ -645,7 +721,214 @@ export async function deleteComment(token: string, commentId: string): Promise<v
 }
 
 export async function reportPost(token: string, userId: string, reason: string): Promise<void> {
+  checkRateLimit("report", userId);
   if (!reason.trim() || reason.length > 500) throw new Error("Lý do không hợp lệ");
   const reportRef = doc(db, "shared_trades", token, "reports", userId);
   await setDoc(reportRef, stripUndefined({ userId, reason: reason.trim(), createdAt: Date.now() }));
+}
+
+// ==================== FOLLOW SYSTEM ====================
+
+export async function followUser(currentUid: string, targetUid: string): Promise<void> {
+  const batch = writeBatch(db);
+  const now = Date.now();
+  batch.set(doc(db, "users", currentUid, "following", targetUid), { createdAt: now });
+  batch.set(doc(db, "users", targetUid, "followers", currentUid), { createdAt: now });
+  await batch.commit();
+}
+
+export async function unfollowUser(currentUid: string, targetUid: string): Promise<void> {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, "users", currentUid, "following", targetUid));
+  batch.delete(doc(db, "users", targetUid, "followers", currentUid));
+  await batch.commit();
+}
+
+export async function isFollowing(currentUid: string, targetUid: string): Promise<boolean> {
+  const snap = await getDoc(doc(db, "users", currentUid, "following", targetUid));
+  return snap.exists();
+}
+
+export interface FollowedUser {
+  uid: string;
+  createdAt: number;
+}
+
+export async function getFollowingList(uid: string): Promise<FollowedUser[]> {
+  const snapshot = await getDocs(collection(db, "users", uid, "following"));
+  return snapshot.docs.map((d) => ({ uid: d.id, createdAt: (d.data().createdAt as number) || 0 }));
+}
+
+export async function getFollowersList(uid: string): Promise<FollowedUser[]> {
+  const snapshot = await getDocs(collection(db, "users", uid, "followers"));
+  return snapshot.docs.map((d) => ({ uid: d.id, createdAt: (d.data().createdAt as number) || 0 }));
+}
+
+export async function getFollowCounts(uid: string): Promise<{ following: number; followers: number }> {
+  const [followingSnap, followersSnap] = await Promise.all([
+    getDocs(collection(db, "users", uid, "following")),
+    getDocs(collection(db, "users", uid, "followers")),
+  ]);
+  return { following: followingSnap.size, followers: followersSnap.size };
+}
+
+export async function getCommunityFeedFollowing(
+  currentUid: string,
+  pageSize: number = 20,
+  lastDocument?: DocumentSnapshot | null
+): Promise<CommunityFeedResult> {
+  // Get who the user follows
+  const followingSnap = await getDocs(collection(db, "users", currentUid, "following"));
+  const followingUids = followingSnap.docs.map((d) => d.id);
+  if (followingUids.length === 0) return { posts: [], lastDoc: null, hasMore: false };
+
+  // Firestore "in" supports max 30 values
+  const chunks: string[][] = [];
+  for (let i = 0; i < followingUids.length; i += 30) {
+    chunks.push(followingUids.slice(i, i + 30));
+  }
+
+  let allPosts: CommunityPost[] = [];
+  for (const chunk of chunks) {
+    const q = query(
+      collection(db, "shared_trades"),
+      where("public", "==", true),
+      where("ownerUid", "in", chunk),
+      orderBy("createdAt", "desc")
+    );
+    const snapshot = await getDocs(q);
+    allPosts.push(...snapshot.docs.map((d) => ({ id: d.id, data: d.data() as SharedTrade })));
+  }
+
+  // Sort combined results and apply pagination
+  allPosts.sort((a, b) => b.data.createdAt - a.data.createdAt);
+
+  // Find start index based on lastDocument
+  let startIdx = 0;
+  if (lastDocument) {
+    const lastId = lastDocument.id;
+    const idx = allPosts.findIndex((p) => p.id === lastId);
+    if (idx >= 0) startIdx = idx + 1;
+  }
+
+  const sliced = allPosts.slice(startIdx, startIdx + pageSize + 1);
+  const hasMore = sliced.length > pageSize;
+  const posts = hasMore ? sliced.slice(0, pageSize) : sliced;
+
+  return {
+    posts,
+    lastDoc: posts.length > 0 ? null : null, // client-side pagination for following feed
+    hasMore,
+  };
+}
+
+// ==================== SUGGESTED USERS ====================
+
+export interface SuggestedUser {
+  uid: string;
+  displayName: string;
+  photoURL?: string;
+  totalLikes: number;
+  postCount: number;
+  role?: UserRole;
+}
+
+export async function getSuggestedUsers(
+  currentUid: string,
+  maxResults: number = 5
+): Promise<SuggestedUser[]> {
+  // Get who the user already follows
+  const followingSnap = await getDocs(collection(db, "users", currentUid, "following"));
+  const followingSet = new Set(followingSnap.docs.map((d) => d.id));
+
+  // Get recent public posts, aggregate by owner
+  const q = query(
+    collection(db, "shared_trades"),
+    where("public", "==", true),
+    orderBy("createdAt", "desc"),
+    limit(200)
+  );
+  const snapshot = await getDocs(q);
+
+  const userMap = new Map<string, SuggestedUser>();
+  for (const d of snapshot.docs) {
+    const data = d.data() as SharedTrade;
+    if (data.ownerUid === currentUid || followingSet.has(data.ownerUid)) continue;
+    const existing = userMap.get(data.ownerUid);
+    if (existing) {
+      existing.totalLikes += (data.likes || 0);
+      existing.postCount += 1;
+    } else {
+      userMap.set(data.ownerUid, {
+        uid: data.ownerUid,
+        displayName: data.ownerDisplayName,
+        photoURL: data.ownerPhotoURL,
+        totalLikes: data.likes || 0,
+        postCount: 1,
+        role: data.ownerRole,
+      });
+    }
+  }
+
+  // Sort by total likes desc, then by post count
+  return Array.from(userMap.values())
+    .sort((a, b) => b.totalLikes - a.totalLikes || b.postCount - a.postCount)
+    .slice(0, maxResults);
+}
+
+// ==================== ADMIN: REPORTS MANAGEMENT ====================
+
+export async function getAllReports(): Promise<TradeReport[]> {
+  // Get all shared_trades that have reports subcollection
+  const sharedTradesSnap = await getDocs(
+    query(collection(db, "shared_trades"), where("public", "==", true))
+  );
+  const allReports: TradeReport[] = [];
+  // Batch fetch reports - process 10 at a time
+  const docs = sharedTradesSnap.docs;
+  for (let i = 0; i < docs.length; i += 10) {
+    const chunk = docs.slice(i, i + 10);
+    const results = await Promise.all(
+      chunk.map(async (tradeDoc) => {
+        const reportsSnap = await getDocs(collection(db, "shared_trades", tradeDoc.id, "reports"));
+        const tradeData = tradeDoc.data() as SharedTrade;
+        return reportsSnap.docs.map((r) => ({
+          id: r.id,
+          token: tradeDoc.id,
+          userId: r.data().userId,
+          reason: r.data().reason,
+          createdAt: r.data().createdAt || 0,
+          tradeOwnerName: tradeData.ownerDisplayName,
+          tradePair: tradeData.trade.pair,
+        }));
+      })
+    );
+    allReports.push(...results.flat());
+  }
+  return allReports.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export async function deleteReport(token: string, userId: string): Promise<void> {
+  await deleteDoc(doc(db, "shared_trades", token, "reports", userId));
+}
+
+export async function deleteSharedTrade(token: string): Promise<void> {
+  // Delete subcollections first (likes, comments, reports)
+  const subcollections = ["likes", "comments", "reports"];
+  for (const sub of subcollections) {
+    const snap = await getDocs(collection(db, "shared_trades", token, sub));
+    const batch = writeBatch(db);
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    if (snap.docs.length > 0) await batch.commit();
+  }
+  await deleteDoc(doc(db, "shared_trades", token));
+}
+
+export async function getAllComments(token: string): Promise<(TradeComment & { token: string })[]> {
+  const q = query(
+    collection(db, "shared_trades", token, "comments"),
+    orderBy("createdAt", "desc")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => ({ id: d.id, token, ...d.data() } as TradeComment & { token: string }));
 }

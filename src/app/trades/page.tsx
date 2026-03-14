@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Trade, DropdownLibrary, DEFAULT_LIBRARY } from "@/lib/types";
-import { getTrades, deleteTrade, updateTrade, getLibrary } from "@/lib/services";
+import { getTrades, deleteTrade, updateTrade, getLibrary, getUserSharedTradesMap, CommunityStats } from "@/lib/services";
 import { getImageSrc } from "@/lib/gdrive";
 import { useAuth } from "@/components/AuthProvider";
 import { useTradeFilters } from "@/components/TradeFilterContext";
@@ -49,6 +49,8 @@ import {
   faChevronUp,
   faStar,
   faShareNodes,
+  faHeart,
+  faComment,
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as faStarOutline } from "@fortawesome/free-regular-svg-icons";
 import { format, parseISO } from "date-fns";
@@ -77,6 +79,7 @@ export default function TradesPage() {
   const [deleteTradeId, setDeleteTradeId] = useState<string | null>(null);
   const [shareTradeData, setShareTradeData] = useState<Trade | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string>("");
+  const [communityStats, setCommunityStats] = useState<Record<string, CommunityStats>>({});
   const { toast } = useToast();
 
   // View mode: list or detail
@@ -108,6 +111,27 @@ export default function TradesPage() {
       ]);
       setTrades(tradesData);
       setLibrary(libraryData);
+      // Fetch community stats for shared trades
+      getUserSharedTradesMap(user.uid).then((sharedMap) => {
+        const statsMap: Record<string, CommunityStats> = {};
+        // Back-fill shareToken for trades that were shared before this field existed
+        const updates: Promise<void>[] = [];
+        tradesData.forEach((t) => {
+          const shared = sharedMap[t.createdAt];
+          if (shared) {
+            statsMap[shared.token] = { likes: shared.likes, commentCount: shared.commentCount };
+            if (!t.shareToken) {
+              t.shareToken = shared.token;
+              updates.push(updateTrade(user.uid, t.id, { shareToken: shared.token }));
+            }
+          }
+        });
+        if (updates.length > 0) {
+          Promise.all(updates).catch(() => {});
+          setTrades([...tradesData]);
+        }
+        setCommunityStats(statsMap);
+      }).catch(() => {});
     } catch (err) {
       setError((err as Error).message || "Không thể tải dữ liệu");
     }
@@ -301,13 +325,14 @@ export default function TradesPage() {
                     <TableHead className="hidden lg:table-cell">Tâm lý</TableHead>
                     <TableHead className="text-right">P&L</TableHead>
                     <TableHead className="hidden sm:table-cell">Ảnh</TableHead>
+                    <TableHead className="hidden md:table-cell text-center">Cộng đồng</TableHead>
                     <TableHead className="text-right">Thao tác</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredTrades.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         {trades.length === 0
                           ? "Chưa có lệnh nào. Bấm \"Thêm lệnh\" để bắt đầu!"
                           : "Không tìm thấy lệnh phù hợp"}
@@ -363,6 +388,22 @@ export default function TradesPage() {
                                 />
                               </button>
                             )}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell text-center">
+                            {trade.shareToken && communityStats[trade.shareToken] ? (
+                              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-0.5">
+                                  <FontAwesomeIcon icon={faHeart} className="h-3 w-3 text-pink-500" />
+                                  {communityStats[trade.shareToken].likes}
+                                </span>
+                                <span className="flex items-center gap-0.5">
+                                  <FontAwesomeIcon icon={faComment} className="h-3 w-3 text-blue-400" />
+                                  {communityStats[trade.shareToken].commentCount}
+                                </span>
+                              </div>
+                            ) : trade.shareToken ? (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            ) : null}
                           </TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-end gap-1">
@@ -485,8 +526,20 @@ export default function TradesPage() {
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {format(parseISO(t.date), "dd/MM/yyyy")}{t.platform ? ` · ${t.platform}` : ""} · {t.emotion}
+                      <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+                        <span>{format(parseISO(t.date), "dd/MM/yyyy")}{t.platform ? ` · ${t.platform}` : ""} · {t.emotion}</span>
+                        {t.shareToken && communityStats[t.shareToken] && (
+                          <span className="flex items-center gap-2">
+                            <span className="flex items-center gap-0.5">
+                              <FontAwesomeIcon icon={faHeart} className="h-2.5 w-2.5 text-pink-500" />
+                              {communityStats[t.shareToken].likes}
+                            </span>
+                            <span className="flex items-center gap-0.5">
+                              <FontAwesomeIcon icon={faComment} className="h-2.5 w-2.5 text-blue-400" />
+                              {communityStats[t.shareToken].commentCount}
+                            </span>
+                          </span>
+                        )}
                       </div>
                     </button>
                   );
@@ -544,8 +597,20 @@ export default function TradesPage() {
                                     </span>
                                   )}
                                 </div>
-                                <div className="text-xs text-muted-foreground mt-0.5">
-                                  {format(parseISO(t.date), "dd/MM")} · {t.emotion}
+                                <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
+                                  <span>{format(parseISO(t.date), "dd/MM")} · {t.emotion}</span>
+                                  {t.shareToken && communityStats[t.shareToken] && (
+                                    <span className="flex items-center gap-1.5">
+                                      <span className="flex items-center gap-0.5">
+                                        <FontAwesomeIcon icon={faHeart} className="h-2 w-2 text-pink-500" />
+                                        {communityStats[t.shareToken].likes}
+                                      </span>
+                                      <span className="flex items-center gap-0.5">
+                                        <FontAwesomeIcon icon={faComment} className="h-2 w-2 text-blue-400" />
+                                        {communityStats[t.shareToken].commentCount}
+                                      </span>
+                                    </span>
+                                  )}
                                 </div>
                               </button>
                             );
@@ -660,7 +725,7 @@ export default function TradesPage() {
                 {/* Trade detail */}
                 {currentTrade ? (
                   <div className="pb-28 sm:pb-0">
-                    <TradeDetail trade={currentTrade} onImageClick={(src) => setLightboxSrc(src)} onToggleStar={toggleStar} />
+                    <TradeDetail trade={currentTrade} onImageClick={(src) => setLightboxSrc(src)} onToggleStar={toggleStar} communityStats={currentTrade.shareToken ? communityStats[currentTrade.shareToken] : undefined} />
 
                     {/* Desktop bottom navigation */}
                     <div className="hidden sm:flex items-center justify-between mt-8 pt-4 border-t border-border">
@@ -766,7 +831,7 @@ export default function TradesPage() {
       <ShareTradeDialog
         trade={shareTradeData}
         open={!!shareTradeData}
-        onClose={() => setShareTradeData(null)}
+        onClose={() => { setShareTradeData(null); loadData(); }}
       />
 
       <ImageLightbox
@@ -781,7 +846,7 @@ export default function TradesPage() {
 
 /* ===== DETAIL VIEW COMPONENTS ===== */
 
-function TradeDetail({ trade, onImageClick, onToggleStar }: { trade: Trade; onImageClick: (src: string) => void; onToggleStar: (id: string) => void }) {
+function TradeDetail({ trade, onImageClick, onToggleStar, communityStats }: { trade: Trade; onImageClick: (src: string) => void; onToggleStar: (id: string) => void; communityStats?: CommunityStats }) {
   const tradeStatus = trade.status || "CLOSED";
   const isOpen = tradeStatus === "OPEN";
   const resultLabel = trade.result === "WIN" ? "Thắng" : trade.result === "LOSS" ? "Thua" : trade.result === "CANCELLED" ? "Hủy" : "Hoà";
@@ -843,6 +908,24 @@ function TradeDetail({ trade, onImageClick, onToggleStar }: { trade: Trade; onIm
             <FontAwesomeIcon icon={faPlay} className="h-5 w-5 text-blue-500 animate-pulse" />
             <span className="text-lg font-semibold text-blue-500">Đang chạy</span>
             {trade.emotion && <Badge variant="secondary">{trade.emotion}</Badge>}
+          </div>
+        </div>
+      )}
+
+      {/* Community stats */}
+      {communityStats && (
+        <div className="flex items-center gap-4 rounded-lg border p-3 bg-muted/30">
+          <FontAwesomeIcon icon={faShareNodes} className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Đã chia sẻ lên Cộng đồng</span>
+          <div className="flex items-center gap-3 ml-auto">
+            <span className="flex items-center gap-1.5 text-sm">
+              <FontAwesomeIcon icon={faHeart} className="h-3.5 w-3.5 text-pink-500" />
+              <span className="font-medium">{communityStats.likes}</span>
+            </span>
+            <span className="flex items-center gap-1.5 text-sm">
+              <FontAwesomeIcon icon={faComment} className="h-3.5 w-3.5 text-blue-400" />
+              <span className="font-medium">{communityStats.commentCount}</span>
+            </span>
           </div>
         </div>
       )}

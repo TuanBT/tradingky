@@ -10,9 +10,12 @@ import {
   createSmokeTestTrades,
   setUserRole,
   setUserBanned,
+  getAllReports,
+  deleteReport,
+  deleteSharedTrade,
   UserInfo,
 } from "@/lib/services";
-import type { UserRole } from "@/lib/types";
+import type { UserRole, TradeReport } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,16 +48,26 @@ import {
   faUser,
   faBan,
   faCheckCircle,
+  faFlag,
+  faEye,
+  faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { format } from "date-fns";
+import { vi } from "date-fns/locale";
+
+type AdminTab = "users" | "reports";
 
 export default function AdminPage() {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<AdminTab>("users");
   const [users, setUsers] = useState<UserInfo[]>([]);
+  const [reports, setReports] = useState<TradeReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reportsLoading, setReportsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [logs, setLogs] = useState<{ time: string; message: string; type: "info" | "success" | "error" }[]>([]);
-  const [confirmAction, setConfirmAction] = useState<{ type: "reset-trades" | "reset-all" | "change-role" | "toggle-ban"; uid: string; extra?: string } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: "reset-trades" | "reset-all" | "change-role" | "toggle-ban" | "delete-report" | "delete-shared-trade"; uid: string; extra?: string } | null>(null);
 
   const roleConfig: Record<UserRole, { label: string; icon: typeof faCrown; color: string; badgeClass: string }> = {
     admin: { label: "Admin", icon: faCrown, color: "text-yellow-500", badgeClass: "border-yellow-500 text-yellow-500" },
@@ -80,12 +93,31 @@ export default function AdminPage() {
     setLoading(false);
   };
 
+  const loadReports = async () => {
+    setReportsLoading(true);
+    try {
+      const data = await getAllReports();
+      setReports(data);
+      addLog(`Đã tải ${data.length} report(s)`, "success");
+    } catch (err) {
+      addLog(`Lỗi tải reports: ${err}`, "error");
+    }
+    setReportsLoading(false);
+  };
+
   useEffect(() => {
     if (user && isAdmin(user.uid)) {
       loadUsers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  useEffect(() => {
+    if (user && isAdmin(user.uid) && activeTab === "reports" && reports.length === 0 && !reportsLoading) {
+      loadReports();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, activeTab]);
 
   if (!user || !isAdmin(user.uid)) {
     return (
@@ -156,6 +188,30 @@ export default function AdminPage() {
     setActionLoading(null);
   };
 
+  const handleDismissReport = async (token: string, userId: string) => {
+    setActionLoading(`dismiss-report-${token}-${userId}`);
+    try {
+      await deleteReport(token, userId);
+      setReports((prev) => prev.filter((r) => !(r.token === token && r.userId === userId)));
+      addLog(`Đã bỏ qua report của user ${userId.slice(0, 8)}...`, "success");
+    } catch (err) {
+      addLog(`Lỗi xoá report: ${err}`, "error");
+    }
+    setActionLoading(null);
+  };
+
+  const handleDeleteSharedTrade = async (token: string) => {
+    setActionLoading(`delete-shared-${token}`);
+    try {
+      await deleteSharedTrade(token);
+      setReports((prev) => prev.filter((r) => r.token !== token));
+      addLog(`Đã xoá bài chia sẻ token ${token.slice(0, 8)}...`, "success");
+    } catch (err) {
+      addLog(`Lỗi xoá bài chia sẻ: ${err}`, "error");
+    }
+    setActionLoading(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -176,7 +232,7 @@ export default function AdminPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -223,8 +279,51 @@ export default function AdminPage() {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Báo cáo</p>
+                <p className={`text-2xl font-bold ${reports.length > 0 ? "text-red-500" : ""}`}>{reports.length}</p>
+              </div>
+              <FontAwesomeIcon icon={faFlag} className="h-8 w-8 text-red-500 opacity-50" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
+      {/* Tab Switcher */}
+      <div className="flex gap-2 border-b">
+        <button
+          onClick={() => setActiveTab("users")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "users"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <FontAwesomeIcon icon={faUsers} className="mr-2 h-4 w-4" />
+          Users ({users.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("reports")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "reports"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <FontAwesomeIcon icon={faFlag} className="mr-2 h-4 w-4" />
+          Báo cáo ({reports.length})
+          {reports.length > 0 && (
+            <Badge variant="destructive" className="ml-2 text-[10px] px-1.5 py-0">{reports.length}</Badge>
+          )}
+        </button>
+      </div>
+
+      {/* Users Tab */}
+      {activeTab === "users" && (
+        <>
       {/* Users Table */}
       <Card>
         <CardHeader>
@@ -445,6 +544,113 @@ export default function AdminPage() {
           </div>
         </CardContent>
       </Card>
+        </>
+      )}
+
+      {/* Reports Tab */}
+      {activeTab === "reports" && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <FontAwesomeIcon icon={faFlag} className="h-4 w-4 text-red-500" />
+              Danh sách Báo cáo ({reports.length})
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={loadReports} disabled={reportsLoading}>
+              <FontAwesomeIcon icon={faRotate} className={`mr-2 h-3 w-3 ${reportsLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </CardHeader>
+          <CardContent className="p-0">
+            {reportsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <FontAwesomeIcon icon={faSpinner} className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : reports.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <FontAwesomeIcon icon={faCheckCircle} className="h-8 w-8 mb-2 text-green-500" />
+                <p>Không có báo cáo nào</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Bài viết</TableHead>
+                    <TableHead>Chủ bài</TableHead>
+                    <TableHead>Người báo cáo</TableHead>
+                    <TableHead>Lý do</TableHead>
+                    <TableHead>Thời gian</TableHead>
+                    <TableHead className="text-right">Thao tác</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reports.map((r) => (
+                    <TableRow key={`${r.token}-${r.userId}`}>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">{r.tradePair || "N/A"}</span>
+                          <code className="text-[10px] text-muted-foreground">{r.token.slice(0, 10)}...</code>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">{r.tradeOwnerName || "N/A"}</span>
+                      </TableCell>
+                      <TableCell>
+                        <code className="text-xs text-muted-foreground">{r.userId.slice(0, 10)}...</code>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm max-w-[200px] truncate block">{r.reason}</span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {format(new Date(r.createdAt), "dd/MM/yy HH:mm", { locale: vi })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(`/shared/${r.token}`, "_blank")}
+                            title="Xem bài viết"
+                          >
+                            <FontAwesomeIcon icon={faEye} className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDismissReport(r.token, r.userId)}
+                            disabled={actionLoading !== null}
+                            title="Bỏ qua báo cáo"
+                            className="text-yellow-500 hover:text-yellow-600"
+                          >
+                            {actionLoading === `dismiss-report-${r.token}-${r.userId}` ? (
+                              <FontAwesomeIcon icon={faSpinner} className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <FontAwesomeIcon icon={faXmark} className="h-3 w-3" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setConfirmAction({ type: "delete-shared-trade", uid: r.token })}
+                            disabled={actionLoading !== null}
+                            title="Xoá bài viết"
+                            className="text-red-500 hover:text-red-600"
+                          >
+                            {actionLoading === `delete-shared-${r.token}` ? (
+                              <FontAwesomeIcon icon={faSpinner} className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <FontAwesomeIcon icon={faTrash} className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Activity Log */}
       <Card>
@@ -489,6 +695,7 @@ export default function AdminPage() {
             const targetUser = users.find((u) => u.uid === confirmAction.uid);
             if (targetUser) handleToggleBan(confirmAction.uid, targetUser.banned);
           }
+          if (confirmAction?.type === "delete-shared-trade") handleDeleteSharedTrade(confirmAction.uid);
         }}
         title={
           confirmAction?.type === "reset-all"
@@ -497,6 +704,8 @@ export default function AdminPage() {
             ? `Đổi role`
             : confirmAction?.type === "toggle-ban"
             ? (users.find((u) => u.uid === confirmAction?.uid)?.banned ? "Mở chặn user" : "Chặn user")
+            : confirmAction?.type === "delete-shared-trade"
+            ? <><FontAwesomeIcon icon={faExclamationTriangle} className="mr-1 h-4 w-4 text-red-500" />Xoá bài chia sẻ</>
             : "Xoá trades"
         }
         message={
@@ -508,6 +717,8 @@ export default function AdminPage() {
             ? (users.find((u) => u.uid === confirmAction?.uid)?.banned
                 ? `Mở chặn user ${confirmAction?.uid.slice(0, 8)}...? User sẽ có thể sử dụng app trở lại.`
                 : `Chặn user ${confirmAction?.uid.slice(0, 8)}...? User sẽ không thể truy cập app.`)
+            : confirmAction?.type === "delete-shared-trade"
+            ? `Xoá bài chia sẻ token ${confirmAction?.uid.slice(0, 8)}...? Sẽ xoá bài viết, tất cả likes, comments và reports liên quan. Hành động KHÔNG THỂ hoàn tác!`
             : `Xoá TẤT CẢ trades của user ${confirmAction?.uid.slice(0, 8)}...? Hành động không thể hoàn tác!`
         }
         confirmText={
@@ -515,9 +726,15 @@ export default function AdminPage() {
             : confirmAction?.type === "change-role" ? "Đổi role"
             : confirmAction?.type === "toggle-ban"
             ? (users.find((u) => u.uid === confirmAction?.uid)?.banned ? "Mở chặn" : "Chặn")
+            : confirmAction?.type === "delete-shared-trade" ? "Xoá bài viết"
             : "Xoá trades"
         }
-        variant={confirmAction?.type === "toggle-ban" && !users.find((u) => u.uid === confirmAction?.uid)?.banned ? "danger" : confirmAction?.type === "reset-all" || confirmAction?.type === "reset-trades" ? "danger" : "default"}
+        variant={
+          confirmAction?.type === "delete-shared-trade" ? "danger"
+            : confirmAction?.type === "toggle-ban" && !users.find((u) => u.uid === confirmAction?.uid)?.banned ? "danger"
+            : confirmAction?.type === "reset-all" || confirmAction?.type === "reset-trades" ? "danger"
+            : "default"
+        }
       />
     </div>
   );

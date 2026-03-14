@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Trade } from "@/lib/types";
-import { getTrades, updateTrade } from "@/lib/services";
+import { getTrades, updateTrade, getSharedTrade, getUserSharedTradesMap } from "@/lib/services";
 import { getImageSrc } from "@/lib/gdrive";
 import { useAuth } from "@/components/AuthProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +32,8 @@ import {
   faArrowRightFromBracket,
   faStar,
   faShareNodes,
+  faHeart,
+  faComment,
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as faStarOutline } from "@fortawesome/free-regular-svg-icons";
 import { format, parseISO } from "date-fns";
@@ -53,6 +55,8 @@ export default function TradeDetailPage() {
   const [editMode, setEditMode] = useState<"edit" | "close">("edit");
   const [lightboxSrc, setLightboxSrc] = useState<string>("");
   const [shareOpen, setShareOpen] = useState(false);
+  const [communityLikes, setCommunityLikes] = useState<number | null>(null);
+  const [communityComments, setCommunityComments] = useState<number | null>(null);
 
   const toggleStar = async () => {
     if (!user || !trade) return;
@@ -70,6 +74,30 @@ export default function TradeDetailPage() {
     const trades = await getTrades(user.uid);
     const found = trades.find((t) => t.id === tradeId);
     setTrade(found || null);
+    // Fetch community stats if shared
+    if (found) {
+      const fetchStats = async () => {
+        if (found.shareToken) {
+          const shared = await getSharedTrade(found.shareToken);
+          if (shared) {
+            setCommunityLikes(shared.likes || 0);
+            setCommunityComments(shared.commentCount || 0);
+          }
+        } else {
+          // Back-fill: look up shared_trades by ownerUid and match by createdAt
+          const sharedMap = await getUserSharedTradesMap(user!.uid);
+          const match = sharedMap[found.createdAt];
+          if (match) {
+            found.shareToken = match.token;
+            setTrade({ ...found });
+            setCommunityLikes(match.likes);
+            setCommunityComments(match.commentCount);
+            await updateTrade(user!.uid, found.id, { shareToken: match.token });
+          }
+        }
+      };
+      fetchStats().catch(() => {});
+    }
     setLoading(false);
   }, [user, tradeId]);
 
@@ -184,6 +212,24 @@ export default function TradeDetailPage() {
             <FontAwesomeIcon icon={faPlay} className="h-5 w-5 text-blue-500 animate-pulse" />
             <span className="text-lg font-semibold text-blue-500">Đang chạy</span>
             {trade.emotion && <Badge variant="secondary">{trade.emotion}</Badge>}
+          </div>
+        </div>
+      )}
+
+      {/* Community stats */}
+      {trade.shareToken && communityLikes !== null && (
+        <div className="flex items-center gap-4 rounded-lg border p-3 bg-muted/30">
+          <FontAwesomeIcon icon={faShareNodes} className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Đã chia sẻ lên Cộng đồng</span>
+          <div className="flex items-center gap-3 ml-auto">
+            <span className="flex items-center gap-1.5 text-sm">
+              <FontAwesomeIcon icon={faHeart} className="h-3.5 w-3.5 text-pink-500" />
+              <span className="font-medium">{communityLikes}</span>
+            </span>
+            <span className="flex items-center gap-1.5 text-sm">
+              <FontAwesomeIcon icon={faComment} className="h-3.5 w-3.5 text-blue-400" />
+              <span className="font-medium">{communityComments}</span>
+            </span>
           </div>
         </div>
       )}
@@ -322,7 +368,7 @@ export default function TradeDetailPage() {
       <ShareTradeDialog
         trade={trade}
         open={shareOpen}
-        onClose={() => setShareOpen(false)}
+        onClose={() => { setShareOpen(false); loadData(); }}
       />
     </div>
   );

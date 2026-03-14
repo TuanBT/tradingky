@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Trade, SharedTradePrivacy } from "@/lib/types";
-import { shareTrade } from "@/lib/services";
+import { shareTrade, updateTrade, getSharedTrade } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/ToastProvider";
 import {
@@ -20,6 +20,7 @@ import {
   faCopy,
   faCheck,
   faEyeSlash,
+  faLink,
 } from "@fortawesome/free-solid-svg-icons";
 
 interface ShareTradeDialogProps {
@@ -32,13 +33,36 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
   const { user } = useAuth();
   const { toast } = useToast();
   const [privacy, setPrivacy] = useState<SharedTradePrivacy>({
-    hidePnl: false,
-    hideLotSize: false,
+    hidePnl: true,
+    hideLotSize: true,
     hideEntryExitPrice: false,
   });
   const [sharing, setSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(false);
+
+  // If trade already has a shareToken, load existing share URL
+  const loadExisting = useCallback(async () => {
+    if (!trade?.shareToken) return;
+    setLoadingExisting(true);
+    try {
+      const existing = await getSharedTrade(trade.shareToken);
+      if (existing) {
+        setShareUrl(`${window.location.origin}/shared/${trade.shareToken}`);
+        setPrivacy(existing.privacy);
+      }
+    } catch {
+      // Ignore - will create new
+    }
+    setLoadingExisting(false);
+  }, [trade?.shareToken]);
+
+  useEffect(() => {
+    if (open && trade?.shareToken) {
+      loadExisting();
+    }
+  }, [open, trade?.shareToken, loadExisting]);
 
   const handleShare = async () => {
     if (!trade || !user) return;
@@ -52,10 +76,21 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
         privacy,
         true // always public
       );
+      await updateTrade(user.uid, trade.id, { shareToken: token });
       const url = `${window.location.origin}/shared/${token}`;
       setShareUrl(url);
-    } catch {
-      toast("Không thể chia sẻ lệnh. Thử lại sau.", "error");
+      // Auto-copy
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        toast("Đã tạo link và copy vào clipboard", "success");
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        toast("Đã tạo link chia sẻ", "success");
+      }
+    } catch (err) {
+      console.error("ShareTradeDialog handleShare error:", err);
+      toast((err as Error).message || "Không thể chia sẻ lệnh. Thử lại sau.", "error");
     }
     setSharing(false);
   };
@@ -74,7 +109,7 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
   const handleClose = () => {
     setShareUrl("");
     setCopied(false);
-    setPrivacy({ hidePnl: false, hideLotSize: false, hideEntryExitPrice: false });
+    setPrivacy({ hidePnl: true, hideLotSize: true, hideEntryExitPrice: false });
     onClose();
   };
 
@@ -83,6 +118,8 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
   };
 
   if (!trade) return null;
+
+  const alreadyShared = !!trade.shareToken && !!shareUrl;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
@@ -94,7 +131,11 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
           </DialogTitle>
         </DialogHeader>
 
-        {!shareUrl ? (
+        {loadingExisting ? (
+          <div className="flex items-center justify-center py-8">
+            <FontAwesomeIcon icon={faSpinner} className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
           <div className="space-y-5 pt-2">
             {/* Trade summary */}
             <div className="rounded-lg border p-3 bg-muted/30">
@@ -124,43 +165,49 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
                   checked={privacy.hideLotSize}
                   onChange={() => togglePrivacy("hideLotSize")}
                 />
-                <PrivacyToggle
-                  label="Ẩn giá vào / giá ra"
-                  checked={privacy.hideEntryExitPrice}
-                  onChange={() => togglePrivacy("hideEntryExitPrice")}
-                />
               </div>
             </div>
 
-            <Button onClick={handleShare} disabled={sharing} className="w-full">
-              {sharing ? (
-                <><FontAwesomeIcon icon={faSpinner} className="mr-2 h-4 w-4 animate-spin" />Đang tạo link...</>
-              ) : (
-                <><FontAwesomeIcon icon={faShareNodes} className="mr-2 h-4 w-4" />Tạo link chia sẻ</>
-              )}
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4 pt-2">
-            <p className="text-sm text-muted-foreground">Link đã được tạo và lệnh đã đăng lên Cộng đồng. Ai có link đều xem được.</p>
-            <div className="flex gap-2">
-              <input
-                readOnly
-                value={shareUrl}
-                className="flex-1 rounded-md border border-input bg-muted px-3 py-2 text-sm font-mono"
-                onClick={(e) => (e.target as HTMLInputElement).select()}
-              />
-              <Button variant="outline" size="icon" onClick={handleCopy}>
-                <FontAwesomeIcon icon={copied ? faCheck : faCopy} className="h-4 w-4" />
-              </Button>
-            </div>
+            {/* Link display (if already shared) */}
+            {shareUrl && (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={shareUrl}
+                    className="flex-1 rounded-md border border-input bg-muted px-3 py-2 text-sm font-mono"
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                  />
+                  <Button variant="outline" size="icon" onClick={handleCopy}>
+                    <FontAwesomeIcon icon={copied ? faCheck : faCopy} className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  <FontAwesomeIcon icon={faLink} className="mr-1" />
+                  Lệnh đã được đăng lên Cộng đồng. Ai có link đều xem được.
+                </p>
+              </div>
+            )}
+
+            {/* Action buttons */}
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={handleClose}>
                 Đóng
               </Button>
-              <Button className="flex-1" onClick={handleCopy}>
-                {copied ? "Đã copy!" : "Copy link"}
-              </Button>
+              {!alreadyShared ? (
+                <Button onClick={handleShare} disabled={sharing} className="flex-1">
+                  {sharing ? (
+                    <><FontAwesomeIcon icon={faSpinner} className="mr-2 h-4 w-4 animate-spin" />Đang tạo...</>
+                  ) : (
+                    <><FontAwesomeIcon icon={faShareNodes} className="mr-2 h-4 w-4" />Tạo link & đăng</>
+                  )}
+                </Button>
+              ) : (
+                <Button className="flex-1" onClick={handleCopy}>
+                  <FontAwesomeIcon icon={copied ? faCheck : faCopy} className="mr-2 h-4 w-4" />
+                  {copied ? "Đã copy!" : "Copy link"}
+                </Button>
+              )}
             </div>
           </div>
         )}

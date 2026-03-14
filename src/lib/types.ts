@@ -25,6 +25,7 @@ export interface Trade {
   lessonsLearned?: string;
   exitChartImageUrl?: string;
   starred?: boolean;
+  shareToken?: string;
   createdAt: number;
 }
 
@@ -97,4 +98,43 @@ export interface TradeComment {
   photoURL?: string;
   text: string;
   createdAt: number;
+}
+
+// ==================== CHARACTER LIMITS ====================
+
+export const CHAR_LIMITS = {
+  pair: 20,
+  platform: 30,
+  emotion: 40,
+  timeframe: 10,
+  stopLoss: 50,
+  takeProfit: 50,
+  note: 2000,
+  exitReason: 500,
+  lessonsLearned: 1000,
+  comment: 500,
+  reportReason: 500,
+  settingItem: 50,
+} as const;
+
+// ==================== RATE LIMITING ====================
+
+export const RATE_LIMITS = {
+  comment: { max: 10, windowMs: 60_000 },    // 10 comments per minute
+  like: { max: 30, windowMs: 60_000 },        // 30 likes per minute
+  share: { max: 5, windowMs: 60_000 },        // 5 shares per minute
+  report: { max: 3, windowMs: 300_000 },      // 3 reports per 5 minutes
+} as const;
+
+// ==================== REPORT ====================
+
+export interface TradeReport {
+  id: string;
+  token: string;
+  userId: string;
+  reason: string;
+  createdAt: number;
+  // Populated fields
+  tradeOwnerName?: string;
+  tradePair?: string;
 }

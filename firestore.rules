@@ -24,12 +24,18 @@ service cloud.firestore {
     }
 
     function isNotBanned() {
-      return isAuthenticated() && getUserData().banned != true;
+      return isAuthenticated() && (
+        isSuperAdmin() ||
+        !exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.banned != true
+      );
     }
 
     // User-scoped data: only the owner can read/write
     match /users/{uid} {
       allow read, write: if isAuthenticated() && request.auth.uid == uid;
+      // Any authenticated user can read a user's profile (for profile page)
+      allow get: if isAuthenticated();
       // Admin can read and update any user doc (for role/ban management)
       allow read, update: if isSuperAdmin();
 
@@ -45,6 +51,17 @@ service cloud.firestore {
       match /settings/{settingId} {
         allow read, write: if isAuthenticated() && request.auth.uid == uid;
       }
+
+      match /following/{followedUid} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated() && request.auth.uid == uid;
+      }
+
+      match /followers/{followerUid} {
+        // Any authenticated user can read followers list (for profile page)
+        allow read: if isAuthenticated();
+        allow create, delete: if isAuthenticated() && request.auth.uid == followerUid;
+      }
     }
 
     // Admin: only specific UIDs can list all users
@@ -57,6 +74,9 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAuthenticated() && isNotBanned();
       allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && (
+        resource.data.ownerUid == request.auth.uid || isAdminOrMod()
+      );
 
       // Likes subcollection
       match /likes/{userId} {

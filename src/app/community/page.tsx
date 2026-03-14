@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { TradeComment, UserRole } from "@/lib/types";
 import {
   getCommunityFeed,
+  getCommunityFeedFollowing,
+  getFollowingList,
   toggleLike,
   hasUserLiked,
   getComments,
@@ -11,8 +13,11 @@ import {
   deleteComment,
   reportPost,
   getUserRole,
+  getSuggestedUsers,
+  followUser,
   CommunityPost,
   CommunitySortMode,
+  SuggestedUser,
 } from "@/lib/services";
 import { getImageSrc } from "@/lib/gdrive";
 import { useAuth } from "@/components/AuthProvider";
@@ -34,7 +39,6 @@ import {
   faSpinner,
   faPaperPlane,
   faTrash,
-  faChevronDown,
   faFilter,
   faClock,
   faThumbsUp,
@@ -43,11 +47,16 @@ import {
   faXmark,
   faCrown,
   faUserShield,
+  faBuildingColumns,
+  faUserGroup,
+  faGlobe,
+  faUserPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartOutline } from "@fortawesome/free-regular-svg-icons";
 import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
 import { DocumentSnapshot } from "firebase/firestore";
+import Link from "next/link";
 
 type ResultFilter = "ALL" | "WIN" | "LOSS" | "BREAKEVEN" | "CANCELLED";
 
@@ -67,30 +76,79 @@ export default function CommunityPage() {
   const [hasMore, setHasMore] = useState(false);
   const [resultFilter, setResultFilter] = useState<ResultFilter>("ALL");
   const [pairFilter, setPairFilter] = useState<string>("ALL");
+  const [platformFilter, setPlatformFilter] = useState<string>("ALL");
   const [sortMode, setSortMode] = useState<CommunitySortMode>("newest");
   const [lightboxSrc, setLightboxSrc] = useState("");
+  const [feedTab, setFeedTab] = useState<"all" | "following">("all");
+  const [hasFollowing, setHasFollowing] = useState(false);
+  const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
+  const [followingUids, setFollowingUids] = useState<Set<string>>(new Set());
 
-  const loadFeed = useCallback(async (sort: CommunitySortMode) => {
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Infinite scroll: auto-load when sentinel is visible
+  useEffect(() => {
+    if (!hasMore || loadingMore || loading) return;
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMore, loadingMore, loading, posts.length]);
+
+  const loadFeed = useCallback(async (sort: CommunitySortMode, tab: "all" | "following") => {
     setLoading(true);
     try {
-      const result = await getCommunityFeed(20, null, sort);
-      setPosts(result.posts);
-      setLastDoc(result.lastDoc);
-      setHasMore(result.hasMore);
+      if (tab === "following" && user) {
+        const result = await getCommunityFeedFollowing(user.uid, 20);
+        setPosts(result.posts);
+        setLastDoc(null);
+        setHasMore(result.hasMore);
+      } else {
+        const result = await getCommunityFeed(20, null, sort);
+        setPosts(result.posts);
+        setLastDoc(result.lastDoc);
+        setHasMore(result.hasMore);
+      }
     } catch {
       toast("Không thể tải bài viết", "error");
     }
     setLoading(false);
-  }, [toast]);
+  }, [toast, user]);
+
+  // Check if user follows anyone (to show the tab)
+  useEffect(() => {
+    if (!user) { setHasFollowing(false); return; }
+    getFollowingList(user.uid).then((list) => setHasFollowing(list.length > 0));
+  }, [user]);
+
+  // Load suggested users
+  useEffect(() => {
+    if (!user) { setSuggestedUsers([]); return; }
+    getSuggestedUsers(user.uid, 5).then(setSuggestedUsers);
+  }, [user]);
 
   useEffect(() => {
-    loadFeed(sortMode);
-  }, [sortMode, loadFeed]);
+    loadFeed(sortMode, feedTab);
+  }, [sortMode, feedTab, loadFeed]);
 
   const loadMore = async () => {
     if (!hasMore || loadingMore) return;
     setLoadingMore(true);
     try {
+      if (feedTab === "following" && user) {
+        // Following feed doesn't support cursor-based pagination, load all at once
+        setLoadingMore(false);
+        return;
+      }
       const result = await getCommunityFeed(20, lastDoc, sortMode);
       setPosts((prev) => [...prev, ...result.posts]);
       setLastDoc(result.lastDoc);
@@ -101,23 +159,43 @@ export default function CommunityPage() {
     setLoadingMore(false);
   };
 
-  // Extract unique pairs from loaded posts for pair filter
+  // Extract unique pairs and platforms from loaded posts
   const availablePairs = useMemo(() => {
     const pairs = new Set(posts.map((p) => p.data.trade.pair).filter(Boolean));
     return Array.from(pairs).sort();
   }, [posts]);
 
+  const availablePlatforms = useMemo(() => {
+    const platforms = new Set(posts.map((p) => p.data.trade.platform).filter(Boolean) as string[]);
+    return Array.from(platforms).sort();
+  }, [posts]);
+
   const filteredPosts = posts.filter((p) => {
     if (resultFilter !== "ALL" && p.data.trade.result !== resultFilter) return false;
     if (pairFilter !== "ALL" && p.data.trade.pair !== pairFilter) return false;
+    if (platformFilter !== "ALL" && p.data.trade.platform !== platformFilter) return false;
     return true;
   });
 
-  const hasActiveFilter = resultFilter !== "ALL" || pairFilter !== "ALL";
+  const hasActiveFilter = resultFilter !== "ALL" || pairFilter !== "ALL" || platformFilter !== "ALL";
 
   const clearFilters = () => {
     setResultFilter("ALL");
     setPairFilter("ALL");
+    setPlatformFilter("ALL");
+  };
+
+  const handleFollowSuggested = async (targetUid: string) => {
+    if (!user) return;
+    try {
+      await followUser(user.uid, targetUid);
+      setFollowingUids((prev) => new Set(prev).add(targetUid));
+      setSuggestedUsers((prev) => prev.filter((u) => u.uid !== targetUid));
+      setHasFollowing(true);
+      toast("Đã theo dõi!", "success");
+    } catch {
+      toast("Không thể theo dõi", "error");
+    }
   };
 
   if (loading) {
@@ -133,9 +211,39 @@ export default function CommunityPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Cộng đồng</h1>
+        <span className="text-xs text-muted-foreground">{posts.length} bài viết</span>
       </div>
 
-      {/* Sort buttons */}
+      {/* Feed tabs: All / Following */}
+      {(hasFollowing || feedTab === "following") && (
+        <div className="flex items-center gap-2 border-b border-border pb-2">
+          <button
+            onClick={() => setFeedTab("all")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors rounded-t-md ${
+              feedTab === "all"
+                ? "border-b-2 border-primary text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <FontAwesomeIcon icon={faGlobe} className="h-3 w-3" />
+            Tất cả
+          </button>
+          <button
+            onClick={() => setFeedTab("following")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors rounded-t-md ${
+              feedTab === "following"
+                ? "border-b-2 border-primary text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <FontAwesomeIcon icon={faUserGroup} className="h-3 w-3" />
+            Đang theo dõi
+          </button>
+        </div>
+      )}
+
+      {/* Sort buttons (only for "all" tab) */}
+      {feedTab === "all" && (
       <div className="flex items-center gap-2 flex-wrap">
         {SORT_OPTIONS.map((opt) => (
           <button
@@ -152,23 +260,23 @@ export default function CommunityPage() {
           </button>
         ))}
       </div>
+      )}
 
       {/* Filters row */}
+      {feedTab === "all" && (
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Result filter */}
-        {(["ALL", "WIN", "LOSS", "BREAKEVEN", "CANCELLED"] as ResultFilter[]).map((f) => (
-          <button
-            key={f}
-            onClick={() => setResultFilter(f)}
-            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
-              resultFilter === f
-                ? "bg-primary text-primary-foreground"
-                : "bg-card border border-border text-muted-foreground hover:bg-accent"
-            }`}
-          >
-            {f === "ALL" ? "Tất cả" : f === "WIN" ? "Thắng" : f === "LOSS" ? "Thua" : f === "BREAKEVEN" ? "Hoà" : "Hủy"}
-          </button>
-        ))}
+        {/* Result filter dropdown */}
+        <select
+          value={resultFilter}
+          onChange={(e) => setResultFilter(e.target.value as ResultFilter)}
+          className="px-2.5 py-1 text-xs font-medium rounded-md bg-card border border-border text-foreground cursor-pointer"
+        >
+          <option value="ALL">Tất cả kết quả</option>
+          <option value="WIN">Thắng</option>
+          <option value="LOSS">Thua</option>
+          <option value="BREAKEVEN">Hoà</option>
+          <option value="CANCELLED">Hủy</option>
+        </select>
 
         {/* Pair filter */}
         {availablePairs.length > 0 && (
@@ -184,6 +292,20 @@ export default function CommunityPage() {
           </select>
         )}
 
+        {/* Platform filter */}
+        {availablePlatforms.length > 0 && (
+          <select
+            value={platformFilter}
+            onChange={(e) => setPlatformFilter(e.target.value)}
+            className="px-2.5 py-1 text-xs font-medium rounded-md bg-card border border-border text-foreground cursor-pointer"
+          >
+            <option value="ALL">Tất cả sàn</option>
+            {availablePlatforms.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        )}
+
         {/* Clear filter button */}
         {hasActiveFilter && (
           <button
@@ -195,18 +317,70 @@ export default function CommunityPage() {
           </button>
         )}
       </div>
+      )}
+
+      {/* Empty state for following tab */}
+      {feedTab === "following" && posts.length === 0 && !loading && (
+        <div className="flex flex-col items-center justify-center h-[40vh] gap-4">
+          <FontAwesomeIcon icon={faUserGroup} className="h-8 w-8 text-muted-foreground/30" />
+          <p className="text-muted-foreground">Chưa có bài viết từ người bạn theo dõi.</p>
+        </div>
+      )}
+
+      {/* Suggested users to follow */}
+      {suggestedUsers.length > 0 && feedTab === "all" && (
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <FontAwesomeIcon icon={faUserPlus} className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-sm font-medium">Gợi ý theo dõi</span>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {suggestedUsers.map((su) => (
+                <div key={su.uid} className="flex flex-col items-center gap-1.5 min-w-[80px]">
+                  <Link href={`/profile/${su.uid}`}>
+                    {su.photoURL ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={su.photoURL} alt="" className="h-10 w-10 rounded-full" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-sm font-bold">
+                        {su.displayName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </Link>
+                  <Link href={`/profile/${su.uid}`} className="text-xs font-medium truncate max-w-[80px] text-center hover:underline">
+                    {su.displayName}
+                  </Link>
+                  <span className="text-[10px] text-muted-foreground">
+                    {su.totalLikes} <FontAwesomeIcon icon={faHeartSolid} className="h-2.5 w-2.5" /> · {su.postCount} bài
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[10px] px-2"
+                    onClick={() => handleFollowSuggested(su.uid)}
+                  >
+                    <FontAwesomeIcon icon={faUserPlus} className="h-2.5 w-2.5 mr-1" />
+                    Theo dõi
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Posts */}
-      {filteredPosts.length === 0 ? (
+      {feedTab === "all" && filteredPosts.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-[40vh] gap-4">
           <FontAwesomeIcon icon={faFilter} className="h-8 w-8 text-muted-foreground/30" />
           <p className="text-muted-foreground">
             {posts.length === 0 ? "Chưa có bài viết nào trong cộng đồng." : "Không có bài viết phù hợp filter."}
           </p>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredPosts.map((post) => (
+      ) : (feedTab === "following" && posts.length === 0) ? null : (
+        <div className="space-y-3">
+          {(feedTab === "all" ? filteredPosts : posts).map((post) => (
             <CommunityCard
               key={post.id}
               post={post}
@@ -215,14 +389,13 @@ export default function CommunityPage() {
             />
           ))}
           {hasMore && (
-            <div className="text-center py-4">
-              <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
-                {loadingMore ? (
-                  <><FontAwesomeIcon icon={faSpinner} className="mr-2 h-4 w-4 animate-spin" />Đang tải...</>
-                ) : (
-                  <><FontAwesomeIcon icon={faChevronDown} className="mr-2 h-4 w-4" />Xem thêm</>
-                )}
-              </Button>
+            <div ref={loadMoreRef} className="flex justify-center py-6">
+              {loadingMore && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin" />
+                  Đang tải thêm...
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -303,9 +476,10 @@ function CommunityCard({
     setLikeCount((c) => wasLiked ? c - 1 : c + 1);
     try {
       await toggleLike(post.id, currentUserId);
-    } catch {
+    } catch (err) {
       setLiked(wasLiked);
       setLikeCount((c) => wasLiked ? c + 1 : c - 1);
+      toast((err as Error).message || "Lỗi", "error");
     }
   };
 
@@ -338,8 +512,8 @@ function CommunityCard({
       );
       setComments((prev) => [...prev, newComment]);
       setCommentText("");
-    } catch {
-      toast("Không thể gửi bình luận", "error");
+    } catch (err) {
+      toast((err as Error).message || "Không thể gửi bình luận", "error");
     }
     setSubmittingComment(false);
   };
@@ -363,8 +537,8 @@ function CommunityCard({
       toast("Đã báo cáo bài viết", "success");
       setShowReportDialog(false);
       setReportReason("");
-    } catch {
-      toast("Không thể báo cáo", "error");
+    } catch (err) {
+      toast((err as Error).message || "Không thể báo cáo", "error");
     }
     setReportSubmitting(false);
   };
@@ -378,59 +552,30 @@ function CommunityCard({
 
   return (
     <>
-      <Card>
-        <CardContent className="p-4 space-y-3">
-          {/* Author header */}
-          <div className="flex items-center gap-3">
-            {data.ownerPhotoURL ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.ownerPhotoURL} alt="" className="h-8 w-8 rounded-full" referrerPolicy="no-referrer" />
-            ) : (
-              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
-                {data.ownerDisplayName.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <p className="text-sm font-medium truncate">{data.ownerDisplayName}</p>
-                <RoleBadge role={data.ownerRole} />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {format(new Date(data.createdAt), "dd/MM/yyyy HH:mm", { locale: vi })}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {isOpen ? (
-                <Badge className="bg-blue-500/15 text-blue-500 border-blue-500/30 text-xs">
-                  <FontAwesomeIcon icon={faPlay} className="mr-1 h-2.5 w-2.5" />
-                  Đang chạy
-                </Badge>
-              ) : (
-                <Badge className="bg-green-500/15 text-green-500 border-green-500/30 text-xs">
-                  <FontAwesomeIcon icon={faFlagCheckered} className="mr-1 h-2.5 w-2.5" />
-                  Đã đóng
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          {/* Trade info */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-lg">{trade.pair}</span>
-              <Badge className={trade.type === "BUY" ? "bg-emerald-600 text-white text-xs" : "bg-orange-600 text-white text-xs"}>
+      <Card className="overflow-hidden hover:border-primary/30 transition-colors">
+        <CardContent className="p-0">
+          {/* TradingView-inspired header bar */}
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="font-bold text-base">{trade.pair}</span>
+              <Badge className={`text-[10px] px-1.5 py-0 ${trade.type === "BUY" ? "bg-emerald-600 text-white" : "bg-orange-600 text-white"}`}>
                 {trade.type}
               </Badge>
-              {!isOpen && (
-                <span className={`font-semibold ${resultColor}`}>
+              {!isOpen ? (
+                <span className={`text-sm font-semibold ${resultColor}`}>
                   {trade.result === "WIN" ? "Thắng" : trade.result === "LOSS" ? "Thua" : trade.result === "CANCELLED" ? "Hủy" : "Hoà"}
                 </span>
+              ) : (
+                <Badge className="bg-blue-500/15 text-blue-500 border-blue-500/30 text-[10px] px-1.5 py-0">
+                  <FontAwesomeIcon icon={faPlay} className="mr-0.5 h-2 w-2" />
+                  OPEN
+                </Badge>
               )}
             </div>
-            <div className="text-right">
+            <div className="flex items-center gap-2 shrink-0">
               {privacy.hidePnl ? hiddenBadge : (
                 trade.pnl !== undefined && (
-                  <span className={`font-mono font-bold ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
+                  <span className={`font-mono font-bold text-sm ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
                     {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
                   </span>
                 )
@@ -438,68 +583,98 @@ function CommunityCard({
             </div>
           </div>
 
-          {/* Details row */}
-          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-            <span>{format(parseISO(trade.date), "dd/MM/yyyy")}</span>
-            {trade.platform && <span>{trade.platform}</span>}
-            {trade.emotion && <Badge variant="secondary" className="text-xs">{trade.emotion}</Badge>}
-            {trade.timeframe && <span>TF: {trade.timeframe}</span>}
-          </div>
+          <div className="p-4 space-y-3">
+            {/* Author + meta row */}
+            <div className="flex items-center gap-3">
+              <Link href={`/profile/${data.ownerUid}`} className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
+                {data.ownerPhotoURL ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={data.ownerPhotoURL} alt="" className="h-7 w-7 rounded-full" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
+                    {data.ownerDisplayName.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="text-sm font-medium truncate">{data.ownerDisplayName}</span>
+                <RoleBadge role={data.ownerRole} />
+              </Link>
+              <div className="flex items-center gap-2 ml-auto text-xs text-muted-foreground flex-wrap justify-end">
+                <span>{format(new Date(data.createdAt), "dd/MM HH:mm", { locale: vi })}</span>
+                {trade.platform && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                    <FontAwesomeIcon icon={faBuildingColumns} className="mr-0.5 h-2 w-2" />
+                    {trade.platform}
+                  </Badge>
+                )}
+                {trade.timeframe && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                    {trade.timeframe}
+                  </Badge>
+                )}
+              </div>
+            </div>
 
-          {/* Chart image */}
-          {trade.chartImageUrl && (
-            <button type="button" onClick={() => onImageClick(getImageSrc(trade.chartImageUrl!))} className="block w-full">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={getImageSrc(trade.chartImageUrl)}
-                alt="Chart"
-                className="rounded-lg border w-full object-contain max-h-[300px] bg-muted cursor-pointer hover:opacity-90 transition-opacity"
-              />
-            </button>
-          )}
-
-          {/* Note preview */}
-          {trade.note && (
-            <p className="text-sm text-muted-foreground line-clamp-2">{trade.note}</p>
-          )}
-
-          {/* Like & Comment & Report bar */}
-          <div className="flex items-center gap-4 pt-1 border-t border-border">
-            <button
-              onClick={handleLike}
-              className={`flex items-center gap-1.5 text-sm transition-colors ${liked ? "text-red-500" : "text-muted-foreground hover:text-red-500"}`}
-            >
-              <FontAwesomeIcon icon={liked ? faHeartSolid : faHeartOutline} className="h-4 w-4" />
-              <span>{likeCount > 0 ? likeCount : ""}</span>
-            </button>
-            <button
-              onClick={handleToggleComments}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <FontAwesomeIcon icon={faComment} className="h-4 w-4" />
-              <span>{(data.commentCount || 0) > 0 ? data.commentCount : ""}</span>
-            </button>
-            {currentUserId && currentUserId !== data.ownerUid && (
-              <button
-                onClick={() => setShowReportDialog(true)}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-orange-500 transition-colors"
-                title="Báo cáo"
-              >
-                <FontAwesomeIcon icon={faFlag} className="h-3.5 w-3.5" />
+            {/* Chart image */}
+            {trade.chartImageUrl && (
+              <button type="button" onClick={() => onImageClick(getImageSrc(trade.chartImageUrl!))} className="block w-full">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={getImageSrc(trade.chartImageUrl)}
+                  alt="Chart"
+                  className="rounded-lg border w-full object-contain max-h-[280px] bg-muted cursor-pointer hover:opacity-90 transition-opacity"
+                />
               </button>
             )}
-            <a
-              href={`/shared/${post.id}`}
-              target="_blank"
-              className="text-xs text-muted-foreground hover:text-foreground ml-auto transition-colors"
-            >
-              Xem chi tiết
-            </a>
+
+            {/* Note preview */}
+            {trade.note && (
+              <p className="text-sm text-muted-foreground line-clamp-2">{trade.note}</p>
+            )}
+
+            {/* Details tags */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+              <span>{format(parseISO(trade.date), "dd/MM/yyyy")}</span>
+              {trade.emotion && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{trade.emotion}</Badge>}
+            </div>
+
+            {/* Like & Comment & Report bar */}
+            <div className="flex items-center gap-4 pt-2 border-t border-border">
+              <button
+                onClick={handleLike}
+                className={`flex items-center gap-1.5 text-sm transition-colors ${liked ? "text-red-500" : "text-muted-foreground hover:text-red-500"}`}
+              >
+                <FontAwesomeIcon icon={liked ? faHeartSolid : faHeartOutline} className="h-4 w-4" />
+                <span>{likeCount > 0 ? likeCount : ""}</span>
+              </button>
+              <button
+                onClick={handleToggleComments}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <FontAwesomeIcon icon={faComment} className="h-4 w-4" />
+                <span>{(data.commentCount || 0) > 0 ? data.commentCount : ""}</span>
+              </button>
+              {currentUserId && currentUserId !== data.ownerUid && (
+                <button
+                  onClick={() => setShowReportDialog(true)}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-orange-500 transition-colors"
+                  title="Báo cáo"
+                >
+                  <FontAwesomeIcon icon={faFlag} className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <Link
+                href={`/shared/${post.id}`}
+                target="_blank"
+                className="text-xs text-muted-foreground hover:text-foreground ml-auto transition-colors"
+              >
+                Xem chi tiết
+              </Link>
+            </div>
           </div>
 
           {/* Comments section */}
           {showComments && (
-            <div className="space-y-3 pt-2">
+            <div className="border-t border-border px-4 py-3 space-y-3 bg-muted/10">
               {loadingComments ? (
                 <div className="flex justify-center py-4">
                   <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -511,17 +686,19 @@ function CommunityCard({
                   )}
                   {comments.map((comment) => (
                     <div key={comment.id} className="flex gap-2">
-                      {comment.photoURL ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={comment.photoURL} alt="" className="h-6 w-6 rounded-full shrink-0 mt-0.5" referrerPolicy="no-referrer" />
-                      ) : (
-                        <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                          {comment.displayName.charAt(0).toUpperCase()}
-                        </div>
-                      )}
+                      <Link href={`/profile/${comment.userId}`}>
+                        {comment.photoURL ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={comment.photoURL} alt="" className="h-6 w-6 rounded-full shrink-0 mt-0.5" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                            {comment.displayName.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </Link>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">{comment.displayName}</span>
+                          <Link href={`/profile/${comment.userId}`} className="text-sm font-medium hover:underline">{comment.displayName}</Link>
                           <span className="text-xs text-muted-foreground">
                             {format(new Date(comment.createdAt), "dd/MM HH:mm")}
                           </span>

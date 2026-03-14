@@ -91,7 +91,7 @@ interface Trade {
   lotSize?: number; timeframe?: string; entryTime?: string;
   closeDate?: string; closeTime?: string;
   exitReason?: string; lessonsLearned?: string;
-  starred?: boolean; createdAt: number;
+  starred?: boolean; shareToken?: string; createdAt: number;
 }
 
 interface SharedTrade {
