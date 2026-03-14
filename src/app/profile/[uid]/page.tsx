@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef, use, useMemo } from "react";
-import { UserProfile, TradeComment, UserRole } from "@/lib/types";
+import { useEffect, useState, use, useMemo } from "react";
+import { UserProfile } from "@/lib/types";
 import {
   getUserProfile,
   getUserPublicTrades,
@@ -12,42 +12,26 @@ import {
   getFollowingList,
   getFollowersList,
   FollowedUser,
-  toggleLike,
-  hasUserLiked,
-  getComments,
-  addComment,
-  deleteComment,
   CommunityPost,
 } from "@/lib/services";
-import { getImageSrc } from "@/lib/gdrive";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/ToastProvider";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { TradePostCard } from "@/components/TradePostCard";
+import { RoleBadge } from "@/components/RoleBadge";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faHeart as faHeartSolid,
-  faComment,
-  faPlay,
-  faFlagCheckered,
   faSpinner,
-  faPaperPlane,
-  faTrash,
   faUserPlus,
   faUserMinus,
-  faCrown,
-  faUserShield,
   faArrowLeft,
   faClock,
   faThumbsUp,
   faComments,
 } from "@fortawesome/free-solid-svg-icons";
-import { faHeart as faHeartOutline } from "@fortawesome/free-regular-svg-icons";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import Link from "next/link";
 
@@ -178,13 +162,6 @@ export default function ProfilePage({ params }: { params: Promise<{ uid: string 
     );
   }
 
-  const roleBadge =
-    profile.role === "admin" ? (
-      <FontAwesomeIcon icon={faCrown} className="h-4 w-4 text-yellow-500" title="Admin" />
-    ) : profile.role === "mod" ? (
-      <FontAwesomeIcon icon={faUserShield} className="h-4 w-4 text-blue-500" title="Mod" />
-    ) : null;
-
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Back link */}
@@ -206,7 +183,7 @@ export default function ProfilePage({ params }: { params: Promise<{ uid: string 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold truncate">{profile.displayName || "Ẩn danh"}</h1>
-            {roleBadge}
+            <RoleBadge role={profile.role} size="md" />
           </div>
           <p className="text-sm text-muted-foreground">
             Tham gia từ {profile.createdAt ? format(new Date(profile.createdAt), "MM/yyyy", { locale: vi }) : "N/A"}
@@ -357,228 +334,10 @@ function ProfileSortBar({ posts, currentUserId, onImageClick }: { posts: Communi
       </div>
       <div className="space-y-4">
         {sortedPosts.map((post) => (
-          <ProfilePostCard key={post.id} post={post} currentUserId={currentUserId} onImageClick={onImageClick} />
+          <TradePostCard key={post.id} post={post} currentUserId={currentUserId} onImageClick={onImageClick} showAuthor={false} showReport={false} />
         ))}
       </div>
     </div>
   );
 }
 
-function ProfilePostCard({
-  post,
-  currentUserId,
-  onImageClick,
-}: {
-  post: CommunityPost;
-  currentUserId?: string;
-  onImageClick: (src: string) => void;
-}) {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const { data } = post;
-  const { trade, privacy } = data;
-  const isOpen = (trade.status || "CLOSED") === "OPEN";
-  const resultColor = trade.result === "WIN" ? "text-green-500" : trade.result === "LOSS" ? "text-red-500" : trade.result === "CANCELLED" ? "text-gray-500" : "text-yellow-500";
-
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(data.likes || 0);
-  const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<TradeComment[]>([]);
-  const [commentText, setCommentText] = useState("");
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [submittingComment, setSubmittingComment] = useState(false);
-  const likeChecked = useRef(false);
-
-  useEffect(() => {
-    if (!currentUserId || likeChecked.current) return;
-    likeChecked.current = true;
-    hasUserLiked(post.id, currentUserId).then(setLiked);
-  }, [currentUserId, post.id]);
-
-  const handleLike = async () => {
-    if (!currentUserId) {
-      toast("Đăng nhập để thích bài viết", "error");
-      return;
-    }
-    const wasLiked = liked;
-    setLiked(!wasLiked);
-    setLikeCount((c) => wasLiked ? c - 1 : c + 1);
-    try {
-      await toggleLike(post.id, currentUserId);
-    } catch {
-      setLiked(wasLiked);
-      setLikeCount((c) => wasLiked ? c + 1 : c - 1);
-    }
-  };
-
-  const handleToggleComments = async () => {
-    if (showComments) { setShowComments(false); return; }
-    setShowComments(true);
-    setLoadingComments(true);
-    try {
-      const result = await getComments(post.id);
-      setComments(result);
-    } catch {
-      toast("Không thể tải bình luận", "error");
-    }
-    setLoadingComments(false);
-  };
-
-  const handleSubmitComment = async () => {
-    if (!user || !commentText.trim()) return;
-    setSubmittingComment(true);
-    try {
-      const newComment = await addComment(post.id, user.uid, user.displayName || "Ẩn danh", user.photoURL || undefined, commentText.trim());
-      setComments((prev) => [...prev, newComment]);
-      setCommentText("");
-    } catch {
-      toast("Không thể gửi bình luận", "error");
-    }
-    setSubmittingComment(false);
-  };
-
-  const handleDeleteComment = async (commentId: string) => {
-    try {
-      await deleteComment(post.id, commentId);
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-    } catch {
-      toast("Không thể xoá bình luận", "error");
-    }
-  };
-
-  return (
-    <Card>
-      <CardContent className="p-4 space-y-3">
-        {/* Trade info */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-lg">{trade.pair}</span>
-            <Badge className={trade.type === "BUY" ? "bg-emerald-600 text-white text-xs" : "bg-orange-600 text-white text-xs"}>
-              {trade.type}
-            </Badge>
-            {isOpen ? (
-              <Badge className="bg-blue-500/15 text-blue-500 border-blue-500/30 text-xs">
-                <FontAwesomeIcon icon={faPlay} className="mr-1 h-2.5 w-2.5" />
-                OPEN
-              </Badge>
-            ) : (
-              <span className={`font-semibold ${resultColor}`}>
-                {trade.result === "WIN" ? "Thắng" : trade.result === "LOSS" ? "Thua" : trade.result === "CANCELLED" ? "Hủy" : "Hoà"}
-              </span>
-            )}
-          </div>
-          <div className="text-right">
-            {!privacy.hidePnl && trade.pnl !== undefined && (
-              <span className={`font-mono font-bold ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
-                {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Details row */}
-        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-          <span>{format(parseISO(trade.date), "dd/MM/yyyy")}</span>
-          {trade.platform && <span>{trade.platform}</span>}
-          {trade.emotion && <Badge variant="secondary" className="text-xs">{trade.emotion}</Badge>}
-          {trade.timeframe && <span>TF: {trade.timeframe}</span>}
-        </div>
-
-        {/* Chart image */}
-        {trade.chartImageUrl && (
-          <button type="button" onClick={() => onImageClick(getImageSrc(trade.chartImageUrl!))} className="block w-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={getImageSrc(trade.chartImageUrl)}
-              alt="Chart"
-              className="rounded-lg border w-full object-contain max-h-[300px] bg-muted cursor-pointer hover:opacity-90 transition-opacity"
-            />
-          </button>
-        )}
-
-        {trade.note && <p className="text-sm text-muted-foreground line-clamp-2">{trade.note}</p>}
-
-        {/* Like & Comment bar */}
-        <div className="flex items-center gap-4 pt-1 border-t border-border">
-          <button
-            onClick={handleLike}
-            className={`flex items-center gap-1.5 text-sm transition-colors ${liked ? "text-red-500" : "text-muted-foreground hover:text-red-500"}`}
-          >
-            <FontAwesomeIcon icon={liked ? faHeartSolid : faHeartOutline} className="h-4 w-4" />
-            <span>{likeCount > 0 ? likeCount : ""}</span>
-          </button>
-          <button
-            onClick={handleToggleComments}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <FontAwesomeIcon icon={faComment} className="h-4 w-4" />
-            <span>{(data.commentCount || 0) > 0 ? data.commentCount : ""}</span>
-          </button>
-          <a href={`/shared/${post.id}`} target="_blank" className="text-xs text-muted-foreground hover:text-foreground ml-auto transition-colors">
-            Xem chi tiết
-          </a>
-        </div>
-
-        {/* Comments section */}
-        {showComments && (
-          <div className="space-y-3 pt-2">
-            {loadingComments ? (
-              <div className="flex justify-center py-4">
-                <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <>
-                {comments.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">Chưa có bình luận nào.</p>}
-                {comments.map((comment) => (
-                  <div key={comment.id} className="flex gap-2">
-                    {comment.photoURL ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={comment.photoURL} alt="" className="h-6 w-6 rounded-full shrink-0 mt-0.5" referrerPolicy="no-referrer" />
-                    ) : (
-                      <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                        {comment.displayName.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{comment.displayName}</span>
-                        <span className="text-xs text-muted-foreground">{format(new Date(comment.createdAt), "dd/MM HH:mm")}</span>
-                        {currentUserId === comment.userId && (
-                          <button onClick={() => handleDeleteComment(comment.id)} className="text-xs text-muted-foreground hover:text-destructive transition-colors ml-auto">
-                            <FontAwesomeIcon icon={faTrash} className="h-3 w-3" />
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-sm">{comment.text}</p>
-                    </div>
-                  </div>
-                ))}
-                {user ? (
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Viết bình luận..."
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmitComment(); } }}
-                      className="flex-1"
-                      maxLength={500}
-                    />
-                    <Button size="icon" variant="ghost" onClick={handleSubmitComment} disabled={!commentText.trim() || submittingComment}>
-                      {submittingComment ? (
-                        <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <FontAwesomeIcon icon={faPaperPlane} className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground text-center">Đăng nhập để bình luận</p>
-                )}
-              </>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
