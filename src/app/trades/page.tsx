@@ -685,6 +685,8 @@ export default function TradesPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => setShareTradeData(currentTrade)}
+                        disabled={isOpenTrade}
+                        title={isOpenTrade ? "Chỉ có thể chia sẻ lệnh đã đóng" : "Chia sẻ"}
                       >
                         <FontAwesomeIcon icon={faShareNodes} className="mr-2 h-3.5 w-3.5" />
                         Chia sẻ
@@ -772,6 +774,8 @@ export default function TradesPage() {
                         variant="outline"
                         className="min-h-[44px]"
                         onClick={() => setShareTradeData(currentTrade)}
+                        disabled={isOpenTrade}
+                        title={isOpenTrade ? "Chỉ có thể chia sẻ lệnh đã đóng" : "Chia sẻ"}
                       >
                         <FontAwesomeIcon icon={faShareNodes} className="h-4 w-4" />
                       </Button>
@@ -876,6 +880,19 @@ function TradeDetail({ trade, onImageClick, onToggleStar, communityStats }: { tr
               Đã đóng
             </Badge>
           )}
+          {communityStats && (
+            <div className="flex items-center gap-2 ml-auto text-sm text-muted-foreground">
+              <FontAwesomeIcon icon={faShareNodes} className="h-3.5 w-3.5" />
+              <span className="flex items-center gap-1">
+                <FontAwesomeIcon icon={faHeart} className="h-3 w-3 text-pink-500" />
+                {communityStats.likes}
+              </span>
+              <span className="flex items-center gap-1">
+                <FontAwesomeIcon icon={faComment} className="h-3 w-3 text-blue-400" />
+                {communityStats.commentCount}
+              </span>
+            </div>
+          )}
         </div>
         <p className="text-sm text-muted-foreground mt-1">
           {format(parseISO(trade.date), "EEEE, dd MMMM yyyy", { locale: vi })}
@@ -908,24 +925,6 @@ function TradeDetail({ trade, onImageClick, onToggleStar, communityStats }: { tr
             <FontAwesomeIcon icon={faPlay} className="h-5 w-5 text-blue-500 animate-pulse" />
             <span className="text-lg font-semibold text-blue-500">Đang chạy</span>
             {trade.emotion && <Badge variant="secondary">{trade.emotion}</Badge>}
-          </div>
-        </div>
-      )}
-
-      {/* Community stats */}
-      {communityStats && (
-        <div className="flex items-center gap-4 rounded-lg border p-3 bg-muted/30">
-          <FontAwesomeIcon icon={faShareNodes} className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Đã chia sẻ lên Cộng đồng</span>
-          <div className="flex items-center gap-3 ml-auto">
-            <span className="flex items-center gap-1.5 text-sm">
-              <FontAwesomeIcon icon={faHeart} className="h-3.5 w-3.5 text-pink-500" />
-              <span className="font-medium">{communityStats.likes}</span>
-            </span>
-            <span className="flex items-center gap-1.5 text-sm">
-              <FontAwesomeIcon icon={faComment} className="h-3.5 w-3.5 text-blue-400" />
-              <span className="font-medium">{communityStats.commentCount}</span>
-            </span>
           </div>
         </div>
       )}

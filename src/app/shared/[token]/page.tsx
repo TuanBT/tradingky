@@ -25,7 +25,6 @@ import {
   faGraduationCap,
   faArrowRightFromBracket,
   faImage,
-  faEyeSlash,
   faArrowRight,
 } from "@fortawesome/free-solid-svg-icons";
 import { format, parseISO } from "date-fns";
@@ -80,12 +79,7 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
   const resultColor = trade.result === "WIN" ? "text-green-500" : trade.result === "LOSS" ? "text-red-500" : trade.result === "CANCELLED" ? "text-gray-500" : "text-yellow-500";
   const resultBg = trade.result === "WIN" ? "bg-green-500/10 border-green-500/20" : trade.result === "LOSS" ? "bg-red-500/10 border-red-500/20" : trade.result === "CANCELLED" ? "bg-gray-500/10 border-gray-500/20" : "bg-yellow-500/10 border-yellow-500/20";
 
-  const hiddenLabel = (
-    <span className="text-xs text-muted-foreground italic flex items-center gap-1">
-      <FontAwesomeIcon icon={faEyeSlash} className="h-3 w-3" />
-      Ẩn bởi người chia sẻ
-    </span>
-  );
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -134,15 +128,13 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
                 <span className={`text-2xl font-bold ${resultColor}`}>{resultLabel}</span>
                 {trade.emotion && <Badge variant="secondary">{trade.emotion}</Badge>}
               </div>
-              {privacy.hidePnl ? hiddenLabel : (
-                trade.pnl !== undefined && (
-                  <div className="text-right">
-                    <span className="text-xs text-muted-foreground block">P&L</span>
-                    <span className={`text-3xl font-mono font-bold ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
-                      {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
-                    </span>
-                  </div>
-                )
+              {!privacy.hidePnl && trade.pnl !== undefined && (
+                <div className="text-right">
+                  <span className="text-xs text-muted-foreground block">P&L</span>
+                  <span className={`text-3xl font-mono font-bold ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
+                    {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
+                  </span>
+                </div>
               )}
             </div>
           </div>
@@ -179,45 +171,22 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
               <CardTitle className="text-base">Giá & Quản lý vốn</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {privacy.hideEntryExitPrice ? (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Giá vào / ra</span>
-                  {hiddenLabel}
-                </div>
-              ) : (
-                <>
-                  {trade.entryPrice !== undefined && (
-                    <InfoRow icon={faArrowTrendUp} label="Giá vào" value={trade.entryPrice.toString()} mono />
-                  )}
-                </>
+              {!privacy.hideEntryExitPrice && trade.entryPrice !== undefined && (
+                <InfoRow icon={faArrowTrendUp} label="Giá vào" value={trade.entryPrice.toString()} mono />
               )}
               {trade.stopLoss && <InfoRow icon={faShieldHalved} label="Stop Loss" value={trade.stopLoss} />}
               {trade.takeProfit && <InfoRow icon={faBullseye} label="Take Profit" value={trade.takeProfit} />}
-              {privacy.hideLotSize ? (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Lot / Qty</span>
-                  {hiddenLabel}
-                </div>
-              ) : (
-                trade.lotSize !== undefined && (
-                  <InfoRow icon={faLayerGroup} label="Lot / Qty" value={trade.lotSize.toString()} mono />
-                )
+              {!privacy.hideLotSize && trade.lotSize !== undefined && (
+                <InfoRow icon={faLayerGroup} label="Lot / Qty" value={trade.lotSize.toString()} mono />
               )}
-              {privacy.hidePnl ? (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">P&L</span>
-                  {hiddenLabel}
-                </div>
-              ) : (
-                trade.pnl !== undefined && (
-                  <InfoRow
-                    icon={faDollarSign}
-                    label="P&L"
-                    value={`${trade.pnl >= 0 ? "+" : ""}$${trade.pnl.toFixed(2)}`}
-                    mono
-                    valueColor={trade.pnl >= 0 ? "text-green-500" : "text-red-500"}
-                  />
-                )
+              {!privacy.hidePnl && trade.pnl !== undefined && (
+                <InfoRow
+                  icon={faDollarSign}
+                  label="P&L"
+                  value={`${trade.pnl >= 0 ? "+" : ""}$${trade.pnl.toFixed(2)}`}
+                  mono
+                  valueColor={trade.pnl >= 0 ? "text-green-500" : "text-red-500"}
+                />
               )}
             </CardContent>
           </Card>

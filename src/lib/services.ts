@@ -558,6 +558,38 @@ export async function getSharedTrade(token: string): Promise<SharedTrade | null>
   return snapshot.data() as SharedTrade;
 }
 
+export async function updateSharedTrade(
+  token: string,
+  trade: Trade,
+  ownerUid: string,
+  privacy: SharedTradePrivacy
+): Promise<void> {
+  // Save current version to history before updating
+  const existing = await getSharedTrade(token);
+  if (!existing) throw new Error("Bài chia sẻ không tồn tại");
+  if (existing.ownerUid !== ownerUid) throw new Error("Không có quyền cập nhật");
+
+  const batch = writeBatch(db);
+
+  // Archive old version
+  const historyRef = doc(collection(db, "shared_trades", token, "history"));
+  batch.set(historyRef, stripUndefined({
+    trade: existing.trade,
+    privacy: existing.privacy,
+    archivedAt: Date.now(),
+  }));
+
+  // Update shared trade with new data
+  const { id, ...tradeData } = trade;
+  batch.update(doc(db, "shared_trades", token), stripUndefined({
+    trade: stripUndefined(tradeData),
+    privacy,
+    updatedAt: Date.now(),
+  }));
+
+  await batch.commit();
+}
+
 export interface CommunityStats {
   likes: number;
   commentCount: number;

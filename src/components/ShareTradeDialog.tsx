@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Trade, SharedTradePrivacy } from "@/lib/types";
-import { shareTrade, updateTrade, getSharedTrade } from "@/lib/services";
+import { shareTrade, updateTrade, getSharedTrade, updateSharedTrade } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/ToastProvider";
 import {
@@ -21,6 +21,7 @@ import {
   faCheck,
   faEyeSlash,
   faLink,
+  faArrowsRotate,
 } from "@fortawesome/free-solid-svg-icons";
 
 interface ShareTradeDialogProps {
@@ -38,6 +39,7 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
     hideEntryExitPrice: false,
   });
   const [sharing, setSharing] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [loadingExisting, setLoadingExisting] = useState(false);
@@ -66,6 +68,10 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
 
   const handleShare = async () => {
     if (!trade || !user) return;
+    if ((trade.status || "CLOSED") === "OPEN") {
+      toast("Chỉ có thể chia sẻ lệnh đã đóng", "error");
+      return;
+    }
     setSharing(true);
     try {
       const token = await shareTrade(
@@ -93,6 +99,18 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
       toast((err as Error).message || "Không thể chia sẻ lệnh. Thử lại sau.", "error");
     }
     setSharing(false);
+  };
+
+  const handleUpdate = async () => {
+    if (!trade || !user || !trade.shareToken) return;
+    setUpdating(true);
+    try {
+      await updateSharedTrade(trade.shareToken, trade, user.uid, privacy);
+      toast("Đã cập nhật bài chia sẻ", "success");
+    } catch (err) {
+      toast((err as Error).message || "Không thể cập nhật", "error");
+    }
+    setUpdating(false);
   };
 
   const handleCopy = async () => {
@@ -203,10 +221,19 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
                   )}
                 </Button>
               ) : (
-                <Button className="flex-1" onClick={handleCopy}>
-                  <FontAwesomeIcon icon={copied ? faCheck : faCopy} className="mr-2 h-4 w-4" />
-                  {copied ? "Đã copy!" : "Copy link"}
-                </Button>
+                <>
+                  <Button variant="outline" onClick={handleUpdate} disabled={updating} className="flex-1">
+                    {updating ? (
+                      <><FontAwesomeIcon icon={faSpinner} className="mr-2 h-4 w-4 animate-spin" />Đang cập nhật...</>
+                    ) : (
+                      <><FontAwesomeIcon icon={faArrowsRotate} className="mr-2 h-4 w-4" />Cập nhật</>
+                    )}
+                  </Button>
+                  <Button className="flex-1" onClick={handleCopy}>
+                    <FontAwesomeIcon icon={copied ? faCheck : faCopy} className="mr-2 h-4 w-4" />
+                    {copied ? "Đã copy!" : "Copy link"}
+                  </Button>
+                </>
               )}
             </div>
           </div>

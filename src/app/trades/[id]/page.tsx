@@ -133,56 +133,67 @@ export default function TradeDetailPage() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-              <FontAwesomeIcon icon={faArrowLeft} className="h-4 w-4" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <button onClick={toggleStar} className="cursor-pointer">
-                <FontAwesomeIcon icon={trade.starred ? faStar : faStarOutline} className={`h-5 w-5 ${trade.starred ? "text-yellow-500" : "text-muted-foreground/40 hover:text-yellow-400"}`} />
-              </button>
-              <h1 className="text-2xl font-bold">{trade.pair}</h1>
-              <Badge
-                className={trade.type === "BUY" ? "bg-emerald-600 text-white" : "bg-orange-600 text-white"}
-              >
-                {trade.type}
-              </Badge>
-              {isOpen ? (
-                <Badge className="bg-blue-500/15 text-blue-500 border-blue-500/30">
-                  <FontAwesomeIcon icon={faPlay} className="mr-1 h-3 w-3" />
-                  Đang chạy
-                </Badge>
-              ) : (
-                <Badge className="bg-green-500/15 text-green-500 border-green-500/30">
-                  <FontAwesomeIcon icon={faFlagCheckered} className="mr-1 h-3 w-3" />
-                  Đã đóng
-                </Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {format(parseISO(trade.date), "EEEE, dd MMMM yyyy", { locale: vi })}
-            </p>
-          </div>
-        </div>
+      {/* Action buttons */}
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+          <FontAwesomeIcon icon={faArrowLeft} className="h-4 w-4" />
+        </Button>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setShareOpen(true)}>
-            <FontAwesomeIcon icon={faShareNodes} className="mr-2 h-4 w-4" />
+          <Button variant="outline" size="sm" onClick={() => setShareOpen(true)} disabled={isOpen} title={isOpen ? "Chỉ có thể chia sẻ lệnh đã đóng" : "Chia sẻ"}>
+            <FontAwesomeIcon icon={faShareNodes} className="mr-2 h-3.5 w-3.5" />
             Chia sẻ
           </Button>
           {isOpen && (
-            <Button variant="outline" className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-700" onClick={() => { setEditMode("close"); setEditOpen(true); }}>
-              <FontAwesomeIcon icon={faFlagCheckered} className="mr-2 h-4 w-4" />
+            <Button variant="outline" size="sm" className="text-amber-600 border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-700" onClick={() => { setEditMode("close"); setEditOpen(true); }}>
+              <FontAwesomeIcon icon={faFlagCheckered} className="mr-2 h-3.5 w-3.5" />
               Đóng lệnh
             </Button>
           )}
-          <Button variant="outline" onClick={() => { setEditMode("edit"); setEditOpen(true); }}>
-            <FontAwesomeIcon icon={faPenToSquare} className="mr-2 h-4 w-4" />
+          <Button variant="outline" size="sm" onClick={() => { setEditMode("edit"); setEditOpen(true); }}>
+            <FontAwesomeIcon icon={faPenToSquare} className="mr-2 h-3.5 w-3.5" />
             Sửa lệnh
           </Button>
         </div>
+      </div>
+
+      {/* Header */}
+      <div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button onClick={toggleStar} className="cursor-pointer hover:scale-125 transition-transform">
+            <FontAwesomeIcon icon={trade.starred ? faStar : faStarOutline} className={`h-5 w-5 ${trade.starred ? "text-yellow-500" : "text-muted-foreground/40 hover:text-yellow-400"}`} />
+          </button>
+          <h1 className="text-2xl font-bold">{trade.pair}</h1>
+          <Badge className={trade.type === "BUY" ? "bg-emerald-600 text-white" : "bg-orange-600 text-white"}>
+            {trade.type}
+          </Badge>
+          {isOpen ? (
+            <Badge className="bg-blue-500/15 text-blue-500 border-blue-500/30">
+              <FontAwesomeIcon icon={faPlay} className="mr-1 h-3 w-3" />
+              Đang chạy
+            </Badge>
+          ) : (
+            <Badge className="bg-green-500/15 text-green-500 border-green-500/30">
+              <FontAwesomeIcon icon={faFlagCheckered} className="mr-1 h-3 w-3" />
+              Đã đóng
+            </Badge>
+          )}
+          {trade.shareToken && communityLikes !== null && (
+            <div className="flex items-center gap-2 ml-auto text-sm text-muted-foreground">
+              <FontAwesomeIcon icon={faShareNodes} className="h-3.5 w-3.5" />
+              <span className="flex items-center gap-1">
+                <FontAwesomeIcon icon={faHeart} className="h-3 w-3 text-pink-500" />
+                {communityLikes}
+              </span>
+              <span className="flex items-center gap-1">
+                <FontAwesomeIcon icon={faComment} className="h-3 w-3 text-blue-400" />
+                {communityComments}
+              </span>
+            </div>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">
+          {format(parseISO(trade.date), "EEEE, dd MMMM yyyy", { locale: vi })}
+        </p>
       </div>
 
       {/* Result Banner - only for CLOSED trades */}
@@ -212,24 +223,6 @@ export default function TradeDetailPage() {
             <FontAwesomeIcon icon={faPlay} className="h-5 w-5 text-blue-500 animate-pulse" />
             <span className="text-lg font-semibold text-blue-500">Đang chạy</span>
             {trade.emotion && <Badge variant="secondary">{trade.emotion}</Badge>}
-          </div>
-        </div>
-      )}
-
-      {/* Community stats */}
-      {trade.shareToken && communityLikes !== null && (
-        <div className="flex items-center gap-4 rounded-lg border p-3 bg-muted/30">
-          <FontAwesomeIcon icon={faShareNodes} className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Đã chia sẻ lên Cộng đồng</span>
-          <div className="flex items-center gap-3 ml-auto">
-            <span className="flex items-center gap-1.5 text-sm">
-              <FontAwesomeIcon icon={faHeart} className="h-3.5 w-3.5 text-pink-500" />
-              <span className="font-medium">{communityLikes}</span>
-            </span>
-            <span className="flex items-center gap-1.5 text-sm">
-              <FontAwesomeIcon icon={faComment} className="h-3.5 w-3.5 text-blue-400" />
-              <span className="font-medium">{communityComments}</span>
-            </span>
           </div>
         </div>
       )}

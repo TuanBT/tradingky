@@ -35,7 +35,6 @@ import {
   faComment,
   faPlay,
   faFlagCheckered,
-  faEyeSlash,
   faSpinner,
   faPaperPlane,
   faTrash,
@@ -543,13 +542,6 @@ function CommunityCard({
     setReportSubmitting(false);
   };
 
-  const hiddenBadge = (
-    <span className="text-xs text-muted-foreground italic">
-      <FontAwesomeIcon icon={faEyeSlash} className="h-2.5 w-2.5 mr-0.5" />
-      Ẩn
-    </span>
-  );
-
   return (
     <>
       <Card className="overflow-hidden hover:border-primary/30 transition-colors">
@@ -573,12 +565,10 @@ function CommunityCard({
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {privacy.hidePnl ? hiddenBadge : (
-                trade.pnl !== undefined && (
-                  <span className={`font-mono font-bold text-sm ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
-                    {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
-                  </span>
-                )
+              {!privacy.hidePnl && trade.pnl !== undefined && (
+                <span className={`font-mono font-bold text-sm ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
+                  {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
+                </span>
               )}
             </div>
           </div>

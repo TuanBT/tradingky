@@ -34,7 +34,6 @@ import {
   faComment,
   faPlay,
   faFlagCheckered,
-  faEyeSlash,
   faSpinner,
   faPaperPlane,
   faTrash,
@@ -469,16 +468,10 @@ function ProfilePostCard({
             )}
           </div>
           <div className="text-right">
-            {privacy.hidePnl ? (
-              <span className="text-xs text-muted-foreground italic">
-                <FontAwesomeIcon icon={faEyeSlash} className="h-2.5 w-2.5 mr-0.5" />Ẩn
+            {!privacy.hidePnl && trade.pnl !== undefined && (
+              <span className={`font-mono font-bold ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
+                {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
               </span>
-            ) : (
-              trade.pnl !== undefined && (
-                <span className={`font-mono font-bold ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
-                  {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
-                </span>
-              )
             )}
           </div>
         </div>
