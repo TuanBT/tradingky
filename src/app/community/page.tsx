@@ -38,7 +38,7 @@ import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
 import { DocumentSnapshot } from "firebase/firestore";
 
-type ResultFilter = "ALL" | "WIN" | "LOSS";
+type ResultFilter = "ALL" | "WIN" | "LOSS" | "BREAKEVEN" | "CANCELLED";
 
 export default function CommunityPage() {
   const { user } = useAuth();
@@ -100,7 +100,7 @@ export default function CommunityPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Cộng đồng</h1>
         <div className="flex items-center gap-1 rounded-lg border border-border overflow-hidden">
-          {(["ALL", "WIN", "LOSS"] as ResultFilter[]).map((f) => (
+          {(["ALL", "WIN", "LOSS", "BREAKEVEN", "CANCELLED"] as ResultFilter[]).map((f) => (
             <button
               key={f}
               onClick={() => setResultFilter(f)}
@@ -110,7 +110,7 @@ export default function CommunityPage() {
                   : "bg-card text-muted-foreground hover:bg-accent"
               }`}
             >
-              {f === "ALL" ? "Tất cả" : f === "WIN" ? "Thắng" : "Thua"}
+              {f === "ALL" ? "Tất cả" : f === "WIN" ? "Thắng" : f === "LOSS" ? "Thua" : f === "BREAKEVEN" ? "Hoà" : "Hủy"}
             </button>
           ))}
         </div>
@@ -171,7 +171,7 @@ function CommunityCard({
   const { data } = post;
   const { trade, privacy } = data;
   const isOpen = (trade.status || "CLOSED") === "OPEN";
-  const resultColor = trade.result === "WIN" ? "text-green-500" : trade.result === "LOSS" ? "text-red-500" : "text-yellow-500";
+  const resultColor = trade.result === "WIN" ? "text-green-500" : trade.result === "LOSS" ? "text-red-500" : trade.result === "CANCELLED" ? "text-gray-500" : "text-yellow-500";
 
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(data.likes || 0);
@@ -300,7 +300,7 @@ function CommunityCard({
             </Badge>
             {!isOpen && (
               <span className={`font-semibold ${resultColor}`}>
-                {trade.result === "WIN" ? "Thắng" : trade.result === "LOSS" ? "Thua" : "Hoà"}
+                {trade.result === "WIN" ? "Thắng" : trade.result === "LOSS" ? "Thua" : trade.result === "CANCELLED" ? "Hủy" : "Hoà"}
               </span>
             )}
           </div>

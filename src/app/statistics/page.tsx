@@ -123,7 +123,8 @@ export default function StatisticsPage() {
     const wins = filteredTrades.filter((t) => t.result === "WIN");
     const losses = filteredTrades.filter((t) => t.result === "LOSS");
     const totalPnl = filteredTrades.reduce((s, t) => s + (t.pnl || 0), 0);
-    const winRate = filteredTrades.length > 0 ? (wins.length / filteredTrades.length) * 100 : 0;
+    const activeTrades = filteredTrades.filter((t) => t.result !== "CANCELLED");
+    const winRate = activeTrades.length > 0 ? (wins.length / activeTrades.length) * 100 : 0;
     const avgWin = wins.length > 0 ? wins.reduce((s, t) => s + (t.pnl || 0), 0) / wins.length : 0;
     const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((s, t) => s + (t.pnl || 0), 0) / losses.length) : 0;
     const profitFactor = avgLoss > 0 ? (avgWin * wins.length) / (avgLoss * losses.length) : wins.length > 0 ? Infinity : 0;
@@ -150,6 +151,7 @@ export default function StatisticsPage() {
       wins: wins.length,
       losses: losses.length,
       breakeven: filteredTrades.filter((t) => t.result === "BREAKEVEN").length,
+      cancelled: filteredTrades.filter((t) => t.result === "CANCELLED").length,
       totalPnl,
       winRate,
       avgWin,
@@ -168,6 +170,7 @@ export default function StatisticsPage() {
       { name: "Thắng", value: stats.wins, fill: "#22c55e" },
       { name: "Thua", value: stats.losses, fill: "#ef4444" },
       { name: "Hoà", value: stats.breakeven, fill: "#eab308" },
+      { name: "Hủy", value: stats.cancelled, fill: "#6b7280" },
     ],
     [stats]
   );

@@ -5,7 +5,7 @@ export interface Trade {
   platform?: string;
   type: "BUY" | "SELL";
   emotion: string;
-  result: "WIN" | "LOSS" | "BREAKEVEN";
+  result: "WIN" | "LOSS" | "BREAKEVEN" | "CANCELLED";
   status: "OPEN" | "CLOSED"; // Lệnh đang chạy hay đã đóng
   pnl?: number;
   stopLoss?: string;

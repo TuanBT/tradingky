@@ -76,9 +76,9 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
   const { trade, ownerDisplayName, ownerPhotoURL, privacy } = shared;
   const tradeStatus = trade.status || "CLOSED";
   const isOpen = tradeStatus === "OPEN";
-  const resultLabel = trade.result === "WIN" ? "Thắng" : trade.result === "LOSS" ? "Thua" : "Hoà";
-  const resultColor = trade.result === "WIN" ? "text-green-500" : trade.result === "LOSS" ? "text-red-500" : "text-yellow-500";
-  const resultBg = trade.result === "WIN" ? "bg-green-500/10 border-green-500/20" : trade.result === "LOSS" ? "bg-red-500/10 border-red-500/20" : "bg-yellow-500/10 border-yellow-500/20";
+  const resultLabel = trade.result === "WIN" ? "Thắng" : trade.result === "LOSS" ? "Thua" : trade.result === "CANCELLED" ? "Hủy" : "Hoà";
+  const resultColor = trade.result === "WIN" ? "text-green-500" : trade.result === "LOSS" ? "text-red-500" : trade.result === "CANCELLED" ? "text-gray-500" : "text-yellow-500";
+  const resultBg = trade.result === "WIN" ? "bg-green-500/10 border-green-500/20" : trade.result === "LOSS" ? "bg-red-500/10 border-red-500/20" : trade.result === "CANCELLED" ? "bg-gray-500/10 border-gray-500/20" : "bg-yellow-500/10 border-yellow-500/20";
 
   const hiddenLabel = (
     <span className="text-xs text-muted-foreground italic flex items-center gap-1">

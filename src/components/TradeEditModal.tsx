@@ -43,7 +43,7 @@ interface TradeForm {
   platform: string;
   type: "BUY" | "SELL";
   emotion: string;
-  result: "WIN" | "LOSS" | "BREAKEVEN";
+  result: "WIN" | "LOSS" | "BREAKEVEN" | "CANCELLED";
   status: "OPEN" | "CLOSED";
   pnl: number | undefined;
   stopLoss: string;
@@ -429,12 +429,12 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
+                    <div className="sm:col-span-2">
                       <Label className="text-sm font-medium">Kết quả *</Label>
                       <div className="mt-1 flex gap-2">
-                        {(["WIN", "LOSS", "BREAKEVEN"] as const).map((r) => (
-                          <Button key={r} type="button" variant={form.result === r ? "default" : "outline"} className={`flex-1 min-h-[44px] sm:min-h-0 ${form.result === r ? r === "WIN" ? "bg-green-600 hover:bg-green-700 text-white" : r === "LOSS" ? "bg-red-600 hover:bg-red-700 text-white" : "bg-yellow-600 hover:bg-yellow-700 text-white" : ""}`} onClick={() => updateForm({ result: r })}>
-                            {r === "WIN" ? "Thắng" : r === "LOSS" ? "Thua" : "Hoà"}
+                        {(["WIN", "LOSS", "BREAKEVEN", "CANCELLED"] as const).map((r) => (
+                          <Button key={r} type="button" variant={form.result === r ? "default" : "outline"} className={`flex-1 min-h-[44px] sm:min-h-0 ${form.result === r ? r === "WIN" ? "bg-green-600 hover:bg-green-700 text-white" : r === "LOSS" ? "bg-red-600 hover:bg-red-700 text-white" : r === "CANCELLED" ? "bg-gray-600 hover:bg-gray-700 text-white" : "bg-yellow-600 hover:bg-yellow-700 text-white" : ""}`} onClick={() => updateForm({ result: r })}>
+                            {r === "WIN" ? "Thắng" : r === "LOSS" ? "Thua" : r === "CANCELLED" ? "Hủy" : "Hoà"}
                           </Button>
                         ))}
                       </div>
@@ -517,12 +517,12 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
+                    <div className="sm:col-span-2">
                       <Label className="text-sm font-medium">Kết quả *</Label>
                       <div className="mt-1 flex gap-2">
-                        {(["WIN", "LOSS", "BREAKEVEN"] as const).map((r) => (
-                          <Button key={r} type="button" variant={form.result === r ? "default" : "outline"} className={`flex-1 min-h-[44px] sm:min-h-0 ${form.result === r ? r === "WIN" ? "bg-green-600 hover:bg-green-700 text-white" : r === "LOSS" ? "bg-red-600 hover:bg-red-700 text-white" : "bg-yellow-600 hover:bg-yellow-700 text-white" : ""}`} onClick={() => updateForm({ result: r })}>
-                            {r === "WIN" ? "Thắng" : r === "LOSS" ? "Thua" : "Hoà"}
+                        {(["WIN", "LOSS", "BREAKEVEN", "CANCELLED"] as const).map((r) => (
+                          <Button key={r} type="button" variant={form.result === r ? "default" : "outline"} className={`flex-1 min-h-[44px] sm:min-h-0 ${form.result === r ? r === "WIN" ? "bg-green-600 hover:bg-green-700 text-white" : r === "LOSS" ? "bg-red-600 hover:bg-red-700 text-white" : r === "CANCELLED" ? "bg-gray-600 hover:bg-gray-700 text-white" : "bg-yellow-600 hover:bg-yellow-700 text-white" : ""}`} onClick={() => updateForm({ result: r })}>
+                            {r === "WIN" ? "Thắng" : r === "LOSS" ? "Thua" : r === "CANCELLED" ? "Hủy" : "Hoà"}
                           </Button>
                         ))}
                       </div>

@@ -289,6 +289,8 @@ export default function CalendarPage() {
                               ? "text-green-500"
                               : trade.result === "LOSS"
                               ? "text-red-500"
+                              : trade.result === "CANCELLED"
+                              ? "text-gray-500"
                               : "text-yellow-500"
                           }`}
                         >
@@ -296,6 +298,8 @@ export default function CalendarPage() {
                             ? "Thắng"
                             : trade.result === "LOSS"
                             ? "Thua"
+                            : trade.result === "CANCELLED"
+                            ? "Hủy"
                             : "Hoà"}
                         </span>
                       )}

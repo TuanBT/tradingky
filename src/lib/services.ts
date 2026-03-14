@@ -337,8 +337,9 @@ export async function getRegisteredUsers(): Promise<UserInfo[]> {
         const trades = tradesSnapshot.docs.map((d) => d.data() as Omit<Trade, "id">);
         const tradeCount = trades.length;
         const totalPnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-        const wins = trades.filter((t) => t.result === "WIN").length;
-        const winRate = tradeCount > 0 ? (wins / tradeCount) * 100 : 0;
+        const activeTrades = trades.filter((t) => t.result !== "CANCELLED");
+        const wins = activeTrades.filter((t) => t.result === "WIN").length;
+        const winRate = activeTrades.length > 0 ? (wins / activeTrades.length) * 100 : 0;
         const lastTradeDate = trades.length > 0 ? trades[0].date : null;
         return { uid, displayName, email, photoURL, role, banned, tradeCount, totalPnl, winRate, lastTradeDate } as UserInfo;
       } catch {
