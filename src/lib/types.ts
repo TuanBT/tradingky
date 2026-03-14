@@ -87,6 +87,7 @@ export interface SharedTrade {
   public?: boolean;
   likes?: number;
   commentCount?: number;
+  ownerRole?: UserRole;
 }
 
 export interface TradeComment {

@@ -73,6 +73,12 @@ service cloud.firestore {
           isAdminOrMod()
         );
       }
+
+      // Reports subcollection
+      match /reports/{userId} {
+        allow read: if isAuthenticated() && isAdminOrMod();
+        allow create, update: if isAuthenticated() && request.auth.uid == userId && isNotBanned();
+      }
     }
 
     // Deny everything else

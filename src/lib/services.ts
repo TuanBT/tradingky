@@ -17,6 +17,7 @@ import {
   increment,
   DocumentSnapshot,
   runTransaction,
+  QueryConstraint,
 } from "firebase/firestore";
 import { Trade, DailyJournal, DropdownLibrary, DEFAULT_LIBRARY, SharedTrade, SharedTradePrivacy, TradeComment, UserRole, UserProfile } from "./types";
 import { uploadToDrive, deleteFromDrive, isGDriveUrl, extractFileId } from "./gdrive";
@@ -510,6 +511,7 @@ export async function shareTrade(
 ): Promise<string> {
   const token = generateShareToken();
   const { id, ...tradeData } = trade;
+  const ownerRole = await getUserRole(ownerUid);
   const sharedTrade: SharedTrade = {
     trade: stripUndefined(tradeData),
     ownerUid,
@@ -520,6 +522,7 @@ export async function shareTrade(
     public: isPublic,
     likes: 0,
     commentCount: 0,
+    ownerRole,
   };
   await setDoc(doc(db, "shared_trades", token), stripUndefined(sharedTrade));
   return token;
@@ -538,6 +541,8 @@ export interface CommunityPost {
   data: SharedTrade;
 }
 
+export type CommunitySortMode = "newest" | "topLikes" | "topComments";
+
 export interface CommunityFeedResult {
   posts: CommunityPost[];
   lastDoc: DocumentSnapshot | null;
@@ -546,23 +551,19 @@ export interface CommunityFeedResult {
 
 export async function getCommunityFeed(
   pageSize: number = 20,
-  lastDocument?: DocumentSnapshot | null
+  lastDocument?: DocumentSnapshot | null,
+  sortMode: CommunitySortMode = "newest"
 ): Promise<CommunityFeedResult> {
-  let q = query(
-    collection(db, "shared_trades"),
+  const orderField = sortMode === "topLikes" ? "likes" : sortMode === "topComments" ? "commentCount" : "createdAt";
+
+  const constraints: QueryConstraint[] = [
     where("public", "==", true),
-    orderBy("createdAt", "desc"),
-    limit(pageSize + 1)
-  );
-  if (lastDocument) {
-    q = query(
-      collection(db, "shared_trades"),
-      where("public", "==", true),
-      orderBy("createdAt", "desc"),
-      startAfter(lastDocument),
-      limit(pageSize + 1)
-    );
-  }
+    orderBy(orderField, "desc"),
+    ...(lastDocument ? [startAfter(lastDocument)] : []),
+    limit(pageSize + 1),
+  ];
+
+  const q = query(collection(db, "shared_trades"), ...constraints);
   const snapshot = await getDocs(q);
   const hasMore = snapshot.docs.length > pageSize;
   const docs = hasMore ? snapshot.docs.slice(0, pageSize) : snapshot.docs;
@@ -641,4 +642,10 @@ export async function addComment(
 export async function deleteComment(token: string, commentId: string): Promise<void> {
   await deleteDoc(doc(db, "shared_trades", token, "comments", commentId));
   await updateDoc(doc(db, "shared_trades", token), { commentCount: increment(-1) });
+}
+
+export async function reportPost(token: string, userId: string, reason: string): Promise<void> {
+  if (!reason.trim() || reason.length > 500) throw new Error("Lý do không hợp lệ");
+  const reportRef = doc(db, "shared_trades", token, "reports", userId);
+  await setDoc(reportRef, stripUndefined({ userId, reason: reason.trim(), createdAt: Date.now() }));
 }
