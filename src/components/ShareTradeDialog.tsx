@@ -20,7 +20,6 @@ import {
   faCopy,
   faCheck,
   faEyeSlash,
-  faUsers,
 } from "@fortawesome/free-solid-svg-icons";
 
 interface ShareTradeDialogProps {
@@ -40,7 +39,6 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
   const [sharing, setSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>("");
   const [copied, setCopied] = useState(false);
-  const [publishToCommunity, setPublishToCommunity] = useState(false);
 
   const handleShare = async () => {
     if (!trade || !user) return;
@@ -52,7 +50,7 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
         user.displayName || "Ẩn danh",
         user.photoURL || undefined,
         privacy,
-        publishToCommunity
+        true // always public
       );
       const url = `${window.location.origin}/shared/${token}`;
       setShareUrl(url);
@@ -76,7 +74,6 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
   const handleClose = () => {
     setShareUrl("");
     setCopied(false);
-    setPublishToCommunity(false);
     setPrivacy({ hidePnl: false, hideLotSize: false, hideEntryExitPrice: false });
     onClose();
   };
@@ -135,21 +132,6 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
               </div>
             </div>
 
-            {/* Publish to community */}
-            <div className="rounded-lg border p-3 bg-muted/30">
-              <PrivacyToggle
-                label="Đăng lên trang Cộng đồng"
-                checked={publishToCommunity}
-                onChange={() => setPublishToCommunity(!publishToCommunity)}
-              />
-              {publishToCommunity && (
-                <p className="text-xs text-muted-foreground mt-1 ml-12">
-                  <FontAwesomeIcon icon={faUsers} className="mr-1 h-3 w-3" />
-                  Lệnh sẽ hiện trên trang Cộng đồng cho mọi người xem
-                </p>
-              )}
-            </div>
-
             <Button onClick={handleShare} disabled={sharing} className="w-full">
               {sharing ? (
                 <><FontAwesomeIcon icon={faSpinner} className="mr-2 h-4 w-4 animate-spin" />Đang tạo link...</>
@@ -160,7 +142,7 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
           </div>
         ) : (
           <div className="space-y-4 pt-2">
-            <p className="text-sm text-muted-foreground">Link đã được tạo. Ai có link đều xem được.</p>
+            <p className="text-sm text-muted-foreground">Link đã được tạo và lệnh đã đăng lên Cộng đồng. Ai có link đều xem được.</p>
             <div className="flex gap-2">
               <input
                 readOnly
