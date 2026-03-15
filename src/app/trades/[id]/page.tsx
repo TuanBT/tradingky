@@ -25,6 +25,7 @@ import { TradeEditModal } from "@/components/TradeEditModal";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { ShareTradeDialog } from "@/components/ShareTradeDialog";
 import { TradeDetailView } from "@/components/TradeDetailView";
+import Link from "next/link";
 
 export default function TradeDetailPage() {
   const { user } = useAuth();
@@ -157,7 +158,12 @@ export default function TradeDetailPage() {
             </Badge>
           )}
           {trade.shareToken && communityLikes !== null && (
-            <div className="flex items-center gap-2 ml-auto text-sm text-muted-foreground">
+            <Link
+              href={`/shared/${trade.shareToken}`}
+              target="_blank"
+              className="flex items-center gap-2 ml-auto text-sm text-muted-foreground hover:text-foreground transition-colors"
+              title="Xem bài viết cộng đồng"
+            >
               <FontAwesomeIcon icon={faShareNodes} className="h-3.5 w-3.5" />
               <span className="flex items-center gap-1">
                 <FontAwesomeIcon icon={faHeart} className="h-3 w-3 text-pink-500" />
@@ -167,7 +173,7 @@ export default function TradeDetailPage() {
                 <FontAwesomeIcon icon={faComment} className="h-3 w-3 text-blue-400" />
                 {communityComments}
               </span>
-            </div>
+            </Link>
           )}
         </div>
         <p className="text-sm text-muted-foreground mt-1">

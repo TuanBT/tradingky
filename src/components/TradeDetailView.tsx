@@ -194,6 +194,7 @@ export function TradeDetailView({ trade, privacy, onImageClick }: TradeDetailVie
               <img
                 src={getImageSrc(trade.chartImageUrl)}
                 alt="Chart"
+                loading="lazy"
                 className="rounded-lg border w-full object-contain max-h-[500px] bg-muted cursor-pointer hover:opacity-90 transition-opacity"
               />
             </button>

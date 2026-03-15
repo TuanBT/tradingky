@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { UserRole } from "@/lib/types";
 import {
   getCommunityFeed,
   getCommunityFeedFollowing,
+  getUserPublicTrades,
   getFollowingList,
-  getUserRole,
   getSuggestedUsers,
   followUser,
+  batchCheckLikes,
   CommunityPost,
   CommunitySortMode,
   SuggestedUser,
@@ -32,6 +32,8 @@ import {
   faUserGroup,
   faGlobe,
   faUserPlus,
+  faArrowDownWideShort,
+  faUser,
 } from "@fortawesome/free-solid-svg-icons";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -47,7 +49,7 @@ const SORT_OPTIONS: { mode: CommunitySortMode; label: string; icon: typeof faClo
 ];
 
 export default function CommunityPage() {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const { toast } = useToast();
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,12 +59,14 @@ export default function CommunityPage() {
   const [resultFilter, setResultFilter] = useState<ResultFilter>("ALL");
   const [pairFilter, setPairFilter] = useState<string>("ALL");
   const [platformFilter, setPlatformFilter] = useState<string>("ALL");
+  const [timeframeFilter, setTimeframeFilter] = useState<string>("ALL");
   const [sortMode, setSortMode] = useState<CommunitySortMode>("newest");
   const [lightboxSrc, setLightboxSrc] = useState("");
-  const [feedTab, setFeedTab] = useState<"all" | "following">("all");
+  const [feedTab, setFeedTab] = useState<"all" | "following" | "mine">("all");
   const [hasFollowing, setHasFollowing] = useState(false);
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
   const [followingUids, setFollowingUids] = useState<Set<string>>(new Set());
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
@@ -84,10 +88,15 @@ export default function CommunityPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasMore, loadingMore, loading, posts.length]);
 
-  const loadFeed = useCallback(async (sort: CommunitySortMode, tab: "all" | "following") => {
+  const loadFeed = useCallback(async (sort: CommunitySortMode, tab: "all" | "following" | "mine") => {
     setLoading(true);
     try {
-      if (tab === "following" && user) {
+      if (tab === "mine" && user) {
+        const result = await getUserPublicTrades(user.uid);
+        setPosts(result);
+        setLastDoc(null);
+        setHasMore(false);
+      } else if (tab === "following" && user) {
         const result = await getCommunityFeedFollowing(user.uid, 20);
         setPosts(result.posts);
         setLastDoc(null);
@@ -120,6 +129,12 @@ export default function CommunityPage() {
     loadFeed(sortMode, feedTab);
   }, [sortMode, feedTab, loadFeed]);
 
+  // Batch check likes when posts change
+  useEffect(() => {
+    if (!user || posts.length === 0) return;
+    batchCheckLikes(user.uid, posts.map((p) => p.id)).then(setLikedPosts);
+  }, [user, posts]);
+
   const loadMore = async () => {
     if (!hasMore || loadingMore) return;
     setLoadingMore(true);
@@ -150,19 +165,37 @@ export default function CommunityPage() {
     return Array.from(platforms).sort();
   }, [posts]);
 
-  const filteredPosts = posts.filter((p) => {
-    if (resultFilter !== "ALL" && p.data.trade.result !== resultFilter) return false;
-    if (pairFilter !== "ALL" && p.data.trade.pair !== pairFilter) return false;
-    if (platformFilter !== "ALL" && p.data.trade.platform !== platformFilter) return false;
-    return true;
-  });
+  const availableTimeframes = useMemo(() => {
+    const timeframes = new Set(posts.map((p) => p.data.trade.timeframe).filter(Boolean) as string[]);
+    return Array.from(timeframes).sort();
+  }, [posts]);
 
-  const hasActiveFilter = resultFilter !== "ALL" || pairFilter !== "ALL" || platformFilter !== "ALL";
+  const filteredPosts = useMemo(() => {
+    let result = posts.filter((p) => {
+      if (resultFilter !== "ALL" && p.data.trade.result !== resultFilter) return false;
+      if (pairFilter !== "ALL" && p.data.trade.pair !== pairFilter) return false;
+      if (platformFilter !== "ALL" && p.data.trade.platform !== platformFilter) return false;
+      if (timeframeFilter !== "ALL" && p.data.trade.timeframe !== timeframeFilter) return false;
+      return true;
+    });
+    // Client-side sort for "following" and "mine" tabs (server-side for "all")
+    if (feedTab !== "all") {
+      result = [...result].sort((a, b) => {
+        if (sortMode === "topLikes") return (b.data.likes || 0) - (a.data.likes || 0);
+        if (sortMode === "topComments") return (b.data.commentCount || 0) - (a.data.commentCount || 0);
+        return b.data.createdAt - a.data.createdAt;
+      });
+    }
+    return result;
+  }, [posts, resultFilter, pairFilter, platformFilter, timeframeFilter, feedTab, sortMode]);
+
+  const hasActiveFilter = resultFilter !== "ALL" || pairFilter !== "ALL" || platformFilter !== "ALL" || timeframeFilter !== "ALL";
 
   const clearFilters = () => {
     setResultFilter("ALL");
     setPairFilter("ALL");
     setPlatformFilter("ALL");
+    setTimeframeFilter("ALL");
   };
 
   const handleFollowSuggested = async (targetUid: string) => {
@@ -194,116 +227,157 @@ export default function CommunityPage() {
         <span className="text-xs text-muted-foreground">{posts.length} bài viết</span>
       </div>
 
-      {/* Feed tabs: All / Following */}
-      {(hasFollowing || feedTab === "following") && (
-        <div className="flex items-center gap-2 border-b border-border pb-2">
-          <button
-            onClick={() => setFeedTab("all")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors rounded-t-md ${
-              feedTab === "all"
-                ? "border-b-2 border-primary text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <FontAwesomeIcon icon={faGlobe} className="h-3 w-3" />
-            Tất cả
-          </button>
-          <button
-            onClick={() => setFeedTab("following")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors rounded-t-md ${
-              feedTab === "following"
-                ? "border-b-2 border-primary text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <FontAwesomeIcon icon={faUserGroup} className="h-3 w-3" />
-            Đang theo dõi
-          </button>
-        </div>
-      )}
-
-      {/* Sort buttons (only for "all" tab) */}
-      {feedTab === "all" && (
-      <div className="flex items-center gap-2 flex-wrap">
-        {SORT_OPTIONS.map((opt) => (
-          <button
-            key={opt.mode}
-            onClick={() => setSortMode(opt.mode)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              sortMode === opt.mode
-                ? "bg-primary text-primary-foreground"
-                : "bg-card border border-border text-muted-foreground hover:bg-accent"
-            }`}
-          >
-            <FontAwesomeIcon icon={opt.icon} className="h-3 w-3" />
-            {opt.label}
-          </button>
-        ))}
-      </div>
-      )}
-
-      {/* Filters row */}
-      {feedTab === "all" && (
-      <div className="flex items-center gap-2 flex-wrap">
-        {/* Result filter dropdown */}
-        <select
-          value={resultFilter}
-          onChange={(e) => setResultFilter(e.target.value as ResultFilter)}
-          className="px-2.5 py-1 text-xs font-medium rounded-md bg-card border border-border text-foreground cursor-pointer"
+      {/* Feed tabs: All / Following / Mine */}
+      <div className="flex items-center gap-2 border-b border-border pb-2">
+        <button
+          onClick={() => setFeedTab("all")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors rounded-t-md ${
+            feedTab === "all"
+              ? "border-b-2 border-primary text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
         >
-          <option value="ALL">Tất cả kết quả</option>
-          <option value="WIN">Thắng</option>
-          <option value="LOSS">Thua</option>
-          <option value="BREAKEVEN">Hoà</option>
-          <option value="CANCELLED">Hủy</option>
-        </select>
-
-        {/* Pair filter */}
-        {availablePairs.length > 0 && (
-          <select
-            value={pairFilter}
-            onChange={(e) => setPairFilter(e.target.value)}
-            className="px-2.5 py-1 text-xs font-medium rounded-md bg-card border border-border text-foreground cursor-pointer"
-          >
-            <option value="ALL">Tất cả cặp</option>
-            {availablePairs.map((pair) => (
-              <option key={pair} value={pair}>{pair}</option>
-            ))}
-          </select>
+          <FontAwesomeIcon icon={faGlobe} className="h-3 w-3" />
+          Tất cả
+        </button>
+        {hasFollowing && (
+        <button
+          onClick={() => setFeedTab("following")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors rounded-t-md ${
+            feedTab === "following"
+              ? "border-b-2 border-primary text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <FontAwesomeIcon icon={faUserGroup} className="h-3 w-3" />
+          Đang theo dõi
+        </button>
         )}
-
-        {/* Platform filter */}
-        {availablePlatforms.length > 0 && (
-          <select
-            value={platformFilter}
-            onChange={(e) => setPlatformFilter(e.target.value)}
-            className="px-2.5 py-1 text-xs font-medium rounded-md bg-card border border-border text-foreground cursor-pointer"
-          >
-            <option value="ALL">Tất cả sàn</option>
-            {availablePlatforms.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        )}
-
-        {/* Clear filter button */}
-        {hasActiveFilter && (
-          <button
-            onClick={clearFilters}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md text-destructive hover:bg-destructive/10 transition-colors"
-          >
-            <FontAwesomeIcon icon={faXmark} className="h-3 w-3" />
-            Xoá lọc
-          </button>
-        )}
+        <button
+          onClick={() => setFeedTab("mine")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors rounded-t-md ${
+            feedTab === "mine"
+              ? "border-b-2 border-primary text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <FontAwesomeIcon icon={faUser} className="h-3 w-3" />
+          Lệnh của tôi
+        </button>
       </div>
-      )}
+
+      {/* Sort & Filter */}
+      <div className="space-y-2">
+        {/* Sort row */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <FontAwesomeIcon icon={faArrowDownWideShort} className="h-3 w-3" />
+            Sắp xếp:
+          </span>
+          {SORT_OPTIONS.map((opt) => (
+            <button
+              key={opt.mode}
+              onClick={() => setSortMode(opt.mode)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                sortMode === opt.mode
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card border border-border text-muted-foreground hover:bg-accent"
+              }`}
+            >
+              <FontAwesomeIcon icon={opt.icon} className="h-3 w-3" />
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Filter row */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <FontAwesomeIcon icon={faFilter} className="h-3 w-3" />
+            Lọc:
+          </span>
+          {/* Result filter */}
+          <select
+            value={resultFilter}
+            onChange={(e) => setResultFilter(e.target.value as ResultFilter)}
+            className="px-2.5 py-1 text-xs font-medium rounded-md bg-card border border-border text-foreground cursor-pointer"
+          >
+            <option value="ALL">Tất cả kết quả</option>
+            <option value="WIN">Thắng</option>
+            <option value="LOSS">Thua</option>
+            <option value="BREAKEVEN">Hoà</option>
+            <option value="CANCELLED">Hủy</option>
+          </select>
+
+          {/* Pair filter */}
+          {availablePairs.length > 0 && (
+            <select
+              value={pairFilter}
+              onChange={(e) => setPairFilter(e.target.value)}
+              className="px-2.5 py-1 text-xs font-medium rounded-md bg-card border border-border text-foreground cursor-pointer"
+            >
+              <option value="ALL">Tất cả cặp</option>
+              {availablePairs.map((pair) => (
+                <option key={pair} value={pair}>{pair}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Platform filter */}
+          {availablePlatforms.length > 0 && (
+            <select
+              value={platformFilter}
+              onChange={(e) => setPlatformFilter(e.target.value)}
+              className="px-2.5 py-1 text-xs font-medium rounded-md bg-card border border-border text-foreground cursor-pointer"
+            >
+              <option value="ALL">Tất cả sàn</option>
+              {availablePlatforms.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Timeframe filter */}
+          {availableTimeframes.length > 0 && (
+            <select
+              value={timeframeFilter}
+              onChange={(e) => setTimeframeFilter(e.target.value)}
+              className="px-2.5 py-1 text-xs font-medium rounded-md bg-card border border-border text-foreground cursor-pointer"
+            >
+              <option value="ALL">Tất cả TF</option>
+              {availableTimeframes.map((tf) => (
+                <option key={tf} value={tf}>{tf}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Clear filter button */}
+          {hasActiveFilter && (
+            <button
+              onClick={clearFilters}
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <FontAwesomeIcon icon={faXmark} className="h-3 w-3" />
+              Xoá lọc
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Empty state for following tab */}
       {feedTab === "following" && posts.length === 0 && !loading && (
         <div className="flex flex-col items-center justify-center h-[40vh] gap-4">
           <FontAwesomeIcon icon={faUserGroup} className="h-8 w-8 text-muted-foreground/30" />
           <p className="text-muted-foreground">Chưa có bài viết từ người bạn theo dõi.</p>
+        </div>
+      )}
+
+      {/* Empty state for mine tab */}
+      {feedTab === "mine" && posts.length === 0 && !loading && (
+        <div className="flex flex-col items-center justify-center h-[40vh] gap-4">
+          <FontAwesomeIcon icon={faUser} className="h-8 w-8 text-muted-foreground/30" />
+          <p className="text-muted-foreground">Bạn chưa chia sẻ lệnh nào lên cộng đồng.</p>
+          <p className="text-xs text-muted-foreground">Vào trang Lệnh → chọn lệnh → ấn nút Chia sẻ để đăng.</p>
         </div>
       )}
 
@@ -351,21 +425,26 @@ export default function CommunityPage() {
       )}
 
       {/* Posts */}
-      {feedTab === "all" && filteredPosts.length === 0 ? (
+      {filteredPosts.length === 0 && posts.length > 0 && !loading ? (
         <div className="flex flex-col items-center justify-center h-[40vh] gap-4">
           <FontAwesomeIcon icon={faFilter} className="h-8 w-8 text-muted-foreground/30" />
-          <p className="text-muted-foreground">
-            {posts.length === 0 ? "Chưa có bài viết nào trong cộng đồng." : "Không có bài viết phù hợp filter."}
-          </p>
+          <p className="text-muted-foreground">Không có bài viết phù hợp filter.</p>
         </div>
-      ) : (feedTab === "following" && posts.length === 0) ? null : (
+      ) : feedTab === "all" && posts.length === 0 && !loading ? (
+        <div className="flex flex-col items-center justify-center h-[40vh] gap-4">
+          <FontAwesomeIcon icon={faFilter} className="h-8 w-8 text-muted-foreground/30" />
+          <p className="text-muted-foreground">Chưa có bài viết nào trong cộng đồng.</p>
+        </div>
+      ) : (feedTab === "following" && posts.length === 0) || (feedTab === "mine" && posts.length === 0) ? null : (
         <div className="space-y-3">
-          {(feedTab === "all" ? filteredPosts : posts).map((post) => (
+          {filteredPosts.map((post) => (
             <TradePostCard
               key={post.id}
               post={post}
               currentUserId={user?.uid}
               onImageClick={setLightboxSrc}
+              initialLiked={likedPosts.has(post.id)}
+              userRole={userRole}
             />
           ))}
           {hasMore && (

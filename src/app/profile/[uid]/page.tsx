@@ -11,6 +11,7 @@ import {
   getFollowCounts,
   getFollowingList,
   getFollowersList,
+  batchCheckLikes,
   FollowedUser,
   CommunityPost,
 } from "@/lib/services";
@@ -45,7 +46,7 @@ const PROFILE_SORT_OPTIONS: { mode: ProfileSortMode; label: string; icon: typeof
 
 export default function ProfilePage({ params }: { params: Promise<{ uid: string }> }) {
   const { uid } = use(params);
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<CommunityPost[]>([]);
@@ -57,6 +58,7 @@ export default function ProfilePage({ params }: { params: Promise<{ uid: string 
   const [showFollowList, setShowFollowList] = useState<"following" | "followers" | null>(null);
   const [followListUsers, setFollowListUsers] = useState<(FollowedUser & { profile?: UserProfile })[]>([]);
   const [followListLoading, setFollowListLoading] = useState(false);
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
 
   const isOwnProfile = user?.uid === uid;
 
@@ -83,6 +85,12 @@ export default function ProfilePage({ params }: { params: Promise<{ uid: string 
     }
     load();
   }, [uid, user, toast]);
+
+  // Batch check likes when posts change
+  useEffect(() => {
+    if (!user || posts.length === 0) return;
+    batchCheckLikes(user.uid, posts.map((p) => p.id)).then(setLikedPosts);
+  }, [user, posts]);
 
   const handleToggleFollow = async () => {
     if (!user) {
@@ -244,7 +252,7 @@ export default function ProfilePage({ params }: { params: Promise<{ uid: string 
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">Lệnh đã chia sẻ ({posts.length})</h2>
         </div>
-        {posts.length > 0 && <ProfileSortBar posts={posts} currentUserId={user?.uid} onImageClick={setLightboxSrc} />}
+        {posts.length > 0 && <ProfileSortBar posts={posts} currentUserId={user?.uid} onImageClick={setLightboxSrc} likedPosts={likedPosts} userRole={userRole} />}
         {posts.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">Chưa có lệnh nào được chia sẻ.</p>
         )}
@@ -299,7 +307,7 @@ export default function ProfilePage({ params }: { params: Promise<{ uid: string 
   );
 }
 
-function ProfileSortBar({ posts, currentUserId, onImageClick }: { posts: CommunityPost[]; currentUserId?: string; onImageClick: (src: string) => void }) {
+function ProfileSortBar({ posts, currentUserId, onImageClick, likedPosts, userRole }: { posts: CommunityPost[]; currentUserId?: string; onImageClick: (src: string) => void; likedPosts: Set<string>; userRole: import("@/lib/types").UserRole }) {
   const [sortMode, setSortMode] = useState<ProfileSortMode>("newest");
 
   const sortedPosts = useMemo(() => {
@@ -334,7 +342,7 @@ function ProfileSortBar({ posts, currentUserId, onImageClick }: { posts: Communi
       </div>
       <div className="space-y-4">
         {sortedPosts.map((post) => (
-          <TradePostCard key={post.id} post={post} currentUserId={currentUserId} onImageClick={onImageClick} showAuthor={false} showReport={false} />
+          <TradePostCard key={post.id} post={post} currentUserId={currentUserId} onImageClick={onImageClick} showAuthor={false} showReport={false} initialLiked={likedPosts.has(post.id)} userRole={userRole} />
         ))}
       </div>
     </div>

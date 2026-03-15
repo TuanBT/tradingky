@@ -1,15 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { TradeComment, UserRole } from "@/lib/types";
 import {
   toggleLike,
-  hasUserLiked,
   getComments,
   addComment,
   deleteComment,
   reportPost,
-  getUserRole,
   CommunityPost,
 } from "@/lib/services";
 import { getImageSrc } from "@/lib/gdrive";
@@ -47,6 +45,10 @@ interface TradePostCardProps {
   showAuthor?: boolean;
   /** Enable report button. Default: true */
   showReport?: boolean;
+  /** Pre-computed: has user liked this post? Avoids per-card Firestore read */
+  initialLiked?: boolean;
+  /** Pre-computed: current user role. Avoids per-card Firestore read */
+  userRole?: UserRole;
 }
 
 export function TradePostCard({
@@ -55,44 +57,36 @@ export function TradePostCard({
   onImageClick,
   showAuthor = true,
   showReport = true,
+  initialLiked = false,
+  userRole: propUserRole,
 }: TradePostCardProps) {
-  const { user } = useAuth();
+  const { user, userRole: authUserRole } = useAuth();
   const { toast } = useToast();
   const { data } = post;
   const { trade, privacy } = data;
   const isOpen = (trade.status || "CLOSED") === "OPEN";
   const resultColor = trade.result === "WIN" ? "text-green-500" : trade.result === "LOSS" ? "text-red-500" : trade.result === "CANCELLED" ? "text-gray-500" : "text-yellow-500";
 
-  const [liked, setLiked] = useState(false);
+  const [liked, setLiked] = useState(initialLiked);
   const [likeCount, setLikeCount] = useState(data.likes || 0);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<TradeComment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [loadingComments, setLoadingComments] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>("user");
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
-  const likeChecked = useRef(false);
-  const roleChecked = useRef(false);
 
-  // Check if current user has liked
-  useEffect(() => {
-    if (!currentUserId || likeChecked.current) return;
-    likeChecked.current = true;
-    hasUserLiked(post.id, currentUserId).then(setLiked);
-  }, [currentUserId, post.id]);
-
-  // Get current user's role (for mod features)
-  useEffect(() => {
-    if (!currentUserId || roleChecked.current) return;
-    roleChecked.current = true;
-    getUserRole(currentUserId).then(setCurrentUserRole);
-  }, [currentUserId]);
-
+  // Use prop role if provided, otherwise fall back to auth context role
+  const currentUserRole = propUserRole ?? authUserRole;
   const isAdminOrMod = currentUserRole === "admin" || currentUserRole === "mod";
+
+  // Sync initialLiked prop when it changes (e.g. batch check completes)
+  useEffect(() => {
+    setLiked(initialLiked);
+  }, [initialLiked]);
 
   const handleLike = async () => {
     if (!currentUserId) {
@@ -250,6 +244,7 @@ export function TradePostCard({
                 <img
                   src={getImageSrc(trade.chartImageUrl)}
                   alt="Chart"
+                  loading="lazy"
                   className="rounded-lg border w-full object-contain max-h-[280px] bg-muted cursor-pointer hover:opacity-90 transition-opacity"
                 />
               </button>

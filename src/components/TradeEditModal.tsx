@@ -375,7 +375,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
             {form.chartImageUrl && (
               <div className="mt-2 relative inline-block">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={getImageSrc(form.chartImageUrl)} alt="Chart" className="rounded-lg border max-h-48 w-full object-contain bg-muted cursor-pointer" onClick={() => setLightboxSrc(getImageSrc(form.chartImageUrl))} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                <img src={getImageSrc(form.chartImageUrl)} alt="Chart" loading="lazy" className="rounded-lg border max-h-48 w-full object-contain bg-muted cursor-pointer" onClick={() => setLightboxSrc(getImageSrc(form.chartImageUrl))} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                 <button type="button" onClick={() => handleRemoveImage()} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-600 text-white flex items-center justify-center hover:bg-red-700 transition-colors" title="Xoá ảnh">
                   <FontAwesomeIcon icon={faXmark} className="h-3 w-3" />
                 </button>

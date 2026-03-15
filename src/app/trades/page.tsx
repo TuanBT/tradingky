@@ -49,6 +49,7 @@ import { ShareTradeDialog } from "@/components/ShareTradeDialog";
 import { useToast } from "@/components/ToastProvider";
 import { filterTrades } from "@/lib/filters";
 import { TradeDetailView, getResultDisplay } from "@/components/TradeDetailView";
+import Link from "next/link";
 
 type ViewMode = "list" | "detail";
 
@@ -379,7 +380,12 @@ export default function TradesPage() {
                           </TableCell>
                           <TableCell className="hidden md:table-cell text-center">
                             {trade.shareToken && communityStats[trade.shareToken] ? (
-                              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                              <Link
+                                href={`/shared/${trade.shareToken}`}
+                                target="_blank"
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                              >
                                 <span className="flex items-center gap-0.5">
                                   <FontAwesomeIcon icon={faHeart} className="h-3 w-3 text-pink-500" />
                                   {communityStats[trade.shareToken].likes}
@@ -388,7 +394,7 @@ export default function TradesPage() {
                                   <FontAwesomeIcon icon={faComment} className="h-3 w-3 text-blue-400" />
                                   {communityStats[trade.shareToken].commentCount}
                                 </span>
-                              </div>
+                              </Link>
                             ) : trade.shareToken ? (
                               <span className="text-xs text-muted-foreground">-</span>
                             ) : null}
@@ -517,7 +523,11 @@ export default function TradesPage() {
                       <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                         <span>{format(parseISO(t.date), "dd/MM/yyyy")}{t.platform ? ` · ${t.platform}` : ""} · {t.emotion}</span>
                         {t.shareToken && communityStats[t.shareToken] && (
-                          <span className="flex items-center gap-2">
+                          <span
+                            role="link"
+                            onClick={(e) => { e.stopPropagation(); window.open(`/shared/${t.shareToken}`, "_blank"); }}
+                            className="flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors"
+                          >
                             <span className="flex items-center gap-0.5">
                               <FontAwesomeIcon icon={faHeart} className="h-2.5 w-2.5 text-pink-500" />
                               {communityStats[t.shareToken].likes}
@@ -588,7 +598,11 @@ export default function TradesPage() {
                                 <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
                                   <span>{format(parseISO(t.date), "dd/MM")} · {t.emotion}</span>
                                   {t.shareToken && communityStats[t.shareToken] && (
-                                    <span className="flex items-center gap-1.5">
+                                    <span
+                                      role="link"
+                                      onClick={(e) => { e.stopPropagation(); window.open(`/shared/${t.shareToken}`, "_blank"); }}
+                                      className="flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors"
+                                    >
                                       <span className="flex items-center gap-0.5">
                                         <FontAwesomeIcon icon={faHeart} className="h-2 w-2 text-pink-500" />
                                         {communityStats[t.shareToken].likes}
@@ -865,7 +879,12 @@ function TradeDetail({ trade, onImageClick, onToggleStar, communityStats }: { tr
             </Badge>
           )}
           {communityStats && (
-            <div className="flex items-center gap-2 ml-auto text-sm text-muted-foreground">
+            <Link
+              href={`/shared/${trade.shareToken}`}
+              target="_blank"
+              className="flex items-center gap-2 ml-auto text-sm text-muted-foreground hover:text-foreground transition-colors"
+              title="Xem bài viết cộng đồng"
+            >
               <FontAwesomeIcon icon={faShareNodes} className="h-3.5 w-3.5" />
               <span className="flex items-center gap-1">
                 <FontAwesomeIcon icon={faHeart} className="h-3 w-3 text-pink-500" />
@@ -875,7 +894,7 @@ function TradeDetail({ trade, onImageClick, onToggleStar, communityStats }: { tr
                 <FontAwesomeIcon icon={faComment} className="h-3 w-3 text-blue-400" />
                 {communityStats.commentCount}
               </span>
-            </div>
+            </Link>
           )}
         </div>
         <p className="text-sm text-muted-foreground mt-1">

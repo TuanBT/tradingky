@@ -176,6 +176,8 @@ export async function getTradesByDateRange(uid: string, startDate: string, endDa
 export async function addTrade(uid: string, trade: Omit<Trade, "id">): Promise<string> {
   try {
     const docRef = await addDoc(userTradesCollection(uid), stripUndefined(trade));
+    // Update aggregate stats (fire-and-forget)
+    updateUserTradeStats(uid).catch(() => {});
     return docRef.id;
   } catch (error) {
     console.error("Lỗi thêm lệnh:", error);
@@ -187,6 +189,10 @@ export async function updateTrade(uid: string, id: string, trade: Partial<Trade>
   try {
     const docRef = doc(db, "users", uid, "trades", id);
     await updateDoc(docRef, stripUndefined(trade));
+    // Update aggregate stats if result/pnl/status changed (fire-and-forget)
+    if (trade.result !== undefined || trade.pnl !== undefined || trade.status !== undefined) {
+      updateUserTradeStats(uid).catch(() => {});
+    }
   } catch (error) {
     console.error("Lỗi cập nhật lệnh:", error);
     throw new Error("Không thể cập nhật lệnh. Vui lòng thử lại.");
@@ -204,9 +210,32 @@ export async function deleteTrade(uid: string, id: string, googleAccessToken: st
       await Promise.all(imageUrls.map((url: string) => deleteChartImage(googleAccessToken, url)));
     }
     await deleteDoc(docRef);
+    // Update aggregate stats (fire-and-forget)
+    updateUserTradeStats(uid).catch(() => {});
   } catch (error) {
     console.error("Lỗi xoá lệnh:", error);
     throw new Error("Không thể xoá lệnh. Vui lòng thử lại.");
+  }
+}
+
+// Recalculate and store aggregate trade stats on user document
+async function updateUserTradeStats(uid: string): Promise<void> {
+  try {
+    const tradesSnapshot = await getDocs(
+      query(collection(db, "users", uid, "trades"), orderBy("date", "desc"))
+    );
+    const trades = tradesSnapshot.docs.map((d) => d.data() as Omit<Trade, "id">);
+    const tradeCount = trades.length;
+    const totalPnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+    const activeTrades = trades.filter((t) => t.result !== "CANCELLED");
+    const wins = activeTrades.filter((t) => t.result === "WIN").length;
+    const winRate = activeTrades.length > 0 ? (wins / activeTrades.length) * 100 : 0;
+    const lastTradeDate = trades.length > 0 ? trades[0].date : null;
+    await updateDoc(doc(db, "users", uid), stripUndefined({
+      tradeStats: { tradeCount, totalPnl, winRate, lastTradeDate },
+    }));
+  } catch {
+    // Non-critical — don't block the app
   }
 }
 
@@ -339,33 +368,25 @@ export async function getRegisteredUsers(): Promise<UserInfo[]> {
   try {
     const usersSnapshot = await getDocs(collection(db, "users"));
 
-    // Parallel fetch instead of sequential N+1
-    const promises = usersSnapshot.docs.map(async (userDoc) => {
+    return usersSnapshot.docs.map((userDoc) => {
       const uid = userDoc.id;
       const userData = userDoc.data();
       const role: UserRole = ADMIN_UIDS.includes(uid) ? "admin" : (userData.role || "user");
       const banned = userData.banned || false;
-      const displayName = userData.displayName;
-      const email = userData.email;
-      const photoURL = userData.photoURL;
-      try {
-        const tradesSnapshot = await getDocs(
-          query(collection(db, "users", uid, "trades"), orderBy("date", "desc"))
-        );
-        const trades = tradesSnapshot.docs.map((d) => d.data() as Omit<Trade, "id">);
-        const tradeCount = trades.length;
-        const totalPnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-        const activeTrades = trades.filter((t) => t.result !== "CANCELLED");
-        const wins = activeTrades.filter((t) => t.result === "WIN").length;
-        const winRate = activeTrades.length > 0 ? (wins / activeTrades.length) * 100 : 0;
-        const lastTradeDate = trades.length > 0 ? trades[0].date : null;
-        return { uid, displayName, email, photoURL, role, banned, tradeCount, totalPnl, winRate, lastTradeDate } as UserInfo;
-      } catch {
-        return { uid, displayName, email, photoURL, role, banned, tradeCount: 0, totalPnl: 0, winRate: 0, lastTradeDate: null } as UserInfo;
-      }
+      const stats = userData.tradeStats || {};
+      return {
+        uid,
+        displayName: userData.displayName,
+        email: userData.email,
+        photoURL: userData.photoURL,
+        role,
+        banned,
+        tradeCount: stats.tradeCount || 0,
+        totalPnl: stats.totalPnl || 0,
+        winRate: stats.winRate || 0,
+        lastTradeDate: stats.lastTradeDate || null,
+      } as UserInfo;
     });
-
-    return Promise.all(promises);
   } catch (error) {
     console.error("Lỗi tải danh sách users:", error);
     throw new Error("Không thể tải danh sách users.");
@@ -716,6 +737,23 @@ export async function hasUserLiked(token: string, userId: string): Promise<boole
   return snap.exists();
 }
 
+// Batch check: which posts has the user liked? Returns set of liked token IDs.
+export async function batchCheckLikes(userId: string, tokens: string[]): Promise<Set<string>> {
+  if (tokens.length === 0) return new Set();
+  const liked = new Set<string>();
+  // Check 10 at a time to avoid throttling
+  for (let i = 0; i < tokens.length; i += 10) {
+    const chunk = tokens.slice(i, i + 10);
+    const results = await Promise.all(
+      chunk.map((token) => getDoc(doc(db, "shared_trades", token, "likes", userId)))
+    );
+    results.forEach((snap, idx) => {
+      if (snap.exists()) liked.add(chunk[idx]);
+    });
+  }
+  return liked;
+}
+
 export async function getComments(token: string): Promise<TradeComment[]> {
   const q = query(
     collection(db, "shared_trades", token, "comments"),
@@ -756,7 +794,12 @@ export async function reportPost(token: string, userId: string, reason: string):
   checkRateLimit("report", userId);
   if (!reason.trim() || reason.length > 500) throw new Error("Lý do không hợp lệ");
   const reportRef = doc(db, "shared_trades", token, "reports", userId);
+  // Check if already reported (avoid double-counting)
+  const existing = await getDoc(reportRef);
   await setDoc(reportRef, stripUndefined({ userId, reason: reason.trim(), createdAt: Date.now() }));
+  if (!existing.exists()) {
+    await updateDoc(doc(db, "shared_trades", token), { reportCount: increment(1) });
+  }
 }
 
 // ==================== FOLLOW SYSTEM ====================
@@ -767,6 +810,10 @@ export async function followUser(currentUid: string, targetUid: string): Promise
   batch.set(doc(db, "users", currentUid, "following", targetUid), { createdAt: now });
   batch.set(doc(db, "users", targetUid, "followers", currentUid), { createdAt: now });
   await batch.commit();
+  // Invalidate suggested users cache
+  if (typeof window !== "undefined") {
+    try { sessionStorage.removeItem(`suggested_users_${currentUid}`); } catch { /* ignore */ }
+  }
 }
 
 export async function unfollowUser(currentUid: string, targetUid: string): Promise<void> {
@@ -774,6 +821,10 @@ export async function unfollowUser(currentUid: string, targetUid: string): Promi
   batch.delete(doc(db, "users", currentUid, "following", targetUid));
   batch.delete(doc(db, "users", targetUid, "followers", currentUid));
   await batch.commit();
+  // Invalidate suggested users cache
+  if (typeof window !== "undefined") {
+    try { sessionStorage.removeItem(`suggested_users_${currentUid}`); } catch { /* ignore */ }
+  }
 }
 
 export async function isFollowing(currentUid: string, targetUid: string): Promise<boolean> {
@@ -820,13 +871,16 @@ export async function getCommunityFeedFollowing(
     chunks.push(followingUids.slice(i, i + 30));
   }
 
+  // Limit each chunk query to reduce total documents loaded
+  const perChunkLimit = pageSize * 2;
   let allPosts: CommunityPost[] = [];
   for (const chunk of chunks) {
     const q = query(
       collection(db, "shared_trades"),
       where("public", "==", true),
       where("ownerUid", "in", chunk),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
+      limit(perChunkLimit)
     );
     const snapshot = await getDocs(q);
     allPosts.push(...snapshot.docs.map((d) => ({ id: d.id, data: d.data() as SharedTrade })));
@@ -849,7 +903,7 @@ export async function getCommunityFeedFollowing(
 
   return {
     posts,
-    lastDoc: posts.length > 0 ? null : null, // client-side pagination for following feed
+    lastDoc: null, // client-side pagination for following feed
     hasMore,
   };
 }
@@ -865,10 +919,23 @@ export interface SuggestedUser {
   role?: UserRole;
 }
 
+const SUGGESTED_USERS_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
 export async function getSuggestedUsers(
   currentUid: string,
   maxResults: number = 5
 ): Promise<SuggestedUser[]> {
+  // Check sessionStorage cache first
+  if (typeof window !== "undefined") {
+    try {
+      const cached = sessionStorage.getItem(`suggested_users_${currentUid}`);
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < SUGGESTED_USERS_CACHE_TTL) return data;
+      }
+    } catch { /* ignore parse errors */ }
+  }
+
   // Get who the user already follows
   const followingSnap = await getDocs(collection(db, "users", currentUid, "following"));
   const followingSet = new Set(followingSnap.docs.map((d) => d.id));
@@ -903,17 +970,26 @@ export async function getSuggestedUsers(
   }
 
   // Sort by total likes desc, then by post count
-  return Array.from(userMap.values())
+  const result = Array.from(userMap.values())
     .sort((a, b) => b.totalLikes - a.totalLikes || b.postCount - a.postCount)
     .slice(0, maxResults);
+
+  // Cache result
+  if (typeof window !== "undefined") {
+    try {
+      sessionStorage.setItem(`suggested_users_${currentUid}`, JSON.stringify({ data: result, timestamp: Date.now() }));
+    } catch { /* ignore quota errors */ }
+  }
+
+  return result;
 }
 
 // ==================== ADMIN: REPORTS MANAGEMENT ====================
 
 export async function getAllReports(): Promise<TradeReport[]> {
-  // Get all shared_trades that have reports subcollection
+  // Only fetch trades that have reports (using reportCount field)
   const sharedTradesSnap = await getDocs(
-    query(collection(db, "shared_trades"), where("public", "==", true))
+    query(collection(db, "shared_trades"), where("reportCount", ">", 0))
   );
   const allReports: TradeReport[] = [];
   // Batch fetch reports - process 10 at a time
@@ -942,6 +1018,7 @@ export async function getAllReports(): Promise<TradeReport[]> {
 
 export async function deleteReport(token: string, userId: string): Promise<void> {
   await deleteDoc(doc(db, "shared_trades", token, "reports", userId));
+  await updateDoc(doc(db, "shared_trades", token), { reportCount: increment(-1) });
 }
 
 export async function deleteSharedTrade(token: string): Promise<void> {

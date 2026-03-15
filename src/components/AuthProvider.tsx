@@ -3,11 +3,13 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { User, onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, GoogleAuthProvider } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
-import { ensureUserDoc } from "@/lib/services";
+import { ensureUserDoc, getUserRole } from "@/lib/services";
+import type { UserRole } from "@/lib/types";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  userRole: UserRole;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   /** Get a valid Google OAuth access token (re-authenticates if expired) */
@@ -21,6 +23,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  userRole: "user",
   signInWithGoogle: async () => {},
   logout: async () => {},
   getGoogleAccessToken: async () => "",
@@ -31,6 +34,7 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<UserRole>("user");
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     return sessionStorage.getItem("gdrive_token");
@@ -66,8 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: user.email || undefined,
           photoURL: user.photoURL || undefined,
         });
+        getUserRole(user.uid).then(setUserRole).catch(() => setUserRole("user"));
       } else {
         clearToken();
+        setUserRole("user");
       }
     });
     // Check for redirect result (from signInWithRedirect fallback)
@@ -151,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, logout, getGoogleAccessToken, hasGoogleToken, connectGoogleDrive }}>
+    <AuthContext.Provider value={{ user, loading, userRole, signInWithGoogle, logout, getGoogleAccessToken, hasGoogleToken, connectGoogleDrive }}>
       {children}
     </AuthContext.Provider>
   );
