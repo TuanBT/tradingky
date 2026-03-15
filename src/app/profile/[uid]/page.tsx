@@ -252,7 +252,7 @@ export default function ProfilePage({ params }: { params: Promise<{ uid: string 
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">Lệnh đã chia sẻ ({posts.length})</h2>
         </div>
-        {posts.length > 0 && <ProfileSortBar posts={posts} currentUserId={user?.uid} onImageClick={setLightboxSrc} likedPosts={likedPosts} userRole={userRole} />}
+        {posts.length > 0 && <ProfileSortBar posts={posts} currentUserId={user?.uid} onImageClick={setLightboxSrc} likedPosts={likedPosts} userRole={userRole} onDeletePost={(postId) => setPosts((prev) => prev.filter((p) => p.id !== postId))} />}
         {posts.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">Chưa có lệnh nào được chia sẻ.</p>
         )}
@@ -307,7 +307,7 @@ export default function ProfilePage({ params }: { params: Promise<{ uid: string 
   );
 }
 
-function ProfileSortBar({ posts, currentUserId, onImageClick, likedPosts, userRole }: { posts: CommunityPost[]; currentUserId?: string; onImageClick: (src: string) => void; likedPosts: Set<string>; userRole: import("@/lib/types").UserRole }) {
+function ProfileSortBar({ posts, currentUserId, onImageClick, likedPosts, userRole, onDeletePost }: { posts: CommunityPost[]; currentUserId?: string; onImageClick: (src: string) => void; likedPosts: Set<string>; userRole: import("@/lib/types").UserRole; onDeletePost?: (postId: string) => void }) {
   const [sortMode, setSortMode] = useState<ProfileSortMode>("newest");
 
   const sortedPosts = useMemo(() => {
@@ -342,7 +342,7 @@ function ProfileSortBar({ posts, currentUserId, onImageClick, likedPosts, userRo
       </div>
       <div className="space-y-4">
         {sortedPosts.map((post) => (
-          <TradePostCard key={post.id} post={post} currentUserId={currentUserId} onImageClick={onImageClick} showAuthor={false} showReport={false} initialLiked={likedPosts.has(post.id)} userRole={userRole} />
+          <TradePostCard key={post.id} post={post} currentUserId={currentUserId} onImageClick={onImageClick} showAuthor={false} showReport={false} initialLiked={likedPosts.has(post.id)} userRole={userRole} onDeletePost={onDeletePost} />
         ))}
       </div>
     </div>

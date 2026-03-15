@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Trade, DropdownLibrary, DEFAULT_LIBRARY } from "@/lib/types";
+import { Trade, DropdownLibrary, DEFAULT_LIBRARY, getTradeImages } from "@/lib/types";
 import { getTrades, deleteTrade, updateTrade, getLibrary, getUserSharedTradesMap, CommunityStats } from "@/lib/services";
 import { getImageSrc } from "@/lib/gdrive";
 import { useAuth } from "@/components/AuthProvider";
@@ -67,7 +67,8 @@ export default function TradesPage() {
   const [tradeModalMode, setTradeModalMode] = useState<"add" | "edit" | "close">("edit");
   const [deleteTradeId, setDeleteTradeId] = useState<string | null>(null);
   const [shareTradeData, setShareTradeData] = useState<Trade | null>(null);
-  const [lightboxSrc, setLightboxSrc] = useState<string>("");
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [communityStats, setCommunityStats] = useState<Record<string, CommunityStats>>({});
   const { toast } = useToast();
 
@@ -77,12 +78,17 @@ export default function TradesPage() {
     return v === "detail" ? "detail" : "list";
   });
 
+  // Track which trade ID to highlight when returning to grid
+  const gridScrollTradeId = useRef<string | null>(null);
+  const gridRowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+
   // List view pagination
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
   // Detail view state
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [initialSyncDone, setInitialSyncDone] = useState(!searchParams.get("id"));
   const [showMobileList, setShowMobileList] = useState(false);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [listPage, setListPage] = useState(1);
@@ -189,16 +195,73 @@ export default function TradesPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [viewMode, goNext, goPrev]);
 
-  // Update URL when view mode changes
-  const switchView = (mode: ViewMode) => {
-    setViewMode(mode);
-    const params = new URLSearchParams(searchParams.toString());
-    if (mode === "detail") {
-      params.set("view", "detail");
-    } else {
-      params.delete("view");
+  // Sync currentIndex from URL id param on initial load
+  useEffect(() => {
+    if (initialSyncDone || filteredTrades.length === 0) return;
+    const idParam = searchParams.get("id");
+    if (idParam) {
+      const idx = filteredTrades.findIndex((t) => t.id === idParam);
+      if (idx !== -1) setCurrentIndex(idx);
     }
-    router.replace(`/trades?${params.toString()}`, { scroll: false });
+    setInitialSyncDone(true);
+  }, [initialSyncDone, filteredTrades, searchParams]);
+
+  // Update URL id param when navigating trades in detail view
+  useEffect(() => {
+    if (!initialSyncDone) return;
+    if (viewMode !== "detail" || !currentTrade) return;
+    const params = new URLSearchParams();
+    params.set("view", "detail");
+    params.set("id", currentTrade.id);
+    const target = `/trades?${params.toString()}`;
+    const current = `/trades?${searchParams.toString()}`;
+    if (target !== current) {
+      router.replace(target, { scroll: false });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSyncDone, viewMode, currentIndex, currentTrade?.id]);
+
+  // Scroll to trade row after switching back to grid
+  useEffect(() => {
+    if (viewMode === "list" && gridScrollTradeId.current) {
+      const tradeId = gridScrollTradeId.current;
+      gridScrollTradeId.current = null;
+      // Find which page the trade is on
+      const idx = filteredTrades.findIndex((t) => t.id === tradeId);
+      if (idx !== -1) {
+        const targetPage = Math.floor(idx / pageSize) + 1;
+        setPage(targetPage);
+        // Scroll after render
+        requestAnimationFrame(() => {
+          const row = gridRowRefs.current.get(tradeId);
+          if (row) {
+            row.scrollIntoView({ block: "center", behavior: "smooth" });
+            row.classList.add("bg-accent");
+            setTimeout(() => row.classList.remove("bg-accent"), 1500);
+          }
+        });
+      }
+    }
+  }, [viewMode, filteredTrades, pageSize]);
+
+  // Update URL when view mode changes
+  const switchView = (mode: ViewMode, tradeId?: string) => {
+    setViewMode(mode);
+    if (mode === "detail") {
+      const resolvedId = tradeId || currentTrade?.id;
+      if (resolvedId) {
+        const idx = filteredTrades.findIndex((t) => t.id === resolvedId);
+        if (idx !== -1) setCurrentIndex(idx);
+      }
+      const params = new URLSearchParams();
+      params.set("view", "detail");
+      if (resolvedId) params.set("id", resolvedId);
+      router.replace(`/trades?${params.toString()}`, { scroll: false });
+    } else {
+      // Switching to grid — remember current trade to scroll to
+      if (currentTrade) gridScrollTradeId.current = currentTrade.id;
+      router.replace("/trades", { scroll: false });
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -332,7 +395,7 @@ export default function TradesPage() {
                       const tradeStatus = trade.status || "CLOSED";
                       const isOpen = tradeStatus === "OPEN";
                       return (
-                        <TableRow key={trade.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/trades/${trade.id}`)}>
+                        <TableRow key={trade.id} ref={(el) => { if (el) gridRowRefs.current.set(trade.id, el); else gridRowRefs.current.delete(trade.id); }} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => switchView("detail", trade.id)}>
                           <TableCell className="font-medium">
                             {format(parseISO(trade.date), "dd/MM/yyyy")}
                           </TableCell>
@@ -366,17 +429,25 @@ export default function TradesPage() {
                               </span>
                             ) : "-"}
                           </TableCell>
-                          <TableCell className="hidden sm:table-cell" onClick={(e) => e.stopPropagation()}>
-                            {trade.chartImageUrl && (
-                              <button type="button" onClick={() => setLightboxSrc(getImageSrc(trade.chartImageUrl!))} className="block">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={getImageSrc(trade.chartImageUrl)}
-                                  alt="Chart"
-                                  className="h-12 w-20 lg:h-14 lg:w-24 object-cover rounded border bg-muted hover:opacity-80 transition-opacity cursor-pointer"
-                                />
-                              </button>
-                            )}
+                          <TableCell className="hidden sm:table-cell">
+                            {(() => {
+                              const images = getTradeImages(trade);
+                              if (images.length === 0) return null;
+                              const imageSrcs = images.map(getImageSrc);
+                              return (
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setLightboxImages(imageSrcs); setLightboxIndex(0); }} className="block relative">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={imageSrcs[0]}
+                                    alt="Chart"
+                                    className="h-12 w-20 lg:h-14 lg:w-24 object-cover rounded border bg-muted hover:opacity-80 transition-opacity cursor-pointer"
+                                  />
+                                  {images.length > 1 && (
+                                    <span className="absolute bottom-0.5 right-0.5 bg-black/70 text-white text-[10px] px-1 rounded">+{images.length - 1}</span>
+                                  )}
+                                </button>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell className="hidden md:table-cell text-center">
                             {trade.shareToken && communityStats[trade.shareToken] ? (
@@ -384,7 +455,7 @@ export default function TradesPage() {
                                 href={`/shared/${trade.shareToken}`}
                                 target="_blank"
                                 onClick={(e) => e.stopPropagation()}
-                                className="flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                className="inline-flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md px-2 py-1 transition-colors"
                               >
                                 <span className="flex items-center gap-0.5">
                                   <FontAwesomeIcon icon={faHeart} className="h-3 w-3 text-pink-500" />
@@ -396,17 +467,26 @@ export default function TradesPage() {
                                 </span>
                               </Link>
                             ) : trade.shareToken ? (
-                              <span className="text-xs text-muted-foreground">-</span>
+                              <span className="flex items-center justify-center gap-2 text-xs text-muted-foreground/50" title="Bài đăng đã bị xoá">
+                                <span className="flex items-center gap-0.5">
+                                  <FontAwesomeIcon icon={faHeart} className="h-3 w-3" />
+                                  -
+                                </span>
+                                <span className="flex items-center gap-0.5">
+                                  <FontAwesomeIcon icon={faComment} className="h-3 w-3" />
+                                  -
+                                </span>
+                              </span>
                             ) : null}
                           </TableCell>
-                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <TableCell className="text-right">
                             <div className="flex justify-end gap-1">
                               {isOpen && (
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   className="min-h-[44px] sm:min-h-0 text-amber-600 border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-700"
-                                  onClick={() => openEdit(trade.id, "close")}
+                                  onClick={(e) => { e.stopPropagation(); openEdit(trade.id, "close"); }}
                                 >
                                   <FontAwesomeIcon icon={faFlagCheckered} className="mr-1.5 h-3.5 w-3.5" />
                                   <span className="hidden sm:inline">Đóng lệnh</span>
@@ -417,7 +497,7 @@ export default function TradesPage() {
                                 size="sm"
                                 className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                                 title="Sửa"
-                                onClick={() => openEdit(trade.id, "edit")}
+                                onClick={(e) => { e.stopPropagation(); openEdit(trade.id, "edit"); }}
                               >
                                 <FontAwesomeIcon icon={faPenToSquare} className="h-4 w-4" />
                               </Button>
@@ -425,7 +505,7 @@ export default function TradesPage() {
                                 variant="ghost"
                                 size="sm"
                                 className="text-destructive hover:text-destructive min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
-                                onClick={() => setDeleteTradeId(trade.id)}
+                                onClick={(e) => { e.stopPropagation(); setDeleteTradeId(trade.id); }}
                                 title="Xoá"
                               >
                                 <FontAwesomeIcon icon={faTrash} className="h-4 w-4" />
@@ -495,7 +575,7 @@ export default function TradesPage() {
                   Đóng
                 </Button>
               </div>
-              <div className="space-y-2">
+              <div className="divide-y divide-border/50">
                 {filteredTrades.map((t, i) => {
                   const s = t.status || "CLOSED";
                   return (
@@ -503,7 +583,7 @@ export default function TradesPage() {
                       key={t.id}
                       type="button"
                       onClick={() => { setCurrentIndex(i); setShowMobileList(false); }}
-                      className={`w-full text-left p-3 rounded-lg border transition-colors ${i === currentIndex ? "bg-accent border-primary" : "hover:bg-accent/50"}`}
+                      className={`w-full text-left p-3 transition-colors ${i === currentIndex ? "bg-accent" : "hover:bg-accent/50"}`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">                          <FontAwesomeIcon icon={t.starred ? faStar : faStarOutline} className={`h-3 w-3 ${t.starred ? "text-yellow-500" : "text-muted-foreground/30"}`} onClick={(e) => { e.stopPropagation(); toggleStar(t.id); }} />                          <span className={`text-xs ${s === "OPEN" ? "text-blue-500" : "text-green-500"}`}>
@@ -526,7 +606,7 @@ export default function TradesPage() {
                           <span
                             role="link"
                             onClick={(e) => { e.stopPropagation(); window.open(`/shared/${t.shareToken}`, "_blank"); }}
-                            className="flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors"
+                            className="flex items-center gap-2 cursor-pointer hover:text-foreground hover:bg-muted rounded px-1 py-0.5 transition-colors"
                           >
                             <span className="flex items-center gap-0.5">
                               <FontAwesomeIcon icon={faHeart} className="h-2.5 w-2.5 text-pink-500" />
@@ -567,7 +647,7 @@ export default function TradesPage() {
                   </button>
                   {!listCollapsed && (
                     <>
-                      <div className="space-y-1 max-h-[70vh] overflow-auto">
+                      <div className="divide-y divide-border/50 max-h-[70vh] overflow-auto">
                         {filteredTrades
                           .slice((listPage - 1) * listPageSize, listPage * listPageSize)
                           .map((t) => {
@@ -601,7 +681,7 @@ export default function TradesPage() {
                                     <span
                                       role="link"
                                       onClick={(e) => { e.stopPropagation(); window.open(`/shared/${t.shareToken}`, "_blank"); }}
-                                      className="flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors"
+                                      className="flex items-center gap-1.5 cursor-pointer hover:text-foreground hover:bg-muted rounded px-1 py-0.5 transition-colors"
                                     >
                                       <span className="flex items-center gap-0.5">
                                         <FontAwesomeIcon icon={faHeart} className="h-2 w-2 text-pink-500" />
@@ -729,7 +809,7 @@ export default function TradesPage() {
                 {/* Trade detail */}
                 {currentTrade ? (
                   <div className="pb-28 sm:pb-0">
-                    <TradeDetail trade={currentTrade} onImageClick={(src) => setLightboxSrc(src)} onToggleStar={toggleStar} communityStats={currentTrade.shareToken ? communityStats[currentTrade.shareToken] : undefined} />
+                    <TradeDetail trade={currentTrade} onImageClick={(images, index) => { setLightboxImages(images); setLightboxIndex(index); }} onToggleStar={toggleStar} communityStats={currentTrade.shareToken ? communityStats[currentTrade.shareToken] : undefined} />
 
                     {/* Desktop bottom navigation */}
                     <div className="hidden sm:flex items-center justify-between mt-8 pt-4 border-t border-border">
@@ -841,10 +921,11 @@ export default function TradesPage() {
       />
 
       <ImageLightbox
-        src={lightboxSrc}
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
         alt="Chart"
-        open={!!lightboxSrc}
-        onClose={() => setLightboxSrc("")}
+        open={lightboxImages.length > 0}
+        onClose={() => setLightboxImages([])}
       />
     </div>
   );
@@ -852,11 +933,11 @@ export default function TradesPage() {
 
 /* ===== DETAIL VIEW COMPONENTS ===== */
 
-function TradeDetail({ trade, onImageClick, onToggleStar, communityStats }: { trade: Trade; onImageClick: (src: string) => void; onToggleStar: (id: string) => void; communityStats?: CommunityStats }) {
+function TradeDetail({ trade, onImageClick, onToggleStar, communityStats }: { trade: Trade; onImageClick: (images: string[], index: number) => void; onToggleStar: (id: string) => void; communityStats?: CommunityStats }) {
   const isOpen = (trade.status || "CLOSED") === "OPEN";
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <div className="flex items-center gap-3 flex-wrap">

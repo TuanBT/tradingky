@@ -1,4 +1,4 @@
-import { Trade, SharedTradePrivacy } from "@/lib/types";
+import { Trade, SharedTradePrivacy, getTradeImages } from "@/lib/types";
 import { getImageSrc } from "@/lib/gdrive";
 import { InfoRow } from "@/components/InfoRow";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,13 +35,13 @@ interface TradeDetailViewProps {
   trade: Omit<Trade, "id"> & { id?: string };
   /** Privacy settings for shared view — omit for owner view */
   privacy?: SharedTradePrivacy;
-  /** Callback when chart image is clicked */
-  onImageClick?: (src: string) => void;
+  /** Callback when chart image is clicked — receives all images and clicked index */
+  onImageClick?: (images: string[], index: number) => void;
 }
 
 /**
  * Shared trade detail body: result banner, info cards, note, exit review, chart.
- * Used by trades/page.tsx, trades/[id]/page.tsx, and shared/[token]/page.tsx.
+ * Used by trades/page.tsx and shared/[token]/page.tsx.
  * Does NOT include the header (pair + badges) or action buttons — those differ per page.
  */
 export function TradeDetailView({ trade, privacy, onImageClick }: TradeDetailViewProps) {
@@ -179,28 +179,42 @@ export function TradeDetailView({ trade, privacy, onImageClick }: TradeDetailVie
         </Card>
       )}
 
-      {/* Chart Image */}
-      {trade.chartImageUrl && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              <FontAwesomeIcon icon={faImage} className="mr-2 h-4 w-4" />
-              Ảnh chart
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <button type="button" onClick={() => onImageClick?.(getImageSrc(trade.chartImageUrl!))}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={getImageSrc(trade.chartImageUrl)}
-                alt="Chart"
-                loading="lazy"
-                className="rounded-lg border w-full object-contain max-h-[500px] bg-muted cursor-pointer hover:opacity-90 transition-opacity"
-              />
-            </button>
-          </CardContent>
-        </Card>
-      )}
+      {/* Chart Images */}
+      {(() => {
+        const images = getTradeImages(trade);
+        if (images.length === 0) return null;
+        const imageSrcs = images.map(getImageSrc);
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                <FontAwesomeIcon icon={faImage} className="mr-2 h-4 w-4" />
+                Ảnh chart {images.length > 1 && <span className="text-muted-foreground font-normal">({images.length})</span>}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`grid gap-2 ${images.length === 1 ? "grid-cols-1" : images.length === 3 ? "grid-cols-1" : "grid-cols-2"}`}>
+                {imageSrcs.map((src, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => onImageClick?.(imageSrcs, i)}
+                    className={images.length === 3 && i === 0 ? "col-span-1" : ""}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={src}
+                      alt={`Chart ${i + 1}`}
+                      loading="lazy"
+                      className={`rounded-lg border w-full object-contain bg-muted cursor-pointer hover:opacity-90 transition-opacity ${images.length === 1 ? "max-h-[500px]" : "max-h-[300px]"}`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
     </>
   );
 }

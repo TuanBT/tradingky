@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Trade, SharedTradePrivacy } from "@/lib/types";
-import { shareTrade, updateTrade, getSharedTrade, updateSharedTrade } from "@/lib/services";
+import { shareTrade, updateTrade, getSharedTrade, updateSharedTrade, deleteSharedTrade } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/ToastProvider";
 import {
@@ -22,15 +22,18 @@ import {
   faEyeSlash,
   faLink,
   faArrowsRotate,
+  faArrowUpRightFromSquare,
+  faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 
 interface ShareTradeDialogProps {
   trade: Trade | null;
   open: boolean;
   onClose: () => void;
+  onDeleted?: () => void;
 }
 
-export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps) {
+export function ShareTradeDialog({ trade, open, onClose, onDeleted }: ShareTradeDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [privacy, setPrivacy] = useState<SharedTradePrivacy>({
@@ -40,6 +43,8 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
   });
   const [sharing, setSharing] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [loadingExisting, setLoadingExisting] = useState(false);
@@ -127,6 +132,7 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
   const handleClose = () => {
     setShareUrl("");
     setCopied(false);
+    setConfirmDelete(false);
     setPrivacy({ hidePnl: true, hideLotSize: true, hideEntryExitPrice: false });
     onClose();
   };
@@ -137,7 +143,26 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
 
   if (!trade) return null;
 
-  const alreadyShared = !!trade.shareToken && !!shareUrl;
+  const alreadyShared = !!shareUrl;
+
+  const handleDeleteShared = async () => {
+    if (!trade || !user) return;
+    const token = trade.shareToken;
+    if (!token) return;
+    setDeleting(true);
+    try {
+      await deleteSharedTrade(token);
+      await updateTrade(user.uid, trade.id, { shareToken: "" });
+      setShareUrl("");
+      setConfirmDelete(false);
+      toast("Đã xoá bài đăng khỏi cộng đồng", "success");
+      onDeleted?.();
+      handleClose();
+    } catch (err) {
+      toast((err as Error).message || "Không thể xoá bài đăng", "error");
+    }
+    setDeleting(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
@@ -207,6 +232,35 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
               </div>
             )}
 
+            {/* Delete shared post (only when already shared) */}
+            {alreadyShared && !confirmDelete && (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+              >
+                <FontAwesomeIcon icon={faTrash} className="h-3 w-3" />
+                Xoá bài đăng khỏi cộng đồng
+              </button>
+            )}
+            {confirmDelete && (
+              <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3 space-y-2">
+                <p className="text-sm font-medium text-destructive">Xác nhận xoá bài đăng?</p>
+                <p className="text-xs text-muted-foreground">Bài viết, likes và comments sẽ bị xoá vĩnh viễn.</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                    Huỷ
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={handleDeleteShared} disabled={deleting}>
+                    {deleting ? (
+                      <><FontAwesomeIcon icon={faSpinner} className="mr-1.5 h-3 w-3 animate-spin" />Đang xoá...</>
+                    ) : (
+                      <><FontAwesomeIcon icon={faTrash} className="mr-1.5 h-3 w-3" />Xoá vĩnh viễn</>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Action buttons */}
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={handleClose}>
@@ -229,10 +283,12 @@ export function ShareTradeDialog({ trade, open, onClose }: ShareTradeDialogProps
                       <><FontAwesomeIcon icon={faArrowsRotate} className="mr-2 h-4 w-4" />Cập nhật</>
                     )}
                   </Button>
-                  <Button className="flex-1" onClick={handleCopy}>
-                    <FontAwesomeIcon icon={copied ? faCheck : faCopy} className="mr-2 h-4 w-4" />
-                    {copied ? "Đã copy!" : "Copy link"}
-                  </Button>
+                  <a href={shareUrl} target="_blank" rel="noopener noreferrer">
+                    <Button className="flex-1 w-full">
+                      <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="mr-2 h-4 w-4" />
+                      Đi tới bài đăng
+                    </Button>
+                  </a>
                 </>
               )}
             </div>

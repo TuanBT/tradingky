@@ -260,7 +260,7 @@ export default function CalendarPage() {
             {selectedTrades.length > 0 ? (
               <div className="space-y-3">
                 {selectedTrades.map((trade) => (
-                  <Link key={trade.id} href={`/trades/${trade.id}`}>
+                  <Link key={trade.id} href={`/trades?view=detail&id=${trade.id}`}>
                     <div
                       className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
                     >

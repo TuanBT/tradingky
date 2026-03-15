@@ -206,8 +206,13 @@ export async function deleteTrade(uid: string, id: string, googleAccessToken: st
     const tradeSnap = await getDoc(docRef);
     if (tradeSnap.exists()) {
       const data = tradeSnap.data();
-      const imageUrls = [data.chartImageUrl, data.exitChartImageUrl].filter(Boolean);
-      await Promise.all(imageUrls.map((url: string) => deleteChartImage(googleAccessToken, url)));
+      const imageUrls = [
+        ...(data.chartImages || []),
+        data.chartImageUrl,
+        data.exitChartImageUrl,
+      ].filter(Boolean);
+      const uniqueUrls = [...new Set(imageUrls)];
+      await Promise.all(uniqueUrls.map((url: string) => deleteChartImage(googleAccessToken, url)));
     }
     await deleteDoc(docRef);
     // Update aggregate stats (fire-and-forget)

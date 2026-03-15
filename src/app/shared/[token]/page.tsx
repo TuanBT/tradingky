@@ -10,6 +10,7 @@ import {
   addComment,
   deleteComment,
   getUserRole,
+  deleteSharedTrade,
 } from "@/lib/services";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,12 @@ import { RoleBadge } from "@/components/RoleBadge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/ToastProvider";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPlay,
@@ -30,6 +37,7 @@ import {
   faSpinner,
   faPaperPlane,
   faTrash,
+  faEllipsis,
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartOutline } from "@fortawesome/free-regular-svg-icons";
 import { format, parseISO } from "date-fns";
@@ -48,13 +56,16 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
   // Like/comment state
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState(true);
   const [comments, setComments] = useState<TradeComment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [loadingComments, setLoadingComments] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>("user");
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
+  const [confirmDeletePost, setConfirmDeletePost] = useState(false);
+  const [deletingPost, setDeletingPost] = useState(false);
+  const [visibleComments, setVisibleComments] = useState(5);
   const likeChecked = useRef(false);
   const roleChecked = useRef(false);
 
@@ -87,7 +98,16 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
     getUserRole(user.uid).then(setCurrentUserRole);
   }, [user]);
 
+  // Auto-load comments for public posts
+  useEffect(() => {
+    if (!shared?.public) return;
+    setLoadingComments(true);
+    getComments(token).then(setComments).catch(() => {}).finally(() => setLoadingComments(false));
+  }, [shared?.public, token]);
+
   const isAdminOrMod = currentUserRole === "admin" || currentUserRole === "mod";
+  const isOwner = user?.uid === shared?.ownerUid;
+  const canDeletePost = isOwner || isAdminOrMod;
 
   const handleLike = async () => {
     if (!user) {
@@ -109,6 +129,7 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
   const handleToggleComments = async () => {
     if (showComments) { setShowComments(false); return; }
     setShowComments(true);
+    if (comments.length > 0) return; // Already loaded
     setLoadingComments(true);
     try {
       const result = await getComments(token);
@@ -141,6 +162,20 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
       toast("Không thể xoá bình luận", "error");
     }
     setDeleteCommentId(null);
+  };
+
+  const handleDeletePost = async () => {
+    setDeletingPost(true);
+    try {
+      await deleteSharedTrade(token);
+      toast("Đã xoá bài đăng", "success");
+      setNotFound(true);
+      setShared(null);
+    } catch {
+      toast("Không thể xoá bài đăng", "error");
+    }
+    setDeletingPost(false);
+    setConfirmDeletePost(false);
   };
 
   if (loading) {
@@ -203,6 +238,22 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
                 Đã đóng
               </Badge>
             )}
+            {canDeletePost && (
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors ml-auto">
+                  <FontAwesomeIcon icon={faEllipsis} className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setConfirmDeletePost(true)}
+                  >
+                    <FontAwesomeIcon icon={faTrash} className="mr-2 h-3.5 w-3.5" />
+                    {isOwner ? "Xoá bài đăng" : "Xoá bài đăng (Mod)"}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
             {format(parseISO(trade.date), "EEEE, dd MMMM yyyy", { locale: vi })}
@@ -244,7 +295,7 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
                     {comments.length === 0 && (
                       <p className="text-xs text-muted-foreground text-center py-2">Chưa có bình luận nào.</p>
                     )}
-                    {comments.map((comment) => (
+                    {comments.slice(0, visibleComments).map((comment) => (
                       <div key={comment.id} className="flex gap-2">
                         <Link href={`/profile/${comment.userId}`}>
                           {comment.photoURL ? (
@@ -276,6 +327,14 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
                         </div>
                       </div>
                     ))}
+                    {comments.length > visibleComments && (
+                      <button
+                        onClick={() => setVisibleComments((v) => v + 10)}
+                        className="text-sm text-primary hover:underline text-center w-full py-1"
+                      >
+                        Xem thêm {comments.length - visibleComments} bình luận
+                      </button>
+                    )}
                     {/* Comment input */}
                     {user ? (
                       <div className="flex gap-2">
@@ -309,6 +368,16 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
             )}
           </div>
         )}
+
+        <ConfirmDialog
+          open={confirmDeletePost}
+          title="Xoá bài đăng"
+          message="Bài đăng sẽ bị xoá khỏi cộng đồng. Bạn chắc chắn muốn xoá?"
+          variant="danger"
+          confirmText={deletingPost ? "Đang xoá..." : "Xoá"}
+          onConfirm={handleDeletePost}
+          onClose={() => setConfirmDeletePost(false)}
+        />
 
         <ConfirmDialog
           open={!!deleteCommentId}

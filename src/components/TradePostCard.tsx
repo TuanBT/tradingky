@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TradeComment, UserRole } from "@/lib/types";
+import { TradeComment, UserRole, getTradeImages } from "@/lib/types";
 import {
   toggleLike,
   getComments,
   addComment,
   deleteComment,
   reportPost,
+  deleteSharedTrade,
   CommunityPost,
 } from "@/lib/services";
 import { getImageSrc } from "@/lib/gdrive";
@@ -20,6 +21,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHeart as faHeartSolid,
@@ -31,6 +38,8 @@ import {
   faTrash,
   faFlag,
   faBuildingColumns,
+  faEllipsis,
+  faArrowUpRightFromSquare,
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartOutline } from "@fortawesome/free-regular-svg-icons";
 import { format, parseISO } from "date-fns";
@@ -40,7 +49,7 @@ import Link from "next/link";
 interface TradePostCardProps {
   post: CommunityPost;
   currentUserId?: string;
-  onImageClick: (src: string) => void;
+  onImageClick: (images: string[], index: number) => void;
   /** Show author row with avatar/name. Default: true (community), false for profile page */
   showAuthor?: boolean;
   /** Enable report button. Default: true */
@@ -49,6 +58,8 @@ interface TradePostCardProps {
   initialLiked?: boolean;
   /** Pre-computed: current user role. Avoids per-card Firestore read */
   userRole?: UserRole;
+  /** Called after post is deleted (owner/admin/mod) */
+  onDeletePost?: (postId: string) => void;
 }
 
 export function TradePostCard({
@@ -59,6 +70,7 @@ export function TradePostCard({
   showReport = true,
   initialLiked = false,
   userRole: propUserRole,
+  onDeletePost,
 }: TradePostCardProps) {
   const { user, userRole: authUserRole } = useAuth();
   const { toast } = useToast();
@@ -69,7 +81,7 @@ export function TradePostCard({
 
   const [liked, setLiked] = useState(initialLiked);
   const [likeCount, setLikeCount] = useState(data.likes || 0);
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState(true);
   const [comments, setComments] = useState<TradeComment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [loadingComments, setLoadingComments] = useState(false);
@@ -78,15 +90,26 @@ export function TradePostCard({
   const [reportReason, setReportReason] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
+  const [deletingPost, setDeletingPost] = useState(false);
+  const [confirmDeletePost, setConfirmDeletePost] = useState(false);
+  const [visibleComments, setVisibleComments] = useState(5);
 
   // Use prop role if provided, otherwise fall back to auth context role
   const currentUserRole = propUserRole ?? authUserRole;
   const isAdminOrMod = currentUserRole === "admin" || currentUserRole === "mod";
+  const isOwner = currentUserId === data.ownerUid;
+  const canDeletePost = isOwner || isAdminOrMod;
 
   // Sync initialLiked prop when it changes (e.g. batch check completes)
   useEffect(() => {
     setLiked(initialLiked);
   }, [initialLiked]);
+
+  // Auto-load comments on mount
+  useEffect(() => {
+    setLoadingComments(true);
+    getComments(post.id).then(setComments).catch(() => {}).finally(() => setLoadingComments(false));
+  }, [post.id]);
 
   const handleLike = async () => {
     if (!currentUserId) {
@@ -111,6 +134,7 @@ export function TradePostCard({
       return;
     }
     setShowComments(true);
+    if (comments.length > 0) return; // Already loaded
     setLoadingComments(true);
     try {
       const result = await getComments(post.id);
@@ -149,6 +173,19 @@ export function TradePostCard({
       toast("Không thể xoá bình luận", "error");
     }
     setDeleteCommentId(null);
+  };
+
+  const handleDeletePost = async () => {
+    setDeletingPost(true);
+    try {
+      await deleteSharedTrade(post.id);
+      toast("Đã xoá bài đăng", "success");
+      onDeletePost?.(post.id);
+    } catch {
+      toast("Không thể xoá bài đăng", "error");
+    }
+    setDeletingPost(false);
+    setConfirmDeletePost(false);
   };
 
   const handleReport = async () => {
@@ -237,18 +274,27 @@ export function TradePostCard({
               </div>
             )}
 
-            {/* Chart image */}
-            {trade.chartImageUrl && (
-              <button type="button" onClick={() => onImageClick(getImageSrc(trade.chartImageUrl!))} className="block w-full">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={getImageSrc(trade.chartImageUrl)}
-                  alt="Chart"
-                  loading="lazy"
-                  className="rounded-lg border w-full object-contain max-h-[280px] bg-muted cursor-pointer hover:opacity-90 transition-opacity"
-                />
-              </button>
-            )}
+            {/* Chart images */}
+            {(() => {
+              const images = getTradeImages(trade);
+              if (images.length === 0) return null;
+              const imageSrcs = images.map(getImageSrc);
+              return (
+                <div className={`grid gap-1 ${images.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
+                  {imageSrcs.map((src, i) => (
+                    <button key={i} type="button" onClick={() => onImageClick(imageSrcs, i)} className="block w-full">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={src}
+                        alt={`Chart ${i + 1}`}
+                        loading="lazy"
+                        className={`rounded-lg border w-full object-contain bg-muted cursor-pointer hover:opacity-90 transition-opacity ${images.length === 1 ? "max-h-[280px]" : "max-h-[180px]"}`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
 
             {/* Note preview */}
             {trade.note && (
@@ -279,7 +325,7 @@ export function TradePostCard({
                 <FontAwesomeIcon icon={faComment} className="h-4 w-4" />
                 <span>{(data.commentCount || 0) > 0 ? data.commentCount : ""}</span>
               </button>
-              {showReport && currentUserId && currentUserId !== data.ownerUid && (
+              {showReport && currentUserId && currentUserId !== data.ownerUid && !canDeletePost && (
                 <button
                   onClick={() => setShowReportDialog(true)}
                   className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-orange-500 transition-colors"
@@ -288,13 +334,40 @@ export function TradePostCard({
                   <FontAwesomeIcon icon={faFlag} className="h-3.5 w-3.5" />
                 </button>
               )}
-              <Link
-                href={`/shared/${post.id}`}
-                target="_blank"
-                className="text-xs text-muted-foreground hover:text-foreground ml-auto transition-colors"
-              >
-                Xem chi tiết
-              </Link>
+              {/* ... dropdown menu for actions */}
+              {(canDeletePost || (showReport && currentUserId && currentUserId !== data.ownerUid)) ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors ml-auto">
+                    <FontAwesomeIcon icon={faEllipsis} className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="bottom">
+                    <DropdownMenuItem onClick={() => window.open(`/shared/${post.id}`, '_blank')}>
+                      <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="h-3.5 w-3.5" />
+                      Xem chi tiết
+                    </DropdownMenuItem>
+                    {showReport && currentUserId && currentUserId !== data.ownerUid && (
+                      <DropdownMenuItem onClick={() => setShowReportDialog(true)}>
+                        <FontAwesomeIcon icon={faFlag} className="h-3.5 w-3.5" />
+                        Báo cáo
+                      </DropdownMenuItem>
+                    )}
+                    {canDeletePost && (
+                      <DropdownMenuItem variant="destructive" onClick={() => setConfirmDeletePost(true)}>
+                        <FontAwesomeIcon icon={faTrash} className="h-3.5 w-3.5" />
+                        {isOwner ? "Xoá bài đăng" : "Xoá bài đăng (Mod)"}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Link
+                  href={`/shared/${post.id}`}
+                  target="_blank"
+                  className="text-xs text-muted-foreground hover:text-foreground ml-auto transition-colors"
+                >
+                  Xem chi tiết
+                </Link>
+              )}
             </div>
           </div>
 
@@ -310,7 +383,7 @@ export function TradePostCard({
                   {comments.length === 0 && (
                     <p className="text-xs text-muted-foreground text-center py-2">Chưa có bình luận nào.</p>
                   )}
-                  {comments.map((comment) => (
+                  {comments.slice(0, visibleComments).map((comment) => (
                     <div key={comment.id} className="flex gap-2">
                       <Link href={`/profile/${comment.userId}`}>
                         {comment.photoURL ? (
@@ -342,6 +415,14 @@ export function TradePostCard({
                       </div>
                     </div>
                   ))}
+                  {comments.length > visibleComments && (
+                    <button
+                      onClick={() => setVisibleComments((v) => v + 10)}
+                      className="text-sm text-primary hover:underline text-center w-full py-1"
+                    >
+                      Xem thêm {comments.length - visibleComments} bình luận
+                    </button>
+                  )}
                   {/* Comment input */}
                   {user ? (
                     <div className="flex gap-2">
@@ -418,6 +499,18 @@ export function TradePostCard({
         variant="danger"
         onConfirm={() => deleteCommentId && handleDeleteComment(deleteCommentId)}
         onClose={() => setDeleteCommentId(null)}
+      />
+
+      {/* Delete post confirmation */}
+      <ConfirmDialog
+        open={confirmDeletePost}
+        title="Xoá bài đăng"
+        message={isOwner
+          ? "Bạn chắc chắn muốn xoá bài đăng này? Tất cả likes và comments sẽ bị xoá vĩnh viễn."
+          : "Bạn chắc chắn muốn xoá bài đăng này vì vi phạm nguyên tắc cộng đồng?"}
+        variant="danger"
+        onConfirm={handleDeletePost}
+        onClose={() => setConfirmDeletePost(false)}
       />
     </>
   );

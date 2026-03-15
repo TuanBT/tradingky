@@ -11,6 +11,7 @@ export interface Trade {
   stopLoss?: string;
   takeProfit?: string;
   chartImageUrl?: string;
+  chartImages?: string[];
   note?: string;
   // Nâng cao
   entryPrice?: number;
@@ -89,6 +90,16 @@ export interface SharedTrade {
   likes?: number;
   commentCount?: number;
   ownerRole?: UserRole;
+}
+
+export const MAX_CHART_IMAGES = 4;
+
+/** Get all chart images from a trade, handling both old (chartImageUrl/exitChartImageUrl) and new (chartImages[]) formats */
+export function getTradeImages(trade: Pick<Trade, 'chartImages' | 'chartImageUrl' | 'exitChartImageUrl'>): string[] {
+  if (trade.chartImages && trade.chartImages.length > 0) {
+    return trade.chartImages;
+  }
+  return [trade.chartImageUrl, trade.exitChartImageUrl].filter(Boolean) as string[];
 }
 
 export interface TradeComment {

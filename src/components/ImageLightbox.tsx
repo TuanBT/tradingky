@@ -1,15 +1,24 @@
 "use client";
 
 import { useEffect, useCallback, useRef, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 
 interface ImageLightboxProps {
-  src: string;
+  /** Single image (backward compat) */
+  src?: string;
+  /** Multiple images — takes priority over src */
+  images?: string[];
+  /** Starting index when images[] is provided */
+  initialIndex?: number;
   alt?: string;
   open: boolean;
   onClose: () => void;
 }
 
-export function ImageLightbox({ src, alt = "Image", open, onClose }: ImageLightboxProps) {
+export function ImageLightbox({ src, images, initialIndex = 0, alt = "Image", open, onClose }: ImageLightboxProps) {
+  const allImages = images && images.length > 0 ? images : src ? [src] : [];
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const lastDistance = useRef(0);
@@ -23,11 +32,30 @@ export function ImageLightbox({ src, alt = "Image", open, onClose }: ImageLightb
     setTranslate({ x: 0, y: 0 });
   }, []);
 
+  // Reset index when images change or lightbox opens
+  useEffect(() => {
+    if (open) setCurrentIndex(initialIndex);
+  }, [open, initialIndex]);
+
+  const goPrev = useCallback(() => {
+    if (allImages.length <= 1) return;
+    resetTransform();
+    setCurrentIndex((i) => (i > 0 ? i - 1 : allImages.length - 1));
+  }, [allImages.length, resetTransform]);
+
+  const goNext = useCallback(() => {
+    if (allImages.length <= 1) return;
+    resetTransform();
+    setCurrentIndex((i) => (i < allImages.length - 1 ? i + 1 : 0));
+  }, [allImages.length, resetTransform]);
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") goPrev();
+      if (e.key === "ArrowRight") goNext();
     },
-    [onClose]
+    [onClose, goPrev, goNext]
   );
 
   useEffect(() => {
@@ -41,6 +69,8 @@ export function ImageLightbox({ src, alt = "Image", open, onClose }: ImageLightb
       document.body.style.overflow = "";
     };
   }, [open, handleKeyDown, resetTransform]);
+
+  const currentSrc = allImages[currentIndex] || "";
 
   const getDistance = (touches: React.TouchList) => {
     const dx = touches[0].clientX - touches[1].clientX;
@@ -98,7 +128,7 @@ export function ImageLightbox({ src, alt = "Image", open, onClose }: ImageLightb
     }
   };
 
-  if (!open) return null;
+  if (!open || !currentSrc) return null;
 
   return (
     <div
@@ -114,8 +144,41 @@ export function ImageLightbox({ src, alt = "Image", open, onClose }: ImageLightb
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
 
+      {/* Navigation arrows */}
+      {allImages.length > 1 && (
+        <>
+          <button
+            onClick={(e) => { e.stopPropagation(); goPrev(); }}
+            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+            aria-label="Ảnh trước"
+          >
+            <FontAwesomeIcon icon={faChevronLeft} className="h-5 w-5" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); goNext(); }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+            aria-label="Ảnh sau"
+          >
+            <FontAwesomeIcon icon={faChevronRight} className="h-5 w-5" />
+          </button>
+        </>
+      )}
+
+      {/* Image counter + dots */}
+      {allImages.length > 1 && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
+          {allImages.map((_, i) => (
+            <button
+              key={i}
+              onClick={(e) => { e.stopPropagation(); resetTransform(); setCurrentIndex(i); }}
+              className={`h-2 w-2 rounded-full transition-colors ${i === currentIndex ? "bg-white" : "bg-white/40 hover:bg-white/60"}`}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Zoom hint on mobile */}
-      {scale <= 1 && (
+      {scale <= 1 && allImages.length <= 1 && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 text-white/50 text-xs pointer-events-none sm:hidden">
           Chụm 2 ngón để zoom · Nhấn đúp để phóng to
         </div>
@@ -124,7 +187,7 @@ export function ImageLightbox({ src, alt = "Image", open, onClose }: ImageLightb
       {/* Image */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={src}
+        src={currentSrc}
         alt={alt}
         className="max-h-[90vh] max-w-[95vw] object-contain select-none"
         style={{

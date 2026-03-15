@@ -445,6 +445,7 @@ export default function CommunityPage() {
               onImageClick={setLightboxSrc}
               initialLiked={likedPosts.has(post.id)}
               userRole={userRole}
+              onDeletePost={(postId) => setPosts((prev) => prev.filter((p) => p.id !== postId))}
             />
           ))}
           {hasMore && (
