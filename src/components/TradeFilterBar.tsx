@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { DropdownLibrary, Trade } from "@/lib/types";
+import { DropdownLibrary, Trade, ENTRY_EMOTIONS } from "@/lib/types";
 import { useTradeFilters } from "./TradeFilterContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,17 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
 
   const hasActiveFilters = filters.search !== "" || filters.emotion !== "all" || filters.status !== "all" || filters.dateRange !== "all" || filters.starred !== "all";
 
+  // Build emotion options from fixed list + existing trade emotions
+  const emotionOptions = useMemo(() => {
+    const values = new Set(ENTRY_EMOTIONS.map((e) => e.value));
+    if (trades) {
+      for (const t of trades) {
+        if (t.emotion) values.add(t.emotion);
+      }
+    }
+    return Array.from(values);
+  }, [trades]);
+
   // Build year options from trades data
   const yearOptions = useMemo(() => {
     if (!trades || trades.length === 0) return [];
@@ -72,7 +83,7 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất cả</SelectItem>
-            {library.emotions.map((e) => (
+            {emotionOptions.map((e) => (
               <SelectItem key={e} value={e}>{e}</SelectItem>
             ))}
           </SelectContent>
@@ -126,7 +137,7 @@ export function TradeFilterBar({ library, totalCount, compact, trades }: TradeFi
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả</SelectItem>
-                {library.emotions.map((e) => (
+                {emotionOptions.map((e) => (
                   <SelectItem key={e} value={e}>{e}</SelectItem>
                 ))}
               </SelectContent>

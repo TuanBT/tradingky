@@ -60,6 +60,7 @@ export function TradeDetailView({ trade, privacy, onImageClick }: TradeDetailVie
             <div className="flex items-center gap-3">
               <span className={`text-2xl font-bold ${resultColor}`}>{resultLabel}</span>
               {trade.emotion && <Badge variant="secondary">{trade.emotion}</Badge>}
+              {trade.exitEmotion && <Badge variant="outline">{trade.exitEmotion}</Badge>}
             </div>
             {!hidePnl && trade.pnl !== undefined && (
               <div className="text-right">
@@ -97,7 +98,7 @@ export function TradeDetailView({ trade, privacy, onImageClick }: TradeDetailVie
               <InfoRow icon={faCalendarDays} label="Ngày đóng" value={`${format(parseISO(trade.closeDate), "dd/MM/yyyy")}${trade.closeTime ? " lúc " + trade.closeTime : ""}`} />
             )}
             {trade.platform && <InfoRow icon={faBuildingColumns} label="Sàn" value={trade.platform} />}
-            <InfoRow icon={faFaceSmile} label="Tâm lý" value={trade.emotion} />
+            <InfoRow icon={faFaceSmile} label="Tâm lý vào lệnh" value={trade.emotion} />
             {trade.timeframe && <InfoRow icon={faClock} label="Timeframe" value={trade.timeframe} />}
           </CardContent>
         </Card>
@@ -148,7 +149,7 @@ export function TradeDetailView({ trade, privacy, onImageClick }: TradeDetailVie
       )}
 
       {/* Exit Review (only for CLOSED trades) */}
-      {!isOpen && (trade.exitReason || trade.lessonsLearned) && (
+      {!isOpen && (trade.exitEmotion || trade.exitReason || trade.lessonsLearned) && (
         <Card className="border-green-500/30">
           <CardHeader>
             <CardTitle className="text-base text-green-500">
@@ -157,6 +158,15 @@ export function TradeDetailView({ trade, privacy, onImageClick }: TradeDetailVie
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {trade.exitEmotion && (
+              <div>
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <FontAwesomeIcon icon={faFaceSmile} className="h-3.5 w-3.5" />
+                  <span className="text-sm">Tâm lý lúc đóng lệnh</span>
+                </div>
+                <Badge variant="outline">{trade.exitEmotion}</Badge>
+              </div>
+            )}
             {trade.exitReason && (
               <div>
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">

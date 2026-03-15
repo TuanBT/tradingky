@@ -199,10 +199,10 @@ export async function updateTrade(uid: string, id: string, trade: Partial<Trade>
   }
 }
 
-export async function deleteTrade(uid: string, id: string, googleAccessToken: string): Promise<void> {
+export async function deleteTrade(uid: string, id: string, googleAccessToken?: string): Promise<void> {
   try {
     const docRef = doc(db, "users", uid, "trades", id);
-    // Read trade data to get image URLs before deleting
+    // Best-effort: try to clean up GDrive images before deleting
     const tradeSnap = await getDoc(docRef);
     if (tradeSnap.exists()) {
       const data = tradeSnap.data();
@@ -212,7 +212,11 @@ export async function deleteTrade(uid: string, id: string, googleAccessToken: st
         data.exitChartImageUrl,
       ].filter(Boolean);
       const uniqueUrls = [...new Set(imageUrls)];
-      await Promise.all(uniqueUrls.map((url: string) => deleteChartImage(googleAccessToken, url)));
+      if (googleAccessToken && uniqueUrls.length > 0) {
+        await Promise.all(uniqueUrls.map((url: string) => deleteChartImage(googleAccessToken, url))).catch((err) => {
+          console.warn("Không thể xoá ảnh trên Drive, tiếp tục xoá lệnh:", err);
+        });
+      }
     }
     await deleteDoc(docRef);
     // Update aggregate stats (fire-and-forget)

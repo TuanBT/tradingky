@@ -17,7 +17,6 @@ import {
   faFloppyDisk,
   faRotateLeft,
   faCoins,
-  faFaceSmile,
   faBuildingColumns,
   faClock,
   faFileExport,
@@ -30,7 +29,6 @@ type LibraryKey = keyof DropdownLibrary;
 const SECTIONS: { key: LibraryKey; label: string; icon: typeof faCoins; emojis: string[] }[] = [
   { key: "pairs", label: "Cặp tiền", icon: faCoins, emojis: ["🥇", "₿", "💰", "💎", "🪙", "💵", "💶", "💷", "🇺🇸", "🇪🇺", "🇬🇧", "🇯🇵", "🇦🇺"] },
   { key: "platforms", label: "Sàn giao dịch", icon: faBuildingColumns, emojis: ["🏦", "💹", "🌐", "📱", "💻", "🔗"] },
-  { key: "emotions", label: "Tâm lý", icon: faFaceSmile, emojis: ["😎", "😌", "😤", "😰", "🤑", "💪", "🔥", "❄️", "😡", "🤔", "😱", "🧘", "🎯"] },
   { key: "timeframes", label: "Timeframe", icon: faClock, emojis: ["⏱️", "⏰", "🕐", "📅", "📆", "🗓️"] },
 ];
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import { Trade, DropdownLibrary, DEFAULT_LIBRARY, EMOTION_EMOJIS, MAX_CHART_IMAGES, getTradeImages } from "@/lib/types";
+import { useEffect, useState, useCallback, useRef, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
+import { Trade, DropdownLibrary, DEFAULT_LIBRARY, ENTRY_EMOTIONS, EXIT_EMOTIONS, EmotionOption, MAX_CHART_IMAGES, getTradeImages } from "@/lib/types";
 import { addTrade, updateTrade, getLibrary, getTrades, uploadChartImage, deleteChartImage, updateLibrary } from "@/lib/services";
 import { getImageSrc } from "@/lib/gdrive";
 import { useAuth } from "@/components/AuthProvider";
@@ -43,6 +44,7 @@ interface TradeForm {
   platform: string;
   type: "BUY" | "SELL";
   emotion: string;
+  exitEmotion: string;
   result: "WIN" | "LOSS" | "BREAKEVEN" | "CANCELLED";
   status: "OPEN" | "CLOSED";
   pnl: number | undefined;
@@ -69,6 +71,7 @@ const emptyForm: TradeForm = {
   platform: "",
   type: "BUY",
   emotion: "",
+  exitEmotion: "",
   result: "WIN",
   status: "OPEN",
   pnl: undefined,
@@ -155,6 +158,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
             platform: trade.platform || "",
             type: trade.type,
             emotion: trade.emotion,
+            exitEmotion: trade.exitEmotion || "",
             result: trade.result,
             status: isClosing ? "CLOSED" : (trade.status || "CLOSED"),
             pnl: trade.pnl,
@@ -278,6 +282,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
       platform: form.platform || undefined,
       type: form.type,
       emotion: form.emotion,
+      exitEmotion: form.exitEmotion || undefined,
       result: form.result,
       status: form.status,
       pnl: form.pnl,
@@ -468,6 +473,10 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                       </div>
                     </div>
                   </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Tâm lý lúc đóng lệnh</Label>
+                    <EmotionSelect value={form.exitEmotion} onValueChange={(v) => updateForm({ exitEmotion: v })} options={EXIT_EMOTIONS} placeholder="Chọn tâm lý" />
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm text-muted-foreground">Lý do thoát lệnh</Label>
@@ -512,8 +521,8 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                 {!isCloseMode && renderImageUpload()}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium">Tâm lý *</Label>
-                    <EditableSelect value={form.emotion} onValueChange={(v) => updateForm({ emotion: v })} items={library.emotions} onItemsChange={(items) => handleLibraryUpdate("emotions", items)} placeholder="Tâm lý lúc vào lệnh" emojis={EMOTION_EMOJIS} />
+                    <Label className="text-sm font-medium">Tâm lý vào lệnh *</Label>
+                    <EmotionSelect value={form.emotion} onValueChange={(v) => updateForm({ emotion: v })} options={ENTRY_EMOTIONS} placeholder="Chọn tâm lý" />
                   </div>
                   <div>
                     <Label className="text-sm text-muted-foreground">Ghi chú lúc vào lệnh</Label>
@@ -554,6 +563,12 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                         <Input type="date" value={form.closeDate} onChange={(e) => updateForm({ closeDate: e.target.value })} className="flex-1" />
                         <Input type="time" value={form.closeTime} onChange={(e) => updateForm({ closeTime: e.target.value })} className="w-24" />
                       </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Tâm lý lúc đóng lệnh</Label>
+                      <EmotionSelect value={form.exitEmotion} onValueChange={(v) => updateForm({ exitEmotion: v })} options={EXIT_EMOTIONS} placeholder="Chọn tâm lý" />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -639,5 +654,69 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
         onClose={() => setLightboxSrc("")}
       />
     </Dialog>
+  );
+}
+
+/* ===== Emotion Select with descriptions ===== */
+function EmotionSelect({ value, onValueChange, options, placeholder }: { value: string; onValueChange: (v: string) => void; options: EmotionOption[]; placeholder: string }) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+
+  useLayoutEffect(() => {
+    if (!open || !btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (btnRef.current?.contains(e.target as Node)) return;
+      if (dropRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  return (
+    <div className="mt-1">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between h-9 px-3 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors"
+      >
+        <span className={value ? "" : "text-muted-foreground"}>{value || placeholder}</span>
+        <FontAwesomeIcon icon={faChevronDown} className="h-3 w-3 text-muted-foreground" />
+      </button>
+      {open && createPortal(
+        <div ref={dropRef} style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }} className="max-h-60 overflow-auto rounded-md border bg-popover shadow-lg">
+          {value && (
+            <button
+              type="button"
+              onClick={() => { onValueChange(""); setOpen(false); }}
+              className="w-full text-left px-3 py-2 text-sm text-muted-foreground hover:bg-accent transition-colors border-b"
+            >
+              Bỏ chọn
+            </button>
+          )}
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => { onValueChange(opt.value); setOpen(false); }}
+              className={`w-full text-left px-3 py-2 hover:bg-accent transition-colors ${value === opt.value ? "bg-accent font-medium" : ""}`}
+            >
+              <div className="text-sm">{opt.value}</div>
+              <div className="text-xs text-muted-foreground">{opt.description}</div>
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+    </div>
   );
 }

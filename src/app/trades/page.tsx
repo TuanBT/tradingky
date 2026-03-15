@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Trade, DropdownLibrary, DEFAULT_LIBRARY, getTradeImages } from "@/lib/types";
 import { getTrades, deleteTrade, updateTrade, getLibrary, getUserSharedTradesMap, CommunityStats } from "@/lib/services";
-import { getImageSrc } from "@/lib/gdrive";
+import { getImageSrc, isGDriveUrl } from "@/lib/gdrive";
 import { useAuth } from "@/components/AuthProvider";
 import { useTradeFilters } from "@/components/TradeFilterContext";
 import { TradeFilterBar } from "@/components/TradeFilterBar";
@@ -46,6 +46,7 @@ import { TradeEditModal } from "@/components/TradeEditModal";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ShareTradeDialog } from "@/components/ShareTradeDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ToastProvider";
 import { filterTrades } from "@/lib/filters";
 import { TradeDetailView, getResultDisplay } from "@/components/TradeDetailView";
@@ -54,7 +55,7 @@ import Link from "next/link";
 type ViewMode = "list" | "detail";
 
 export default function TradesPage() {
-  const { user, getGoogleAccessToken } = useAuth();
+  const { user, getGoogleAccessToken, hasGoogleToken, connectGoogleDrive } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { filters } = useTradeFilters();
@@ -66,6 +67,7 @@ export default function TradesPage() {
   const [tradeModalId, setTradeModalId] = useState<string | null>(null);
   const [tradeModalMode, setTradeModalMode] = useState<"add" | "edit" | "close">("edit");
   const [deleteTradeId, setDeleteTradeId] = useState<string | null>(null);
+  const [deleteNeedsDriveAuth, setDeleteNeedsDriveAuth] = useState<string | null>(null); // tradeId needing Drive auth choice
   const [shareTradeData, setShareTradeData] = useState<Trade | null>(null);
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -264,16 +266,55 @@ export default function TradesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  // Check if a trade has any Google Drive images
+  const tradeHasGDriveImages = useCallback((tradeId: string) => {
+    const trade = trades.find((t) => t.id === tradeId);
+    if (!trade) return false;
+    const urls = getTradeImages(trade);
+    return urls.some((url) => isGDriveUrl(url));
+  }, [trades]);
+
+  const handleDelete = async (id: string, skipImageCleanup = false) => {
     if (!user) return;
     try {
-      const accessToken = await getGoogleAccessToken();
+      let accessToken: string | undefined;
+      if (!skipImageCleanup && tradeHasGDriveImages(id)) {
+        if (hasGoogleToken) {
+          accessToken = await getGoogleAccessToken();
+        } else {
+          // No token — ask user what to do
+          setDeleteNeedsDriveAuth(id);
+          return;
+        }
+      }
       await deleteTrade(user.uid, id, accessToken);
       toast("Đã xoá lệnh", "success");
       await loadData();
     } catch (error) {
       toast((error as Error).message || "Lỗi khi xoá lệnh", "error");
     }
+  };
+
+  const handleDeleteWithDriveConnect = async () => {
+    const id = deleteNeedsDriveAuth;
+    if (!id || !user) return;
+    setDeleteNeedsDriveAuth(null);
+    try {
+      await connectGoogleDrive();
+      const accessToken = await getGoogleAccessToken();
+      await deleteTrade(user.uid, id, accessToken);
+      toast("Đã xoá lệnh và ảnh trên Drive", "success");
+      await loadData();
+    } catch (error) {
+      toast((error as Error).message || "Lỗi khi kết nối Google Drive", "error");
+    }
+  };
+
+  const handleDeleteWithoutImages = async () => {
+    const id = deleteNeedsDriveAuth;
+    if (!id) return;
+    setDeleteNeedsDriveAuth(null);
+    await handleDelete(id, true);
   };
 
   const openAdd = () => {
@@ -913,6 +954,29 @@ export default function TradesPage() {
         confirmText="Xoá"
         variant="danger"
       />
+
+      <Dialog open={!!deleteNeedsDriveAuth} onOpenChange={(v) => { if (!v) setDeleteNeedsDriveAuth(null); }}>
+        <DialogContent showCloseButton={false} className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 text-yellow-500">
+                <FontAwesomeIcon icon={faImage} className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <DialogTitle>Ảnh trên Google Drive</DialogTitle>
+                <DialogDescription className="mt-2">
+                  Lệnh này có ảnh lưu trên Google Drive. Bạn muốn kết nối Drive để xoá ảnh đồng bộ, hay chỉ xoá lệnh (ảnh vẫn còn trên Drive)?
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteNeedsDriveAuth(null)}>Huỷ</Button>
+            <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950" onClick={handleDeleteWithoutImages}>Chỉ xoá lệnh</Button>
+            <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteWithDriveConnect}>Kết nối & xoá đồng bộ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ShareTradeDialog
         trade={shareTradeData}

@@ -22,6 +22,7 @@ export interface Trade {
   entryTime?: string; // HH:mm
   closeTime?: string; // HH:mm
   // Phase 2 (đóng lệnh)
+  exitEmotion?: string;
   exitReason?: string;
   lessonsLearned?: string;
   exitChartImageUrl?: string;
@@ -49,12 +50,44 @@ export interface DropdownLibrary {
 
 export const DEFAULT_LIBRARY: DropdownLibrary = {
   pairs: ["XAUUSD", "BTCUSDT", "EURUSD", "GBPUSD", "USDJPY", "ETHUSDT", "SOLUSDT"],
-  emotions: ["😎 Tự tin", "🧘 Bình tĩnh", "😱 FOMO", "😨 Sợ hãi", "🤑 Tham lam", "😤 Nóng vội", "😡 Revenge trade", "🤔 Không chắc chắn"],
+  emotions: [],
   platforms: ["Exness", "Binance"],
   timeframes: ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1"],
 };
 
 export const EMOTION_EMOJIS = ["😎", "😌", "😤", "😰", "🤑", "💪", "🔥", "❄️", "😡", "🤔", "😱", "🧘", "🎯", "😨", "🥶", "😵‍💫"];
+
+export interface EmotionOption {
+  value: string;
+  description: string;
+}
+
+export const ENTRY_EMOTIONS: EmotionOption[] = [
+  { value: "😌 Bình tĩnh", description: "Tâm lý ổn định. Vào lệnh theo đúng kế hoạch đã chuẩn bị." },
+  { value: "😎 Tự tin", description: "Tin tưởng vào phân tích và hệ thống giao dịch. Setup rõ ràng nên quyết định dứt khoát." },
+  { value: "🧘 Kiên nhẫn", description: "Chờ đúng điểm vào lệnh theo kế hoạch. Không bị cuốn theo biến động ngắn hạn." },
+  { value: "🤩 Hưng phấn", description: "Phấn khích khi thấy cơ hội giao dịch. Thường xuất hiện sau chuỗi lệnh thắng." },
+  { value: "😤 FOMO", description: "Thấy giá chạy mạnh nên vội vàng vào lệnh. Không chờ đúng điểm vào theo kế hoạch." },
+  { value: "😰 Sợ thua lỗ", description: "Lo lắng về khả năng mất tiền. Có thể vào lệnh muộn hoặc vào lệnh xa điểm đẹp." },
+  { value: "😡 Muốn gỡ lỗ", description: "Vừa thua lệnh trước đó. Vào lệnh với mong muốn lấy lại số tiền đã mất." },
+  { value: "🤑 Tham lợi nhuận", description: "Muốn kiếm nhiều hơn kế hoạch. Có thể tăng khối lượng giao dịch." },
+  { value: "🤔 Do dự", description: "Setup có nhưng vẫn chưa thật sự chắc chắn. Quyết định vào lệnh trong trạng thái phân vân." },
+  { value: "😐 Giao dịch theo cảm tính", description: "Không có lý do kỹ thuật rõ ràng. Vào lệnh chỉ dựa vào cảm giác thị trường." },
+  { value: "😪 Mệt mỏi", description: "Tinh thần không tỉnh táo khi giao dịch. Có thể ảnh hưởng đến chất lượng quyết định." },
+];
+
+export const EXIT_EMOTIONS: EmotionOption[] = [
+  { value: "😌 Bình tĩnh", description: "Đóng lệnh theo đúng kế hoạch TP hoặc SL." },
+  { value: "😃 Hài lòng", description: "Kết quả đúng kỳ vọng. Tuân thủ tốt kế hoạch giao dịch." },
+  { value: "😞 Tiếc nuối", description: "Sau khi đóng lệnh thì giá tiếp tục chạy đúng hướng." },
+  { value: "😰 Sợ mất lợi nhuận", description: "Thấy lợi nhuận đang có nên đóng lệnh sớm. Không giữ được lệnh theo kế hoạch ban đầu." },
+  { value: "🤑 Tham lợi nhuận", description: "Không chốt lời theo kế hoạch vì muốn lợi nhuận lớn hơn." },
+  { value: "😡 Bực bội", description: "Thị trường đi ngược kỳ vọng. Cảm xúc tiêu cực khi phải đóng lệnh lỗ." },
+  { value: "😓 Áp lực", description: "Theo dõi lệnh quá lâu khiến tâm lý căng thẳng. Đóng lệnh để giảm áp lực." },
+  { value: "😕 Hoài nghi", description: "Không còn tin tưởng vào phân tích ban đầu. Quyết định đóng lệnh vì thiếu tự tin." },
+  { value: "😐 Đóng theo cảm tính", description: "Không có lý do kỹ thuật rõ ràng. Quyết định dựa trên cảm giác." },
+  { value: "😪 Mệt mỏi", description: "Không muốn tiếp tục theo dõi lệnh. Đóng lệnh để kết thúc giao dịch." },
+];
 
 // ==================== USER ROLES ====================
 
