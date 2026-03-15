@@ -348,7 +348,19 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
           <FontAwesomeIcon icon={faImage} className="mr-1" /> Ảnh chart ({form.chartImages.length}/{MAX_CHART_IMAGES}) {!hasImages && <span className="text-xs">(Ctrl+V paste ảnh vào bất kỳ đâu)</span>}
         </Label>
         {!hasGoogleToken && !hasImages ? (
-          <div className="mt-1">
+          <div className="mt-1 space-y-2">
+            <form onSubmit={(e) => { e.preventDefault(); const input = e.currentTarget.querySelector('input'); const url = input?.value.trim(); if (url && form.chartImages.length < MAX_CHART_IMAGES) { updateForm({ chartImages: [...form.chartImages, url] }); if (input) input.value = ''; toast('Đã thêm ảnh từ URL', 'success'); } }} className="flex gap-2">
+              <div className="relative flex-1">
+                <FontAwesomeIcon icon={faLink} className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <input type="url" placeholder="Dán link ảnh (không cần Google Drive)" className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              </div>
+              <button type="submit" className="inline-flex items-center justify-center h-9 px-3 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer text-sm">Thêm</button>
+            </form>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex-1 border-t border-border" />
+              <span>hoặc</span>
+              <div className="flex-1 border-t border-border" />
+            </div>
             <button
               type="button"
               onClick={handleConnectDrive}
@@ -385,7 +397,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                 <form onSubmit={(e) => { e.preventDefault(); const input = e.currentTarget.querySelector('input'); const url = input?.value.trim(); if (url && form.chartImages.length < MAX_CHART_IMAGES) { updateForm({ chartImages: [...form.chartImages, url] }); if (input) input.value = ''; toast('Đã thêm ảnh từ URL', 'success'); } }} className="flex gap-2 flex-1">
                   <div className="relative flex-1">
                     <FontAwesomeIcon icon={faLink} className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <input type="url" placeholder="Dán link ảnh..." className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+                    <input type="url" placeholder="Dán link ảnh (không cần Google Drive)" className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
                   </div>
                   <button type="submit" className="inline-flex items-center justify-center h-9 px-3 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer text-sm">Thêm</button>
                 </form>
