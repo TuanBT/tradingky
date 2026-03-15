@@ -53,7 +53,8 @@ export default function ProfilePage({ params }: { params: Promise<{ uid: string 
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
-  const [lightboxSrc, setLightboxSrc] = useState("");
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [followCounts, setFollowCounts] = useState({ following: 0, followers: 0 });
   const [showFollowList, setShowFollowList] = useState<"following" | "followers" | null>(null);
   const [followListUsers, setFollowListUsers] = useState<(FollowedUser & { profile?: UserProfile })[]>([]);
@@ -252,7 +253,7 @@ export default function ProfilePage({ params }: { params: Promise<{ uid: string 
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">Lệnh đã chia sẻ ({posts.length})</h2>
         </div>
-        {posts.length > 0 && <ProfileSortBar posts={posts} currentUserId={user?.uid} onImageClick={setLightboxSrc} likedPosts={likedPosts} userRole={userRole} onDeletePost={(postId) => setPosts((prev) => prev.filter((p) => p.id !== postId))} />}
+        {posts.length > 0 && <ProfileSortBar posts={posts} currentUserId={user?.uid} onImageClick={(images, index) => { setLightboxImages(images); setLightboxIndex(index); }} likedPosts={likedPosts} userRole={userRole} onDeletePost={(postId) => setPosts((prev) => prev.filter((p) => p.id !== postId))} />}
         {posts.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">Chưa có lệnh nào được chia sẻ.</p>
         )}
@@ -298,16 +299,17 @@ export default function ProfilePage({ params }: { params: Promise<{ uid: string 
       </Dialog>
 
       <ImageLightbox
-        src={lightboxSrc}
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
         alt="Chart"
-        open={!!lightboxSrc}
-        onClose={() => setLightboxSrc("")}
+        open={lightboxImages.length > 0}
+        onClose={() => setLightboxImages([])}
       />
     </div>
   );
 }
 
-function ProfileSortBar({ posts, currentUserId, onImageClick, likedPosts, userRole, onDeletePost }: { posts: CommunityPost[]; currentUserId?: string; onImageClick: (src: string) => void; likedPosts: Set<string>; userRole: import("@/lib/types").UserRole; onDeletePost?: (postId: string) => void }) {
+function ProfileSortBar({ posts, currentUserId, onImageClick, likedPosts, userRole, onDeletePost }: { posts: CommunityPost[]; currentUserId?: string; onImageClick: (images: string[], index: number) => void; likedPosts: Set<string>; userRole: import("@/lib/types").UserRole; onDeletePost?: (postId: string) => void }) {
   const [sortMode, setSortMode] = useState<ProfileSortMode>("newest");
 
   const sortedPosts = useMemo(() => {

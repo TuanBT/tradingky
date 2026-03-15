@@ -51,7 +51,8 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
   const [shared, setShared] = useState<SharedTrade | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [lightboxSrc, setLightboxSrc] = useState("");
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   // Like/comment state
   const [liked, setLiked] = useState(false);
@@ -260,7 +261,7 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
           </p>
         </div>
 
-        <TradeDetailView trade={trade} privacy={privacy} onImageClick={(src) => setLightboxSrc(src)} />
+        <TradeDetailView trade={trade} privacy={privacy} onImageClick={(images, index) => { setLightboxImages(images); setLightboxIndex(index); }} />
 
         {/* Like & Comment section */}
         {shared.public && (
@@ -399,10 +400,11 @@ export default function SharedTradePage({ params }: { params: Promise<{ token: s
       </div>
 
       <ImageLightbox
-        src={lightboxSrc}
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
         alt="Chart"
-        open={!!lightboxSrc}
-        onClose={() => setLightboxSrc("")}
+        open={lightboxImages.length > 0}
+        onClose={() => setLightboxImages([])}
       />
     </div>
   );

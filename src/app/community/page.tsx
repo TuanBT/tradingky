@@ -61,7 +61,8 @@ export default function CommunityPage() {
   const [platformFilter, setPlatformFilter] = useState<string>("ALL");
   const [timeframeFilter, setTimeframeFilter] = useState<string>("ALL");
   const [sortMode, setSortMode] = useState<CommunitySortMode>("newest");
-  const [lightboxSrc, setLightboxSrc] = useState("");
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [feedTab, setFeedTab] = useState<"all" | "following" | "mine">("all");
   const [hasFollowing, setHasFollowing] = useState(false);
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
@@ -442,7 +443,7 @@ export default function CommunityPage() {
               key={post.id}
               post={post}
               currentUserId={user?.uid}
-              onImageClick={setLightboxSrc}
+              onImageClick={(images, index) => { setLightboxImages(images); setLightboxIndex(index); }}
               initialLiked={likedPosts.has(post.id)}
               userRole={userRole}
               onDeletePost={(postId) => setPosts((prev) => prev.filter((p) => p.id !== postId))}
@@ -462,10 +463,11 @@ export default function CommunityPage() {
       )}
 
       <ImageLightbox
-        src={lightboxSrc}
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
         alt="Chart"
-        open={!!lightboxSrc}
-        onClose={() => setLightboxSrc("")}
+        open={lightboxImages.length > 0}
+        onClose={() => setLightboxImages([])}
       />
     </div>
   );
