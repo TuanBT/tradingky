@@ -225,9 +225,9 @@ export function TradePostCard({
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {!privacy.hidePnl && trade.pnl !== undefined && (
-                <span className={`font-mono font-bold text-sm ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
-                  {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
+              {!privacy.hidePnl && (trade.pnl !== undefined || trade.result === "CANCELLED") && (
+                <span className={`font-mono font-bold text-sm ${trade.result === "CANCELLED" ? "text-gray-400" : (trade.pnl ?? 0) >= 0 ? "text-green-500" : "text-red-500"}`}>
+                  {(trade.pnl ?? 0) >= 0 ? "+" : ""}${(trade.pnl ?? 0).toFixed(2)}
                 </span>
               )}
             </div>

@@ -93,7 +93,7 @@ flowchart TD
     FORM[Form nhập liệu] --> BASIC["Fields cơ bản\nDate, Pair, Platform, Type\nEmotion, Result, Status"]
     FORM --> ADVANCED["Nâng cao\nSL, TP, Entry Price, Exit Price\nLot Size, Timeframe, Entry Time\nClose Date, Close Time"]
     FORM --> EXIT_FIELDS["Exit Review\nExit Reason, Lessons Learned"]
-    FORM --> NOTE_FIELD["Ghi chú"]
+    FORM --> NOTE_FIELD["Ghi chú lúc vào lệnh"]
     FORM --> CHART_UPLOAD["Upload Chart Image"]
     
     CHART_UPLOAD --> GDRIVE_CHECK{Có Google Drive token?}

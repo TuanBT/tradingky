@@ -184,8 +184,8 @@ export function ShareTradeDialog({ trade, open, onClose, onDeleted }: ShareTrade
             <div className="rounded-lg border p-3 bg-muted/30">
               <div className="flex items-center justify-between">
                 <span className="font-semibold">{trade.pair} · {trade.type}</span>
-                <span className={`text-sm font-mono ${trade.pnl !== undefined ? (trade.pnl >= 0 ? "text-green-500" : "text-red-500") : "text-muted-foreground"}`}>
-                  {trade.pnl !== undefined ? `${trade.pnl >= 0 ? "+" : ""}$${trade.pnl.toFixed(2)}` : "-"}
+                <span className={`text-sm font-mono ${trade.result === "CANCELLED" ? "text-gray-400" : trade.pnl !== undefined ? (trade.pnl >= 0 ? "text-green-500" : "text-red-500") : "text-muted-foreground"}`}>
+                  {(trade.pnl !== undefined || trade.result === "CANCELLED") ? `${(trade.pnl ?? 0) >= 0 ? "+" : ""}$${(trade.pnl ?? 0).toFixed(2)}` : "-"}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">{trade.date} · {trade.emotion}</p>

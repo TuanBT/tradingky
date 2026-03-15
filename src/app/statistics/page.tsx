@@ -366,7 +366,7 @@ export default function StatisticsPage() {
                     <div key={m.month} className="text-center p-2 rounded bg-muted/50">
                       <div className="font-medium">{m.month}</div>
                       <div className={`font-mono font-bold ${m.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
-                        {m.pnl >= 0 ? "+" : ""}${m.pnl.toFixed(2)}
+                        ${m.pnl.toFixed(2)}
                       </div>
                       <div className="text-muted-foreground">{m.trades} lệnh · {m.winRate.toFixed(0)}% WR</div>
                     </div>

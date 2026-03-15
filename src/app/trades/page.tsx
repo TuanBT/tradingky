@@ -415,7 +415,6 @@ export default function TradesPage() {
                     <TableHead>Ngày</TableHead>
                     <TableHead>Cặp tiền</TableHead>
                     <TableHead className="hidden sm:table-cell">Trạng thái</TableHead>
-                    <TableHead className="hidden lg:table-cell">Tâm lý</TableHead>
                     <TableHead className="text-right">P&L</TableHead>
                     <TableHead className="hidden sm:table-cell">Ảnh</TableHead>
                     <TableHead className="hidden md:table-cell text-center">Cộng đồng</TableHead>
@@ -460,13 +459,10 @@ export default function TradesPage() {
                               <Badge className="bg-green-500/15 text-green-500 border-green-500/30"><FontAwesomeIcon icon={faFlagCheckered} className="mr-1 h-3 w-3" />Đã đóng</Badge>
                             )}
                           </TableCell>
-                          <TableCell className="hidden lg:table-cell">
-                            <Badge variant="secondary">{trade.emotion}</Badge>
-                          </TableCell>
                           <TableCell className="text-right">
-                            {trade.pnl !== undefined ? (
-                              <span className={`font-mono ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
-                                {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
+                            {(trade.pnl !== undefined || trade.result === "CANCELLED") ? (
+                              <span className={`font-mono ${trade.result === "CANCELLED" ? "text-gray-400" : (trade.pnl ?? 0) >= 0 ? "text-green-500" : "text-red-500"}`}>
+                                ${(trade.pnl ?? 0).toFixed(2)}
                               </span>
                             ) : "-"}
                           </TableCell>
@@ -635,14 +631,14 @@ export default function TradesPage() {
                             {t.type}
                           </Badge>
                         </div>
-                        {t.pnl !== undefined && s === "CLOSED" && (
-                          <span className={`text-sm font-mono ${t.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
-                            {t.pnl >= 0 ? "+" : ""}${t.pnl.toFixed(2)}
+                        {(t.pnl !== undefined || t.result === "CANCELLED") && s === "CLOSED" && (
+                          <span className={`text-sm font-mono ${t.result === "CANCELLED" ? "text-gray-400" : (t.pnl ?? 0) >= 0 ? "text-green-500" : "text-red-500"}`}>
+                            ${(t.pnl ?? 0).toFixed(2)}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
-                        <span>{format(parseISO(t.date), "dd/MM/yyyy")}{t.platform ? ` · ${t.platform}` : ""} · {t.emotion}</span>
+                        <span>{format(parseISO(t.date), "dd/MM/yyyy")}{t.platform ? ` · ${t.platform}` : ""}{(t.pnl !== undefined || t.result === "CANCELLED") && (t.status || "CLOSED") === "CLOSED" ? ` · ` : ""}{(t.pnl !== undefined || t.result === "CANCELLED") && (t.status || "CLOSED") === "CLOSED" && <span className={`font-mono ${t.result === "CANCELLED" ? "text-gray-400" : (t.pnl ?? 0) >= 0 ? "text-green-500" : "text-red-500"}`}>${(t.pnl ?? 0).toFixed(2)}</span>}</span>
                         {t.shareToken && communityStats[t.shareToken] && (
                           <span
                             role="link"
@@ -710,14 +706,9 @@ export default function TradesPage() {
                                     <span className="font-medium">{t.pair}</span>
                                     <span className="text-xs text-muted-foreground">{t.type}</span>
                                   </div>
-                                  {t.pnl !== undefined && s === "CLOSED" && (
-                                    <span className={`text-xs font-mono ${t.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
-                                      {t.pnl >= 0 ? "+" : ""}${t.pnl.toFixed(2)}
-                                    </span>
-                                  )}
                                 </div>
                                 <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
-                                  <span>{format(parseISO(t.date), "dd/MM")} · {t.emotion}</span>
+                                  <span>{format(parseISO(t.date), "dd/MM")}{(t.pnl !== undefined || t.result === "CANCELLED") && (t.status || "CLOSED") === "CLOSED" ? " · " : ""}{(t.pnl !== undefined || t.result === "CANCELLED") && (t.status || "CLOSED") === "CLOSED" && <span className={`font-mono ${t.result === "CANCELLED" ? "text-gray-400" : (t.pnl ?? 0) >= 0 ? "text-green-500" : "text-red-500"}`}>${(t.pnl ?? 0).toFixed(2)}</span>}</span>
                                   {t.shareToken && communityStats[t.shareToken] && (
                                     <span
                                       role="link"

@@ -12,6 +12,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronLeft,
   faChevronRight,
+  faCheck,
+  faXmark,
+  faMinus,
+  faBan,
+  faPlay,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   format,
@@ -56,9 +61,9 @@ export default function CalendarPage() {
 
   // Group trades by date with P&L
   const dailyData = useMemo(() => {
-    const map = new Map<string, { pnl: number; trades: Trade[]; wins: number; losses: number; open: number }>();
+    const map = new Map<string, { pnl: number; trades: Trade[]; wins: number; losses: number; breakeven: number; cancelled: number; open: number }>();
     for (const t of trades) {
-      const curr = map.get(t.date) || { pnl: 0, trades: [], wins: 0, losses: 0, open: 0 };
+      const curr = map.get(t.date) || { pnl: 0, trades: [], wins: 0, losses: 0, breakeven: 0, cancelled: 0, open: 0 };
       const isClosed = (t.status || "CLOSED") === "CLOSED";
       if (isClosed) curr.pnl += t.pnl || 0;
       curr.trades.push(t);
@@ -68,6 +73,10 @@ export default function CalendarPage() {
         curr.wins++;
       } else if (t.result === "LOSS") {
         curr.losses++;
+      } else if (t.result === "BREAKEVEN") {
+        curr.breakeven++;
+      } else if (t.result === "CANCELLED") {
+        curr.cancelled++;
       }
       map.set(t.date, curr);
     }
@@ -169,7 +178,7 @@ export default function CalendarPage() {
               monthSummary.totalPnl >= 0 ? "text-green-500" : "text-red-500"
             }`}
           >
-            {monthSummary.totalPnl >= 0 ? "+" : ""}${monthSummary.totalPnl.toFixed(2)}
+            ${monthSummary.totalPnl.toFixed(2)}
           </span>
         </div>
       </div>
@@ -234,10 +243,20 @@ export default function CalendarPage() {
                           data.pnl === 0 && "text-yellow-500"
                         )}
                       >
-                        {data.pnl >= 0 ? "+" : ""}${data.pnl.toFixed(2)}
+                        ${data.pnl.toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {data.trades.length} lệnh{data.wins + data.losses > 0 ? ` • ${data.wins}W/${data.losses}L` : ""}{data.open > 0 ? ` • ${data.open} mở` : ""}
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1 flex-wrap">
+                        <span>{data.trades.length} lệnh</span>
+                        {(data.wins > 0 || data.losses > 0 || data.breakeven > 0 || data.cancelled > 0 || data.open > 0) && (
+                          <span className="flex items-center gap-1">
+                            <span>•</span>
+                            {data.wins > 0 && <span className="text-green-500 flex items-center gap-0.5"><FontAwesomeIcon icon={faCheck} className="h-2 w-2" />{data.wins}</span>}
+                            {data.losses > 0 && <span className="text-red-500 flex items-center gap-0.5"><FontAwesomeIcon icon={faXmark} className="h-2 w-2" />{data.losses}</span>}
+                            {data.breakeven > 0 && <span className="text-yellow-500 flex items-center gap-0.5"><FontAwesomeIcon icon={faMinus} className="h-2 w-2" />{data.breakeven}</span>}
+                            {data.cancelled > 0 && <span className="text-gray-400 flex items-center gap-0.5"><FontAwesomeIcon icon={faBan} className="h-2 w-2" />{data.cancelled}</span>}
+                            {data.open > 0 && <span className="text-blue-500 flex items-center gap-0.5"><FontAwesomeIcon icon={faPlay} className="h-2 w-2" />{data.open}</span>}
+                          </span>
+                        )}
                       </span>
                     </div>
                   )}
@@ -303,13 +322,13 @@ export default function CalendarPage() {
                             : "Hoà"}
                         </span>
                       )}
-                      {trade.pnl !== undefined && (trade.status || "CLOSED") === "CLOSED" && (
+                      {(trade.pnl !== undefined || trade.result === "CANCELLED") && (trade.status || "CLOSED") === "CLOSED" && (
                         <span
                           className={`font-mono ${
-                            trade.pnl >= 0 ? "text-green-500" : "text-red-500"
+                            trade.result === "CANCELLED" ? "text-gray-400" : (trade.pnl ?? 0) >= 0 ? "text-green-500" : "text-red-500"
                           }`}
                         >
-                          {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
+                          ${(trade.pnl ?? 0).toFixed(2)}
                         </span>
                       )}
                     </div>

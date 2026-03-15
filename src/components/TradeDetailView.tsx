@@ -59,14 +59,12 @@ export function TradeDetailView({ trade, privacy, onImageClick }: TradeDetailVie
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
               <span className={`text-2xl font-bold ${resultColor}`}>{resultLabel}</span>
-              {trade.emotion && <Badge variant="secondary">{trade.emotion}</Badge>}
-              {trade.exitEmotion && <Badge variant="outline">{trade.exitEmotion}</Badge>}
             </div>
-            {!hidePnl && trade.pnl !== undefined && (
+            {!hidePnl && (trade.pnl !== undefined || trade.result === "CANCELLED") && (
               <div className="text-right">
                 <span className="text-xs text-muted-foreground block">P&L</span>
-                <span className={`text-3xl font-mono font-bold ${trade.pnl >= 0 ? "text-green-500" : "text-red-500"}`}>
-                  {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
+                <span className={`text-3xl font-mono font-bold ${trade.result === "CANCELLED" ? "text-gray-400" : (trade.pnl ?? 0) >= 0 ? "text-green-500" : "text-red-500"}`}>
+                  {(trade.pnl ?? 0) >= 0 ? "+" : ""}${(trade.pnl ?? 0).toFixed(2)}
                 </span>
               </div>
             )}
@@ -80,7 +78,6 @@ export function TradeDetailView({ trade, privacy, onImageClick }: TradeDetailVie
           <div className="flex items-center gap-3">
             <FontAwesomeIcon icon={faPlay} className="h-5 w-5 text-blue-500 animate-pulse" />
             <span className="text-lg font-semibold text-blue-500">Đang chạy</span>
-            {trade.emotion && <Badge variant="secondary">{trade.emotion}</Badge>}
           </div>
         </div>
       )}
@@ -117,13 +114,13 @@ export function TradeDetailView({ trade, privacy, onImageClick }: TradeDetailVie
             {!hideLotSize && trade.lotSize !== undefined && (
               <InfoRow icon={faLayerGroup} label="Lot / Qty" value={trade.lotSize.toString()} mono />
             )}
-            {!hidePnl && trade.pnl !== undefined && (
+            {!hidePnl && (trade.pnl !== undefined || trade.result === "CANCELLED") && (
               <InfoRow
                 icon={faDollarSign}
                 label="P&L"
-                value={`${trade.pnl >= 0 ? "+" : ""}$${trade.pnl.toFixed(2)}`}
+                value={`${(trade.pnl ?? 0) >= 0 ? "+" : ""}$${(trade.pnl ?? 0).toFixed(2)}`}
                 mono
-                valueColor={trade.pnl >= 0 ? "text-green-500" : "text-red-500"}
+                valueColor={trade.result === "CANCELLED" ? "text-gray-400" : (trade.pnl ?? 0) >= 0 ? "text-green-500" : "text-red-500"}
               />
             )}
             {!trade.entryPrice && !trade.stopLoss && !trade.takeProfit && !trade.lotSize && trade.pnl === undefined && (
@@ -139,7 +136,7 @@ export function TradeDetailView({ trade, privacy, onImageClick }: TradeDetailVie
           <CardHeader>
             <CardTitle className="text-base">
               <FontAwesomeIcon icon={faNoteSticky} className="mr-2 h-4 w-4" />
-              Ghi chú
+              Ghi chú lúc vào lệnh
             </CardTitle>
           </CardHeader>
           <CardContent>
