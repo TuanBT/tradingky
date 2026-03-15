@@ -166,6 +166,14 @@ export default function CalendarPage() {
           >
             <FontAwesomeIcon icon={faChevronRight} className="h-4 w-4" />
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentMonth(new Date())}
+            className="ml-1"
+          >
+            Hôm nay
+          </Button>
         </div>
         <div className="flex items-center gap-4 text-sm">
           <span className="text-muted-foreground">
