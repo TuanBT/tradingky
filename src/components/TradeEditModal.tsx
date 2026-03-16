@@ -295,6 +295,10 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
     for (const item of Array.from(items)) {
       if (item.type.startsWith("image/")) {
         e.preventDefault();
+        if (!hasGoogleToken) {
+          toast("Hãy kết nối Google Drive trước khi paste ảnh", "warning");
+          return;
+        }
         const file = item.getAsFile();
         if (!file) return;
         await handleUploadImage(file);
@@ -436,7 +440,8 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
             )}
             {/* Upload controls */}
             {canAddMore && (
-              <div className="mt-2 flex gap-2">
+              <div className="mt-2 space-y-2">
+                <div className="flex gap-2">
                 <form onSubmit={(e) => { e.preventDefault(); const input = e.currentTarget.querySelector('input'); const url = input?.value.trim(); if (url && form.chartImages.length < MAX_CHART_IMAGES) { updateForm({ chartImages: [...form.chartImages, url] }); if (input) input.value = ''; toast('Đã thêm ảnh từ URL', 'success'); } }} className="flex gap-2 flex-1">
                   <div className="relative flex-1">
                     <FontAwesomeIcon icon={faLink} className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -444,6 +449,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                   </div>
                   <button type="submit" className="inline-flex items-center justify-center h-9 px-3 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer text-sm">Thêm</button>
                 </form>
+                {hasGoogleToken && (
                 <label>
                   <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
                     const file = e.target.files?.[0];
@@ -456,6 +462,23 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                     Upload
                   </span>
                 </label>
+                )}
+                </div>
+                {!hasGoogleToken && (
+                  <button
+                    type="button"
+                    onClick={handleConnectDrive}
+                    disabled={connecting}
+                    className="w-full flex items-center justify-center gap-2 h-9 rounded-md border border-dashed border-blue-400/50 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 text-sm transition-colors cursor-pointer"
+                  >
+                    {connecting ? (
+                      <FontAwesomeIcon icon={faSpinner} className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FontAwesomeIcon icon={faCloudArrowUp} className="h-4 w-4" />
+                    )}
+                    {connecting ? "Đang kết nối..." : "Kết nối Google Drive để upload ảnh"}
+                  </button>
+                )}
               </div>
             )}
           </>
