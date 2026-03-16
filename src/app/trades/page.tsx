@@ -42,7 +42,7 @@ import {
 import { faStar as faStarOutline } from "@fortawesome/free-regular-svg-icons";
 import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
-import { TradeEditModal } from "@/components/TradeEditModal";
+import { TradeEditModal, loadPendingUpload, savePendingUpload } from "@/components/TradeEditModal";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ShareTradeDialog } from "@/components/ShareTradeDialog";
@@ -138,6 +138,19 @@ export default function TradesPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Auto-reopen modal if returning from GDrive auth redirect
+  useEffect(() => {
+    const pending = loadPendingUpload();
+    if (pending) {
+      setTradeModalId(pending.tradeId);
+      setTradeModalMode(pending.mode);
+      setTradeModalOpen(true);
+      // Re-save so TradeEditModal can pick it up when it opens
+      savePendingUpload(pending);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filteredTrades = useMemo(() => {
     const filtered = filterTrades(trades, filters);

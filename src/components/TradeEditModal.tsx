@@ -64,6 +64,28 @@ interface TradeForm {
 }
 
 const AUTOSAVE_KEY = "tradingky_draft";
+const PENDING_UPLOAD_KEY = "tradingky_pending_upload";
+
+export interface PendingUploadState {
+  tradeId: string | null;
+  mode: "add" | "edit" | "close";
+  form: TradeForm;
+}
+
+export function savePendingUpload(state: PendingUploadState) {
+  try {
+    sessionStorage.setItem(PENDING_UPLOAD_KEY, JSON.stringify(state));
+  } catch { /* quota exceeded — ignore */ }
+}
+
+export function loadPendingUpload(): PendingUploadState | null {
+  try {
+    const data = sessionStorage.getItem(PENDING_UPLOAD_KEY);
+    if (!data) return null;
+    sessionStorage.removeItem(PENDING_UPLOAD_KEY);
+    return JSON.parse(data);
+  } catch { return null; }
+}
 
 const emptyForm: TradeForm = {
   date: "",
@@ -128,6 +150,13 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
 
     if (isAddMode) {
       tradeRef.current = null;
+      // Check for pending form state from GDrive redirect
+      const pending = loadPendingUpload();
+      if (pending && pending.mode === "add") {
+        setForm(pending.form);
+        setAutoSaveStatus("Đã khôi phục dữ liệu trước khi xác thực");
+        setTimeout(() => setAutoSaveStatus(""), 3000);
+      } else {
       const draft = localStorage.getItem(AUTOSAVE_KEY);
       if (draft) {
         try {
@@ -140,6 +169,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
       } else {
         setForm({ ...emptyForm, date: format(new Date(), "yyyy-MM-dd") });
       }
+      }
       setShowAdvanced(true);
       setLoading(false);
       getLibrary(user.uid).then((lib) => setLibrary(lib));
@@ -151,6 +181,14 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
         const trade = trades.find((t) => t.id === tradeId);
         if (trade) {
           tradeRef.current = trade;
+          // Check for pending form state from GDrive redirect
+          const pending = loadPendingUpload();
+          if (pending && pending.tradeId === tradeId) {
+            setForm(pending.form);
+            setAutoSaveStatus("Đã khôi phục dữ liệu trước khi xác thực");
+            setTimeout(() => setAutoSaveStatus(""), 3000);
+            setShowAdvanced(true);
+          } else {
           const isClosing = mode === "close";
           setForm({
             date: trade.date,
@@ -178,6 +216,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
           });
           if (isClosing || trade.entryPrice || trade.exitPrice || trade.lotSize || trade.timeframe || trade.closeDate) {
             setShowAdvanced(true);
+          }
           }
         }
         setLoading(false);
@@ -221,9 +260,11 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
       toast(`Tối đa ${MAX_CHART_IMAGES} ảnh mỗi lệnh`, "error");
       return;
     }
+    savePendingUpload({ tradeId, mode: mode || "edit", form });
     setUploading(true);
     try {
       const accessToken = await getGoogleAccessToken();
+      sessionStorage.removeItem(PENDING_UPLOAD_KEY);
       const url = await uploadChartImage(accessToken, file);
       updateForm({ chartImages: [...form.chartImages, url] });
       toast("Đã upload ảnh", "success");
@@ -328,9 +369,11 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
   const [connecting, setConnecting] = useState(false);
 
   const handleConnectDrive = async () => {
+    if (form) savePendingUpload({ tradeId, mode: mode || "edit", form });
     setConnecting(true);
     try {
       await connectGoogleDrive();
+      sessionStorage.removeItem(PENDING_UPLOAD_KEY);
       toast("Đã kết nối Google Drive", "success");
     } catch {
       toast("Không thể kết nối Google Drive", "error");
