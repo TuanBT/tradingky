@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 
@@ -51,7 +52,7 @@ export function ImageLightbox({ src, images, initialIndex = 0, alt = "Image", op
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); onClose(); }
       if (e.key === "ArrowLeft") goPrev();
       if (e.key === "ArrowRight") goNext();
     },
@@ -60,12 +61,12 @@ export function ImageLightbox({ src, images, initialIndex = 0, alt = "Image", op
 
   useEffect(() => {
     if (open) {
-      document.addEventListener("keydown", handleKeyDown);
+      document.addEventListener("keydown", handleKeyDown, true);
       document.body.style.overflow = "hidden";
       resetTransform();
     }
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown, true);
       document.body.style.overflow = "";
     };
   }, [open, handleKeyDown, resetTransform]);
@@ -130,9 +131,9 @@ export function ImageLightbox({ src, images, initialIndex = 0, alt = "Image", op
 
   if (!open || !currentSrc) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm"
       onClick={() => { if (scale <= 1) onClose(); }}
     >
       {/* Close button */}
@@ -202,6 +203,7 @@ export function ImageLightbox({ src, images, initialIndex = 0, alt = "Image", op
         onTouchEnd={handleTouchEnd}
         draggable={false}
       />
-    </div>
+    </div>,
+    document.body
   );
 }
