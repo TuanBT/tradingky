@@ -431,7 +431,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                   <div key={i} className="relative group">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={getImageSrc(url)} alt={`Chart ${i + 1}`} loading="lazy" className="rounded-lg border w-full object-contain max-h-40 bg-muted cursor-pointer" onClick={() => { setLightboxSrc(getImageSrc(url)); }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    <button type="button" onClick={() => handleRemoveImage(i)} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-600 text-white flex items-center justify-center hover:bg-red-700 transition-colors opacity-0 group-hover:opacity-100" title="Xoá ảnh">
+                    <button type="button" onClick={() => handleRemoveImage(i)} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-600 text-white flex items-center justify-center hover:bg-red-700 transition-colors sm:opacity-0 sm:group-hover:opacity-100" title="Xoá ảnh">
                       <FontAwesomeIcon icon={faXmark} className="h-3 w-3" />
                     </button>
                   </div>
