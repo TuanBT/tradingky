@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import EditableSelect from "@/components/EditableSelect";
+import { PairIcon } from "@/components/PairIcon";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faFloppyDisk,
@@ -578,7 +579,7 @@ export function TradeEditModal({ tradeId, open, onClose, onSaved, mode = "edit" 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <Label className="text-sm font-medium">Cặp tiền *</Label>
-                    <EditableSelect value={form.pair} onValueChange={(v) => updateForm({ pair: v })} items={library.pairs} onItemsChange={(items) => handleLibraryUpdate("pairs", items)} placeholder="Chọn cặp tiền" />
+                    <EditableSelect value={form.pair} onValueChange={(v) => updateForm({ pair: v })} items={library.pairs} onItemsChange={(items) => handleLibraryUpdate("pairs", items)} placeholder="Chọn cặp tiền" renderPrefix={(item) => <PairIcon pair={item} />} />
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Loại lệnh *</Label>

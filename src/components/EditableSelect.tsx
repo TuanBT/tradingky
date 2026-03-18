@@ -20,6 +20,7 @@ interface EditableSelectProps {
   onItemsChange: (items: string[]) => void;
   placeholder?: string;
   emojis?: string[];
+  renderPrefix?: (item: string) => React.ReactNode;
 }
 
 export default function EditableSelect({
@@ -29,6 +30,7 @@ export default function EditableSelect({
   onItemsChange,
   placeholder = "Chọn...",
   emojis,
+  renderPrefix,
 }: EditableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [newItem, setNewItem] = useState("");
@@ -183,9 +185,10 @@ export default function EditableSelect({
               <>
                 <button
                   type="button"
-                  className={`flex-1 text-left px-2 py-1 rounded text-sm hover:bg-accent ${value === item ? "bg-accent font-medium" : ""}`}
+                  className={`flex-1 text-left px-2 py-1 rounded text-sm hover:bg-accent flex items-center gap-1.5 ${value === item ? "bg-accent font-medium" : ""}`}
                   onClick={() => { onValueChange(item); setIsOpen(false); }}
                 >
+                  {renderPrefix?.(item)}
                   {item}
                 </button>
                 <div className="flex gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity">
@@ -212,7 +215,8 @@ export default function EditableSelect({
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
       >
-        <span className={value ? "" : "text-muted-foreground"}>
+        <span className={`${value ? "" : "text-muted-foreground"} flex items-center gap-1.5`}>
+          {value ? renderPrefix?.(value) : null}
           {value || placeholder}
         </span>
         <svg className="h-4 w-4 opacity-50 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

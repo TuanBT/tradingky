@@ -6,6 +6,7 @@ import { getLibrary, updateLibrary, getTrades, addTrade } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
+import { PairIcon, hasPairIcon } from "@/components/PairIcon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -239,6 +240,7 @@ export default function SettingsPage() {
                     variant="outline"
                     className="pl-3 pr-1 py-1 flex items-center gap-1"
                   >
+                    {section.key === "pairs" && hasPairIcon(item) && <PairIcon pair={item} />}
                     {item}
                     <button
                       onClick={() => handleRemoveItem(section.key, item)}
