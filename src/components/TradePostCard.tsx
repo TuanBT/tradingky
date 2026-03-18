@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { TradeComment, UserRole, getTradeImages } from "@/lib/types";
+import { PairIcon } from "@/components/PairIcon";
 import {
   toggleLike,
   getComments,
@@ -209,6 +210,7 @@ export function TradePostCard({
           {/* TradingView-inspired header bar */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
             <div className="flex items-center gap-3 min-w-0">
+              <PairIcon pair={trade.pair} />
               <span className="font-bold text-base">{trade.pair}</span>
               <Badge className={`text-[10px] px-1.5 py-0 ${trade.type === "BUY" ? "bg-emerald-600 text-white" : "bg-orange-600 text-white"}`}>
                 {trade.type}

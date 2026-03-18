@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { PairIcon } from "@/components/PairIcon";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronLeft,
@@ -299,6 +300,7 @@ export default function CalendarPage() {
                         {trade.type}
                       </Badge>
                       <div>
+                        <PairIcon pair={trade.pair} />
                         <span className="font-medium">{trade.pair}</span>
                         {trade.platform && <span className="text-muted-foreground text-sm ml-2">
                           {trade.platform}

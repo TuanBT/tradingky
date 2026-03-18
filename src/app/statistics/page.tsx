@@ -5,6 +5,7 @@ import { Trade } from "@/lib/types";
 import { getTrades } from "@/lib/services";
 import { useAuth } from "@/components/AuthProvider";
 import { useStatisticsData } from "@/hooks/useStatisticsData";
+import { PairIcon } from "@/components/PairIcon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -393,6 +394,7 @@ export default function StatisticsPage() {
                       className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                     >
                       <div>
+                        <PairIcon pair={item.pair} />
                         <span className="font-semibold">{item.pair}</span>
                         <span className="text-sm text-muted-foreground ml-2">
                           ({item.count} lệnh, WR: {item.winRate.toFixed(0)}%)
@@ -504,7 +506,7 @@ export default function StatisticsPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Cặp</span>
-                      <span className="font-semibold">{stats.best.pair}</span>
+                      <span className="font-semibold"><PairIcon pair={stats.best.pair} /> {stats.best.pair}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Ngày</span>
@@ -533,7 +535,7 @@ export default function StatisticsPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Cặp</span>
-                      <span className="font-semibold">{stats.worst.pair}</span>
+                      <span className="font-semibold"><PairIcon pair={stats.worst.pair} /> {stats.worst.pair}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Ngày</span>
